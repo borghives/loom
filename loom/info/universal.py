@@ -18,10 +18,10 @@ class SecretManager(Enum):
 
 
 def access_secret(
-    secret_id: str, 
-    source_id: Optional[str] = None, 
-    version_id: str = "latest", 
-    manager: SecretManager = SecretManager.GCS_SECRET_MANAGER
+    secret_id: str,
+    source_id: Optional[str] = None,
+    version_id: str = "latest",
+    manager: SecretManager = SecretManager.GCS_SECRET_MANAGER,
 ) -> str:
     """
     Accesses a secret from a specified secret manager.
@@ -52,12 +52,63 @@ def access_secret(
             response = client.access_secret_version(request={"name": name})
             return response.payload.data.decode("utf-8")
         case SecretManager.LOCAL_KEYRING:
-            username = source_id or os.getenv("LOCAL_KEYRING_USERNAME") or getpass.getuser()
+            username = (
+                source_id
+                or os.getenv("LOCAL_KEYRING_USERNAME")
+                or getpass.getuser()
+            )
 
             ret = keyring.get_password(secret_id, username)
             if ret is None:
                 raise Exception("Secret not found in keyring")
             return ret
+
+    raise Exception("Unknown secret manager")
+
+
+def set_secret(
+    secret_id: str,
+    secret_value: str,
+    source_id: Optional[str] = None,
+    manager: SecretManager = SecretManager.GCS_SECRET_MANAGER,
+) -> None:
+    """
+    Sets a secret in a specified secret manager.
+
+    Args:
+        secret_id (str): The ID of the secret.
+        secret_value (str): The value of the secret to set.
+        source_id (str, optional): The source identifier. For GCS, this is the
+            project ID (defaults to `GOOGLE_CLOUD_PROJECT_NUM` env var). For
+            local keyring, this is the username (defaults to `LOCAL_KEYRING_USERNAME`
+            env var or the current user).
+        manager (SecretManager, optional): The secret manager to use.
+            Defaults to `SecretManager.GCS_SECRET_MANAGER`.
+    """
+    match manager:
+        case SecretManager.GCS_SECRET_MANAGER:
+            project_num = source_id or os.getenv("GOOGLE_CLOUD_PROJECT_NUM")
+            if (project_num is None) or (len(project_num) == 0):
+                raise Exception("GOOGLE_CLOUD_PROJECT_NUM is not set")
+
+            client = secretmanager.SecretManagerServiceClient()
+            parent = f"projects/{project_num}/secrets/{secret_id}"
+
+            # Add the secret version.
+            payload = secret_value.encode("UTF-8")
+            client.add_secret_version(
+                request={"parent": parent, "payload": {"data": payload}}
+            )
+            return
+
+        case SecretManager.LOCAL_KEYRING:
+            username = (
+                source_id
+                or os.getenv("LOCAL_KEYRING_USERNAME")
+                or getpass.getuser()
+            )
+            keyring.set_password(secret_id, username, secret_value)
+            return
 
     raise Exception("Unknown secret manager")
 
@@ -131,12 +182,12 @@ def get_remote_db_client(
     secret_id = secret_name or os.getenv("MONGODB_SECRET")
     if (secret_id is None) or (len(secret_id) == 0):
         raise Exception(
-            """
+            '''
             MONGODB_SECRET is not set for remote client.  For safety reason there should 
             always be a secret part to the remote database uri.  You might try to by pass 
             this little friction, but I implore you to reconsider.  Extend the access_secret 
             function to support a secret manager of your choice.
-            """
+            '''
         )
 
     mongodb_uri = uri or os.getenv("MONGODB_URI")

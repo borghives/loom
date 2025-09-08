@@ -3,7 +3,7 @@
 Weaves the fabric of information and time into one reality.
 
 ## North Star
-A tapestry to which ideas are carried into reality swiftly, safely, and simply.  The two most important concept of such reality is information and time.
+A tapestry to which ideas are carried into reality swiftly, safely, and simply.  The two most important concept for such reality is information and time.
 
 ## Goal
 - Lower mental load of coding
