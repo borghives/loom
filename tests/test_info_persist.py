@@ -7,10 +7,9 @@ import pandas as pd
 from datetime import datetime
 
 from loom.info.persist import Persistable
-from loom.info.model import CoalesceOnInsert, TimeInserted, TimeUpdated
+from loom.info.model import CoalesceOnInsert
 from loom.info.filter import Filter, SortDesc
 from loom.info.aggregation import Aggregation
-from pydantic import Field
 
 
 # A decorator to add db metadata for testing purposes, mimicking the real one.

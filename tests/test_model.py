@@ -1,5 +1,5 @@
 from bson import ObjectId
-from loom.info.model import Model, TimeInserted, TimeUpdated, StrUpper, Collapsible
+from loom.info.model import Model, TimeInserted, StrUpper, Collapsible
 
 # A concrete model for testing
 class MyTestModel(Model):
