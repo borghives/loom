@@ -1,11 +1,11 @@
 from bson import ObjectId
-from loom.info.model import Model, SuperposDate, StrUpper, Superposition
+from loom.info.model import Model, TimeInserted, TimeUpdated, StrUpper, Collapsible
 
 # A concrete model for testing
 class MyTestModel(Model):
     name: str
     value: int
-    created_at: SuperposDate = None
+    created_at: TimeInserted = None
     description: StrUpper = ""
 
 def test_model_creation():
@@ -58,22 +58,15 @@ def test_queryable_transformer():
 
 def test_get_field_hints():
     """Tests get_field_hints method."""
-    hints = MyTestModel.get_field_hints(Superposition)
-    assert "id" in hints
+    hints = MyTestModel.get_field_hints(Collapsible)
+    assert "id" not in hints
     assert "created_at" in hints
     assert "name" not in hints
-    assert isinstance(hints["id"][0], Superposition)
 
 def test_get_field_hint():
     """Tests get_field_hint method."""
-    id_hints = MyTestModel.get_field_hint("id")
-    assert len(id_hints) > 0 # Pydantic adds other things
     
-    superposition_hints = MyTestModel.get_field_hint("id", Superposition)
-    assert len(superposition_hints) == 1
-    assert isinstance(superposition_hints[0], Superposition)
-
-    name_hints = MyTestModel.get_field_hint("name", Superposition)
+    name_hints = MyTestModel.get_field_hint("name", Collapsible)
     assert len(name_hints) == 0
 
     non_existent_hints = MyTestModel.get_field_hint("non_existent_field")

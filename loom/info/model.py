@@ -7,90 +7,120 @@ from typing import Annotated, Optional
 from bson import ObjectId
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
+from loom.time.util import get_current_time, to_utc_aware
+
 
 class QueryableTransformer(AfterValidator):
     """
-    An annotation for Pydantic models that applies a transformation function.
-    This is used for both validation and for transforming query values.
+    A Pydantic `AfterValidator` that also serves as a query value transformer.
+
+    This allows a single annotation to define a transformation (e.g., `str.upper`)
+    that is applied both during Pydantic validation and when constructing
+    database queries.
     """
 
     def __call__(self, v):
-        # This allows the instance to be used as a function,
-        # which is what AfterValidator expects.
+        """Allows the instance to be used as a function for validation."""
         return self.func(v)  # type: ignore
-
 
 class UpdateType(Enum):
     """
-    Specifies the type of update operation for a field when persisting.
+    Specifies the type of MongoDB update operation for a field.
     """
 
     SET_ON_INSERT = "$setOnInsert"
     SET = "$set"
     INC = "$inc"
 
-
-class Superposition:
+class Collapsible:
     """
-    A Pydantic annotation for fields that are in a "superposition" of existence.
-    It value is not known until entangled with or observed by other where it collapse to a real object
+    Abstract base for annotations that generate a default value on demand.
 
-    This allows a field to have a default value that collapses to a real object upon creation,
-    and specifies how the field should be updated in the database.
+    This pattern is used for fields that should only get a value when they are
+    explicitly "collapsed" or accessed when their current value is `None`.
     """
+    def __call__(self, v):
+        raise NotImplementedError()
 
-    def __init__(self, collapse, collapse_on: UpdateType):
-        """
-        Initializes the Superposition annotation.
+class CoalesceOnInsert(Collapsible):
+    """
+    A `Collapsible` that provides a value only on document creation.
 
-        Args:
-            collapse: A function to call to get the default value if the field is None.
-            collapse_on: The database update operation to use for this field.
-        """
+    If the field's value is `None`, it calls the `collapse` function to generate
+    a new value. This is intended for use with `$setOnInsert` operations.
+    """
+    def __init__(self, collapse):
         self.collapse = collapse
-        self.collapse_on = collapse_on
-
     def __call__(self, v):
         if v is None:
             return self.collapse()
         return v
 
+class CoalesceOnSet(Collapsible):
+    """
+    A `Collapsible` that provides a value on any update.
+
+    If the field's value is `None`, it calls the `collapse` function to generate
+    a new value. This is intended for use with `$set` operations where a value
+    needs to be refreshed on every save.
+    """
+    def __init__(self, collapse):
+        self.collapse = collapse
+    def __call__(self, v):
+        if v is None:
+            return self.collapse()
+        return v
 
 def coalesce(value, transformers: list):
+    """Applies a list of transformers sequentially to a value."""
     for transformer in transformers:
         value = transformer(value)
     return value
 
 
+#: An annotated string type that automatically converts the value to uppercase.
 StrUpper = Annotated[str, QueryableTransformer(str.upper)]
+
+#: An annotated string type that automatically converts the value to lowercase.
 StrLower = Annotated[str, QueryableTransformer(str.lower)]
 
-# A datetime field that defaults to the current time on insert.
-SuperposDate = Annotated[
+#: A datetime field that defaults to the current UTC time on document creation.
+TimeInserted = Annotated[
     datetime | None,
-    Superposition(collapse=datetime.now, collapse_on=UpdateType.SET_ON_INSERT),
+    CoalesceOnInsert(collapse=get_current_time),
+    AfterValidator(lambda x: to_utc_aware(x) if x is not None else None)
 ]
-# An ObjectId field that defaults to a new ObjectId on insert.
-SuperposId = Annotated[
+
+#: A datetime field that defaults to the current UTC time on document update.
+TimeUpdated = Annotated[
+    datetime | None,
+    CoalesceOnSet(collapse=get_current_time),
+    AfterValidator(lambda x: to_utc_aware(x) if x is not None else None)
+]
+
+#: An ObjectId field that defaults to a new ObjectId on document creation.
+SuperId = Annotated[
     ObjectId | None,
-    Superposition(collapse=ObjectId, collapse_on=UpdateType.SET_ON_INSERT),
+    CoalesceOnInsert(collapse=ObjectId),
 ]
 
 
 class Model(ABC, BaseModel):
     """
-    The Model is the abstract base class for creating Pydantic models that can be woven into the Loom.
-    It can be thought of as a Fiber, a thread of information that can be persisted and entangled with other Fibers.
+    An abstract base class for creating Pydantic models for the application.
 
-    This class provides the basic functionality for handling MongoDB's `ObjectId`
-    and for serializing the model to and from MongoDB documents.
+    This class provides core functionality for integrating with MongoDB, including:
+    - Automatic generation of an `ObjectId` for the `id` field on creation.
+    - Serialization to and from MongoDB-compatible documents.
+    - Helper methods for inspecting field metadata and annotations.
 
     Attributes:
-        id (SuperposId): The document's ID in MongoDB, aliased to `_id`.
-            It's a "superposition" ID that collapses to a real ObjectId upon observation (access).
+        id (ObjectId): The document's unique identifier, aliased to `_id` for
+            MongoDB compatibility. It automatically generates a new `ObjectId`
+            on first access if one is not already present.
     """
 
-    id: SuperposId = Field(
+    id: ObjectId | None = Field(
         description="A universal id that this model entity can be linked with.",
         alias="_id",
         default=None,
@@ -108,30 +138,30 @@ class Model(ABC, BaseModel):
 
     def collapse_id(self) -> ObjectId:
         """
-        Gets or Create the `ObjectId` for the model.  Like quantum decoherence, where the model superposition collapsed upon observation
+        Gets or creates the `ObjectId` for the model instance.
 
-        If the document does not have an `ObjectId` yet, a new one will be generated for entanglement.
+        This method "collapses" the ID from its potential state to a definite one.
+        If the `id` field is `None`, it triggers the `CoalesceOnInsert` logic
+        from the `SuperId` annotation to generate a new `ObjectId`.
 
         Returns:
-            ObjectId: The document's `ObjectId`.
+            ObjectId: The document's unique `ObjectId`.
+
+        Raises:
+            ValueError: If the collapsing logic fails to produce an `ObjectId`.
         """
-        if self.id is None:
-            superpositions = self.get_field_hint("id", Superposition)
-            # The value is not set, so we collapse it from the superposition.
-            value = coalesce(self.id, superpositions)
-            if isinstance(value, ObjectId):
-                self.id = value
-                return value
+        if self.id is not None:
+            return self.id
 
-            raise ValueError(
-                f"collapsing of id did not return ObjectId type.  instead got {type(value)}"
-            )
-
+        self.id = ObjectId()
         return self.id
 
     def is_entangled(self) -> bool:
         """
-        Checks if the document has an `ObjectId`.  Once its id exists, assumed that it was observed and entangled with other model.
+        Checks if the model has been assigned a persistent identity.
+
+        Once an `ObjectId` is present, the model is considered "entangled" or
+        linked to a potential database record.
 
         Returns:
             bool: `True` if the document has an `ObjectId`, `False` otherwise.
@@ -141,16 +171,17 @@ class Model(ABC, BaseModel):
     @classmethod
     def get_field_hints(cls, meta_type) -> dict[str, list]:
         """
-        Gets all fields that have a metadata item of a specific type.
+        Finds all model fields that are annotated with a specific metadata type.
 
-        This is useful for finding fields with custom annotations like `Entanglement`.
+        This is useful for discovering fields with custom annotations like
+        `CoalesceOnInsert` or `QueryableTransformer`.
 
         Args:
             meta_type: The type of the metadata to look for.
 
         Returns:
             A dictionary where keys are field names and values are lists of
-            metadata items of the specified type.
+            matching metadata items.
         """
         meta_map = {
             key: [item for item in value.metadata if isinstance(item, meta_type)]
@@ -165,12 +196,12 @@ class Model(ABC, BaseModel):
         Gets the metadata for a specific field, optionally filtered by type.
 
         Args:
-            field_name (str): The name of the field.
-            hint_type (Optional[type], optional): The type of metadata to filter by.
-                If None, all metadata for the field is returned. Defaults to None.
+            field_name: The name of the field to inspect.
+            hint_type: If provided, only metadata items of this type are
+                returned. Defaults to None.
 
         Returns:
-            A list of metadata items for the field.
+            A list of metadata items found on the field.
         """
         annotation_info = cls.model_fields.get(field_name)
         if annotation_info is None:
@@ -184,18 +215,20 @@ class Model(ABC, BaseModel):
 
     def dump_doc(self) -> dict:
         """
-        Dumps the model to a dictionary that is ready to be inserted into
-        MongoDB.
+        Serializes the model to a MongoDB-compatible dictionary.
+
+        It uses `by_alias=True` to ensure field aliases (like `_id`) are used
+        and excludes fields with `None` values.
 
         Returns:
-            dict: The model as a MongoDB document.
+            dict: The model as a dictionary.
         """
         retval = self.model_dump(by_alias=True, exclude_none=True)
         return retval
 
     def dump_json(self) -> str:
         """
-        Dumps the model to a JSON string.
+        Serializes the model to a JSON string.
 
         Returns:
             str: The model as a JSON string.
@@ -203,12 +236,13 @@ class Model(ABC, BaseModel):
         doc = self.dump_doc()
         return json.dumps(doc)
 
-    def initialize_private_fields(self, doc):
+    def init_private_fields_from_doc(self, doc):
         """
-        A hook for initializing fields from a database document.
+        A hook for initializing private fields from a database document.
 
-        This method is called when loading a model from the database. Subclasses
-        can override this to perform custom initialization.
+        This method is called when creating a model instance via `from_db_doc`.
+        Subclasses can override this to perform custom initialization, such as
+        setting flags to indicate the model is persisted.
 
         Args:
             doc (dict): The document retrieved from the database.
@@ -216,16 +250,19 @@ class Model(ABC, BaseModel):
         pass
 
     @classmethod
-    def from_db_doc(cls, doc: dict) -> "Model":
+    def from_db_doc(cls, doc: dict):
         """
-        Creates a new instance of the model from a MongoDB document.
+        Creates a model instance from a MongoDB document.
+
+        After creating the instance, it calls the `init_private_fields_from_doc`
+        hook to allow for post-initialization logic.
 
         Args:
             doc (dict): The MongoDB document.
 
         Returns:
-            Model: A new instance of the model.
+            An instance of the model populated with the document data.
         """
         retval = cls(**doc)
-        retval.initialize_private_fields(doc)
+        retval.init_private_fields_from_doc(doc)
         return retval

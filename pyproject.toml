@@ -13,7 +13,8 @@ dependencies = [
     "rich (>=14.1.0,<15.0.0)",
     "google-cloud-secret-manager (>=2.24.0,<3.0.0)",
     "pymongo (>=4.14.1,<5.0.0)",
-    "keyring (>=25.6.0,<26.0.0)"
+    "keyring (>=25.6.0,<26.0.0)",
+    "pandas (>=2.3.2,<3.0.0)"
 ]
 
 
@@ -24,4 +25,5 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.group.dev.dependencies]
 py-spy = "^0.4.1"
 pytest = "^8.4.2"
+pandas-stubs = "^2.3.2.250827"
 
