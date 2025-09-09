@@ -4,26 +4,14 @@ from bson import ObjectId
 import pandas as pd
 from datetime import datetime, timezone
 
-from pymongo import ReturnDocument, UpdateOne
+from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 
 from loom.info.persist import Persistable, declare_persist_db
 from loom.info.model import CoalesceOnSet, CoalesceOnInsert
 
-# A decorator to add db metadata for testing purposes, mimicking the real one.
-def declare_persist_db_for_test(db_name, collection_name, remote_db=False, version=None, **kwargs):
-    def decorator(cls):
-        cls._db_metadata = {
-            "db_name": db_name,
-            "collection_name": collection_name,
-            "remote_db": remote_db,
-            "version": version,
-        }
-        return cls
-    return decorator
 
-
-@declare_persist_db_for_test(db_name="test_db", collection_name="test_collection", version=1)
+@declare_persist_db(db_name="test_db", collection_name="test_collection", version=1, test=True)
 class TestModel(Persistable):
     name: str
     value: int
