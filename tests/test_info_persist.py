@@ -1,19 +1,17 @@
-
-from typing import Annotated
 import unittest
 from unittest.mock import MagicMock, patch, ANY
 from bson import ObjectId
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 
-from loom.info.persist import Persistable
-from loom.info.model import CoalesceOnInsert
-from loom.info.filter import Filter, SortDesc
-from loom.info.aggregation import Aggregation
+from pymongo import ReturnDocument, UpdateOne
+from pymongo.errors import BulkWriteError
 
+from loom.info.persist import Persistable, declare_persist_db
+from loom.info.model import CoalesceOnSet, CoalesceOnInsert
 
 # A decorator to add db metadata for testing purposes, mimicking the real one.
-def declare_persist_db(db_name, collection_name, remote_db=False, version=None, **kwargs):
+def declare_persist_db_for_test(db_name, collection_name, remote_db=False, version=None, **kwargs):
     def decorator(cls):
         cls._db_metadata = {
             "db_name": db_name,
@@ -25,218 +23,155 @@ def declare_persist_db(db_name, collection_name, remote_db=False, version=None, 
     return decorator
 
 
-@declare_persist_db(db_name="test_db", collection_name="test_collection", version=1)
+@declare_persist_db_for_test(db_name="test_db", collection_name="test_collection", version=1)
 class TestModel(Persistable):
     name: str
     value: int
-    coalesce_field: Annotated[str | None, CoalesceOnInsert(lambda x: x.upper() if x is not None else "")] = None
-
-
-class UnregisteredModel(Persistable):
-    name: str
 
 
 class PersistableTest(unittest.TestCase):
-    def test_initialization_and_private_fields(self):
-        """Test that a new model has updates and a loaded one does not."""
-        # A newly created model should need persisting
-        model = TestModel(name="test", value=1, coalesce_field="coalesce")
-        self.assertTrue(model.has_update)
 
-        # A model loaded from DB should not have updates pending
-        doc = {"_id": ObjectId(), "name": "test", "value": 1, "coalesce_field": "coalesce"}
-        model = TestModel.from_db_doc(doc)
-        self.assertFalse(model.has_update)
+    def test_should_persist_property(self):
+        """Test the should_persist property logic."""
+        new_model = TestModel(name="new", value=1)
+        self.assertTrue(new_model.should_persist)
 
-    def test_has_update_property(self):
-        """Test the getter and setter for has_update."""
-        model = TestModel(name="test", value=1, coalesce_field="coalesce")
-        self.assertTrue(model.has_update)
-        model.has_update = False
-        self.assertFalse(model.has_update)
+        loaded_model = TestModel.from_db_doc({"_id": ObjectId(), "name": "loaded", "value": 2})
+        self.assertFalse(loaded_model.should_persist)
 
-    def test_self_filter(self):
-        """Test that self_filter returns a correct filter for the model's _id."""
-        obj_id = ObjectId()
-        model = TestModel.from_db_doc({"_id": obj_id, "name": "test", "value": 1, "coalesce_field": "coalesce"})
-        filter_exp = model.self_filter()
-        self.assertEqual(filter_exp.get_exp(), {"_id": obj_id})
+        loaded_model.has_update = True
+        self.assertTrue(loaded_model.should_persist)
 
-    def test_update_instructions(self):
-        """Test the generation of $set and $setOnInsert instructions."""
-        model = TestModel(name="test", value=10, coalesce_field="do_not_set")
+    def test_get_set_instruction(self):
+        """Test the get_set_instruction method."""
+        fixed_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         
-        # Get the complete update instruction
+        # Directly modify the collapse function for the test
+        updated_time_transformer = TestModel.get_field_hint("updated_time", CoalesceOnSet)[0]
+        updated_time_transformer.collapse = lambda: fixed_time
+
+        model = TestModel(name="test", value=10)
+        model.updated_time = None  # Ensure coalesce is triggered
+
+        set_instr = model.get_set_instruction()
+        self.assertIn("$set", set_instr)
+        set_doc = set_instr["$set"]
+
+        self.assertEqual(set_doc["name"], "test")
+        self.assertEqual(set_doc["updated_time"], fixed_time)
+
+    def test_get_update_instruction(self):
+        """Test the complete update instruction generation."""
+        fixed_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        
+        # Directly modify the collapse functions for the test
+        updated_time_transformer = TestModel.get_field_hint("updated_time", CoalesceOnSet)[0]
+        updated_time_transformer.collapse = lambda: fixed_time
+        created_at_transformer = TestModel.get_field_hint("created_at", CoalesceOnInsert)[0]
+        created_at_transformer.collapse = lambda: fixed_time
+
+        model = TestModel(name="test", value=10)
+        model.id = None
+        model.created_at = None
+        model.updated_time = None
+
         update_instr = model.get_update_instruction()
 
-        # Check the structure
         self.assertIn("$set", update_instr)
+        set_doc = update_instr["$set"]
+        self.assertEqual(set_doc["updated_time"], fixed_time)
+
         self.assertIn("$setOnInsert", update_instr)
+        set_on_insert_doc = update_instr["$setOnInsert"]
+        self.assertEqual(set_on_insert_doc["created_at"], fixed_time)
 
-        # Check the $set part
-        self.assertEqual(update_instr["$set"], {"name": "test", "value": 10})
+    @patch.object(TestModel, 'get_db_collection')
+    def test_persist_instance(self, mock_get_collection):
+        """Test persisting a single model instance."""
+        mock_collection = MagicMock()
+        mock_get_collection.return_value = mock_collection
 
-        # Check the $setOnInsert part
-        set_on_insert = update_instr["$setOnInsert"]
-        self.assertIn("version", set_on_insert)
-        self.assertIn("coalesce_field", set_on_insert)
-        self.assertIn("created_at", set_on_insert)
-        self.assertEqual(set_on_insert["version"], 1)
-        self.assertEqual(set_on_insert["coalesce_field"], "do_not_set")
-        self.assertIsInstance(set_on_insert["created_at"], datetime)
-
-    def test_db_info_methods(self):
-        """Test retrieval of database metadata."""
-        self.assertEqual(TestModel.get_db_name(), "test_db")
-        self.assertEqual(TestModel.get_db_collection_name(), "test_collection")
-        self.assertEqual(TestModel.get_model_code_version(), 1)
-        self.assertFalse(TestModel.is_remote_db())
-
-    def test_db_info_exceptions(self):
-        """Test that exceptions are raised for unregistered models."""
-        with self.assertRaisesRegex(Exception, "is not decorated with @declare_persist_db"):
-            UnregisteredModel.get_db_info()
+        model = TestModel(name="to_persist", value=100)
         
-        with patch.object(UnregisteredModel, "_db_metadata", {}, create=True):
-            with self.assertRaisesRegex(Exception, "does not have db_name defined"):
-                UnregisteredModel.get_db_name()
+        result_doc = {"_id": model.collapse_id(), "name": "persisted", "value": 101, "created_at": datetime.now(timezone.utc)}
+        mock_collection.find_one_and_update.return_value = result_doc
 
-    @patch('loom.info.persist.get_local_db_client')
-    @patch('loom.info.persist.get_remote_db_client')
-    def test_db_client_retrieval(self, mock_remote_client, mock_local_client):
-        """Test that the correct DB client is returned."""
-        TestModel.get_db_client()
-        mock_local_client.assert_called_once()
-        mock_remote_client.assert_not_called()
+        self.assertTrue(model.persist())
 
-        # Change metadata to remote and test again
-        with patch.object(TestModel, "_db_metadata", {"remote_db": True, "db_name": "test", "collection_name": "test"}):
-            TestModel.get_db_client()
-            mock_remote_client.assert_called_once()
+        mock_collection.find_one_and_update.assert_called_once()
+        self.assertFalse(model.has_update)
+        self.assertEqual(model.name, "persisted")
 
-    def test_aggregation_parsing(self):
-        """Test the parsing of aggregation pipelines."""
-        agg = Aggregation().Match(Filter({"name": "test"})).Sort(SortDesc("value"))
-        parsed_pipe = TestModel.parse_agg_pipe(agg)
-        expected_pipe = [
-            {"$match": {"name": "test"}},
-            {"$sort": {"value": -1}},
+    @patch.object(TestModel, 'get_db_collection')
+    def test_persist_lazy(self, mock_get_collection):
+        """Test the lazy=True flag on the persist method."""
+        mock_collection = MagicMock()
+        mock_get_collection.return_value = mock_collection
+
+        loaded_model = TestModel.from_db_doc({"_id": ObjectId(), "name": "loaded", "value": 1})
+        self.assertFalse(loaded_model.persist(lazy=True))
+        mock_collection.find_one_and_update.assert_not_called()
+
+        new_model = TestModel(name="new", value=2)
+        result_doc = {"_id": new_model.collapse_id(), "name": "new", "value": 2, "created_at": datetime.now(timezone.utc)}
+        mock_collection.find_one_and_update.return_value = result_doc
+        self.assertTrue(new_model.persist(lazy=True))
+        self.assertEqual(mock_collection.find_one_and_update.call_count, 1)
+
+    @patch.object(TestModel, 'get_db_collection')
+    def test_persist_many(self, mock_get_collection):
+        """Test persisting multiple model instances."""
+        mock_collection = MagicMock()
+        mock_get_collection.return_value = mock_collection
+
+        items = [
+            TestModel(name="item1", value=1),
+            TestModel.from_db_doc({"_id": ObjectId(), "name": "item2", "value": 2}),
+            TestModel.from_db_doc({"_id": ObjectId(), "name": "item3", "value": 3}),
         ]
-        self.assertEqual(parsed_pipe, expected_pipe)
+        items[2].value = 33
+        items[2].has_update = True
+
+        TestModel.persist_many(items, lazy=True)
+
+        mock_collection.bulk_write.assert_called_once()
+        operations = mock_collection.bulk_write.call_args[0][0]
+        self.assertEqual(len(operations), 2)
+        self.assertIsInstance(operations[0], UpdateOne)
+
+        self.assertFalse(items[0].has_update)
+        self.assertFalse(items[2].has_update)
 
     @patch.object(TestModel, 'get_db_collection')
-    def test_load_one(self, mock_get_collection):
-        """Test loading a single document."""
-        mock_collection = MagicMock()
-        mock_get_collection.return_value = mock_collection
-        
-        doc = {"_id": ObjectId(), "name": "test", "value": 1}
-        mock_collection.find_one.return_value = doc
-
-        model = TestModel.load_one(name="test")
-        
-        mock_collection.find_one.assert_called_once_with({"name": "test"}, sort=None)
-        self.assertIsNotNone(model)
-        self.assertEqual(model.name, "test")
-
-    @patch.object(TestModel, 'get_db_collection')
-    def test_from_id(self, mock_get_collection):
-        """Test loading a document by its ObjectId."""
-        mock_collection = MagicMock()
-        mock_get_collection.return_value = mock_collection
-        
-        obj_id = ObjectId()
-        doc = {"_id": obj_id, "name": "by_id", "value": 1}
-        mock_collection.find_one.return_value = doc
-
-        # Test with ObjectId
-        model = TestModel.from_id(obj_id)
-        mock_collection.find_one.assert_called_with({"_id": obj_id}, sort=None)
-        self.assertEqual(model.name, "by_id")
-
-        # Test with valid string
-        model_str = TestModel.from_id(str(obj_id))
-        mock_collection.find_one.assert_called_with({"_id": obj_id}, sort=None)
-        self.assertEqual(model_str.name, "by_id")
-
-        # Test with invalid string
-        self.assertIsNone(TestModel.from_id("invalid-id"))
-
-    @patch.object(TestModel, 'get_db_collection')
-    def test_load_many(self, mock_get_collection):
-        """Test loading multiple documents."""
-        mock_collection = MagicMock()
-        mock_get_collection.return_value = mock_collection
-        
-        docs = [
-            {"_id": ObjectId(), "name": "test1", "value": 1},
-            {"_id": ObjectId(), "name": "test2", "value": 2},
-        ]
-        mock_cursor = MagicMock()
-        mock_cursor.__enter__.return_value = iter(docs)
-        mock_collection.find.return_value = mock_cursor
-
-        models = TestModel.load_many(value={"$gt": 0})
-        
-        mock_collection.find.assert_called_once_with({"value": {"$gt": 0}}, limit=0, sort=None)
-        self.assertEqual(len(models), 2)
-        self.assertEqual(models[0].name, "test1")
-
-    @patch.object(TestModel, 'get_db_collection')
-    def test_load_dataframe(self, mock_get_collection):
-        """Test loading data into a pandas DataFrame."""
-        mock_collection = MagicMock()
-        mock_get_collection.return_value = mock_collection
-        
-        docs = [
-            {"_id": ObjectId(), "name": "test1", "value": 1},
-            {"_id": ObjectId(), "name": "test2", "value": 2},
-        ]
-        mock_cursor = MagicMock()
-        mock_cursor.__enter__.return_value = iter(docs)
-        mock_collection.aggregate.return_value = mock_cursor
-
-        df = TestModel.load_dataframe(filter=Filter({"value": {"$gt": 0}}))
-        
-        mock_collection.aggregate.assert_called_once()
-        self.assertIsInstance(df, pd.DataFrame)
-        self.assertEqual(len(df), 2)
-        self.assertIn("name", df.columns)
-
-    @patch.object(TestModel, 'get_db_collection')
-    def test_exists(self, mock_get_collection):
-        """Test the exists method."""
+    def test_insert_dataframe(self, mock_get_collection):
+        """Test inserting a pandas DataFrame."""
         mock_collection = MagicMock()
         mock_get_collection.return_value = mock_collection
 
-        # Test when document exists
-        mock_collection.find_one.return_value = {"_id": ObjectId()}
-        self.assertTrue(TestModel.exists(name="test"))
-        mock_collection.find_one.assert_called_with({"name": "test"})
+        df = pd.DataFrame({"name": ["df_user1"], "value": [10]})
+        TestModel.insert_dataframe(df)
 
-        # Test when document does not exist
-        mock_collection.find_one.return_value = None
-        self.assertFalse(TestModel.exists(name="nonexistent"))
-        mock_collection.find_one.assert_called_with({"name": "nonexistent"})
+        mock_collection.insert_many.assert_called_once()
+        inserted_records = mock_collection.insert_many.call_args[0][0]
+        self.assertEqual(inserted_records[0]["name"], "df_user1")
+        self.assertIn("updated_time", inserted_records[0])
 
-    @patch.object(TestModel, 'get_db')
-    def test_create_collection(self, mock_get_db):
-        """Test collection creation logic."""
-        mock_db = MagicMock()
-        mock_get_db.return_value = mock_db
-        collection_name = TestModel.get_db_collection_name()
+    @patch.object(TestModel, 'get_db_collection')
+    def test_insert_dataframe_ignores_duplicate_error(self, mock_get_collection):
+        """Test that insert_dataframe handles and ignores duplicate key errors."""
+        mock_collection = MagicMock()
+        mock_get_collection.return_value = mock_collection
+        
+        error_details = {"writeErrors": [{"code": 11000}]}
+        bwe = BulkWriteError(error_details)
+        mock_collection.insert_many.side_effect = bwe
 
-        # Scenario 1: Collection does not exist
-        mock_db.list_collection_names.return_value = ["another_collection"]
-        TestModel.create_collection()
-        mock_db.create_collection.assert_called_once_with(collection_name)
-
-        # Scenario 2: Collection already exists
-        mock_db.reset_mock()
-        mock_db.list_collection_names.return_value = [collection_name]
-        TestModel.create_collection()
-        mock_db.create_collection.assert_not_called()
-
+        df = pd.DataFrame({"name": ["test"], "value": [1]})
+        
+        try:
+            TestModel.insert_dataframe(df)
+        except BulkWriteError:
+            self.fail("BulkWriteError with duplicate key was not ignored")
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,14 +1,25 @@
+from datetime import datetime
 from typing import Any, Optional
 from bson import ObjectId
 import pandas as pd
 from pydantic import Field, PrivateAttr
-from pymongo import MongoClient
+from pymongo import MongoClient, ReturnDocument, UpdateOne
+from pymongo.errors import BulkWriteError
 from pymongo.collection import Collection
 from pymongo.database import Database
 from loom.info.aggregation import Aggregation
 from loom.info.universal import get_remote_db_client, get_local_db_client
-from loom.info.model import CoalesceOnInsert, Model, QueryableTransformer, TimeUpdated, TimeInserted, coalesce
+from loom.info.model import (
+    CoalesceOnInsert,
+    CoalesceOnSet,
+    Model,
+    QueryableTransformer,
+    TimeUpdated,
+    TimeInserted,
+    coalesce,
+)
 from loom.info.filter import Filter, Size, SortDesc, SortOp
+from loom.time.util import get_current_time
 
 
 class Persistable(Model):
@@ -33,7 +44,10 @@ class Persistable(Model):
     """
 
     updated_time: TimeUpdated = Field(description="Entity Time", default=None)
-    created_at: TimeInserted = Field(description="Entity Created Time (does not exist if entity has not been persisted)", default=None)
+    created_at: TimeInserted = Field(
+        description="Entity Created Time (does not exist if entity has not been persisted)",
+        default=None,
+    )
 
     # newly constructed model needs persisting.  model from store should go through from_db_doc() which set _has_update to False
     _has_update: bool = PrivateAttr(default=True)
@@ -59,6 +73,16 @@ class Persistable(Model):
         """
         self._has_update = value
 
+    @property
+    def should_persist(self) -> bool:
+        """
+        Checks if the model should be persisted. Mainly used by lazy persist
+
+        Returns:
+            bool: `True` if the model should be persisted, `False` otherwise.
+        """
+        return self.has_update or not self.is_entangled()
+
     def self_filter(self) -> Filter:
         """
         Returns a filter to find the current document in the database by its ID.
@@ -67,7 +91,7 @@ class Persistable(Model):
             Filter: A filter expression for finding the document by its `_id`.
         """
         return Filter({"_id": self.collapse_id()})
-    
+
     def get_set_on_insert_instruction(self) -> dict:
         """
         Constructs the `$setOnInsert` part of a MongoDB update operation.
@@ -80,7 +104,7 @@ class Persistable(Model):
             dict: The `$setOnInsert` dictionary for an update operation.
         """
         model_version = self.get_model_code_version()
-        set_on_insert_op : dict = {}
+        set_on_insert_op: dict = {}
         if model_version is not None:
             set_on_insert_op["version"] = model_version
 
@@ -88,6 +112,17 @@ class Persistable(Model):
             set_on_insert_op[field] = coalesce(getattr(self, field), transformers)
 
         return set_on_insert_op
+
+    def get_set_instruction(self, exclude_fields: list = []) -> dict:
+        doc = self.dump_doc()
+        for field in exclude_fields:
+            if field in doc:
+                del doc[field]
+
+        for field, transformers in self.get_field_hints(CoalesceOnSet).items():
+            doc[field] = coalesce(getattr(self, field), transformers)
+
+        return {"$set": doc}
 
     def get_update_instruction(self) -> dict:
         """
@@ -100,20 +135,21 @@ class Persistable(Model):
         Returns:
             dict: A dictionary representing the full update instruction.
         """
-        doc = self.dump_doc()
-        update_instr: dict[str, Any] = {}
+
         set_on_insert_op: dict[str, Any] = self.get_set_on_insert_instruction()
-        delete_field = [field for field in set_on_insert_op.keys()]
-        for field in delete_field:
-            if field in doc:
-                del doc[field]
+        set_instr_op: dict[str, Any] = self.get_set_instruction(
+            exclude_fields=[field for field in set_on_insert_op.keys()]
+        )
+        update_instr: dict[str, Any] = {}
 
-        if len(doc) > 0:
-            update_instr["$set"] = doc
+        if "$set" in set_instr_op and len(set_instr_op["$set"]) > 0:
+            update_instr["$set"] = set_instr_op["$set"]
 
-        update_instr["$setOnInsert"] = set_on_insert_op
+        if len(set_on_insert_op) > 0:
+            update_instr["$setOnInsert"] = set_on_insert_op
+
         return update_instr
-    
+
     @classmethod
     def from_db_doc(cls, doc):
         retval = super().from_db_doc(doc)
@@ -149,7 +185,7 @@ class Persistable(Model):
 
         Returns:
             str: The name of the MongoDB collection.
-        
+
         Raises:
             Exception: If `collection_name` is not defined in the metadata.
         """
@@ -217,9 +253,7 @@ class Persistable(Model):
         return client[db_name]
 
     @classmethod
-    def get_db_collection(
-        cls
-    ) -> Collection:
+    def get_db_collection(cls) -> Collection:
         """
         Gets the MongoDB collection object for the model.
 
@@ -536,7 +570,125 @@ class Persistable(Model):
         return True
 
     # ---END: Querying from persistence ---
-    
+
+    # --- Save to persistence storage ---
+    def on_after_persist(self, result_doc: Optional[Any] = None):
+        self.has_update = False
+        if result_doc:
+            # Update the current object with the values from the database
+            self.__dict__.update(self.from_db_doc(result_doc).__dict__)
+
+    def persist(self, lazy: bool = False) -> bool:
+        """
+        Saves the model to the database.
+
+        If the model does not have an `_id`, a new document will be created.
+        Otherwise, the existing document will be updated.
+        """
+
+        if lazy and not self.should_persist:
+            return False
+
+        collection = self.get_db_collection()
+
+        filter = self.self_filter()
+        update = self.get_update_instruction()
+
+        result = collection.find_one_and_update(
+            filter.get_exp(),
+            update,
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+
+        self.on_after_persist(result)
+
+        return True
+
+    @classmethod
+    def persist_many(cls, items: list, lazy: bool = False):
+        """
+        Saves multiple models to the database.
+
+        Args:
+            items (list): A list of models to save.
+        """
+        operations: list = []
+
+        persist_items = [
+            item
+            for item in items
+            if isinstance(item, Persistable) and (item.should_persist or not lazy)
+        ]
+
+        for item in persist_items:
+            update_op = UpdateOne(
+                item.self_filter().get_exp(),
+                item.get_update_instruction(),
+                upsert=True,
+            )
+            operations.append(update_op)
+
+        collection = cls.get_db_collection()
+        collection.bulk_write(operations)
+
+        for item in persist_items:
+            item.on_after_persist()
+
+    @classmethod
+    def insert_dataframe(
+        cls, dataframe: pd.DataFrame, updated_time: Optional[datetime] = None
+    ):
+        """
+        Inserts a pandas DataFrame into the database.
+
+        Args:
+            dataframe (pd.DataFrame): The DataFrame to insert.
+            updated_time (Optional[datetime], optional): The time to use as the
+                `updated_time` for all documents. Defaults to `None`.
+        """
+        if dataframe.empty:
+            return
+
+        collection = cls.get_db_collection()
+
+        if updated_time is None:
+            if "updated_time" not in dataframe.columns:
+                dataframe["updated_time"] = get_current_time()
+        else:
+            dataframe["updated_time"] = updated_time
+
+        model_version = cls.get_model_code_version()
+        if model_version is not None:
+            dataframe["version"] = model_version
+
+        meta_map = {
+            key: [
+                item
+                for item in value.metadata
+                if isinstance(item, QueryableTransformer)
+            ]
+            for key, value in cls.model_fields.items()
+        }
+        transformer_map = {
+            key: value for key, value in meta_map.items() if len(value) > 0
+        }
+
+        for key, transformers in transformer_map.items():
+            for transformer in transformers:
+                dataframe[key] = dataframe[key].apply(transformer)
+
+        try:
+            collection.insert_many(
+                dataframe.to_dict("records"), ordered=False
+            )  # ordered false so that a duplicate key error won't stop the insert of many
+        except BulkWriteError as bwe:
+            for error in bwe.details["writeErrors"]:
+                if error["code"] != 11000:  # Not DuplicateKeyError propagate error
+                    raise error
+
+    # ---END: Save to persistence storage ---
+
     @classmethod
     def create_collection(cls):
         """

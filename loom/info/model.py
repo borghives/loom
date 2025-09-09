@@ -23,6 +23,7 @@ class QueryableTransformer(AfterValidator):
         """Allows the instance to be used as a function for validation."""
         return self.func(v)  # type: ignore
 
+
 class UpdateType(Enum):
     """
     Specifies the type of MongoDB update operation for a field.
@@ -32,6 +33,7 @@ class UpdateType(Enum):
     SET = "$set"
     INC = "$inc"
 
+
 class Collapsible:
     """
     Abstract base for annotations that generate a default value on demand.
@@ -39,8 +41,10 @@ class Collapsible:
     This pattern is used for fields that should only get a value when they are
     explicitly "collapsed" or accessed when their current value is `None`.
     """
+
     def __call__(self, v):
         raise NotImplementedError()
+
 
 class CoalesceOnInsert(Collapsible):
     """
@@ -49,12 +53,15 @@ class CoalesceOnInsert(Collapsible):
     If the field's value is `None`, it calls the `collapse` function to generate
     a new value. This is intended for use with `$setOnInsert` operations.
     """
+
     def __init__(self, collapse):
         self.collapse = collapse
+
     def __call__(self, v):
         if v is None:
             return self.collapse()
         return v
+
 
 class CoalesceOnSet(Collapsible):
     """
@@ -64,12 +71,15 @@ class CoalesceOnSet(Collapsible):
     a new value. This is intended for use with `$set` operations where a value
     needs to be refreshed on every save.
     """
+
     def __init__(self, collapse):
         self.collapse = collapse
+
     def __call__(self, v):
         if v is None:
             return self.collapse()
         return v
+
 
 def coalesce(value, transformers: list):
     """Applies a list of transformers sequentially to a value."""
@@ -88,14 +98,14 @@ StrLower = Annotated[str, QueryableTransformer(str.lower)]
 TimeInserted = Annotated[
     datetime | None,
     CoalesceOnInsert(collapse=get_current_time),
-    AfterValidator(lambda x: to_utc_aware(x) if x is not None else None)
+    AfterValidator(lambda x: to_utc_aware(x) if x is not None else None),
 ]
 
 #: A datetime field that defaults to the current UTC time on document update.
 TimeUpdated = Annotated[
     datetime | None,
     CoalesceOnSet(collapse=get_current_time),
-    AfterValidator(lambda x: to_utc_aware(x) if x is not None else None)
+    AfterValidator(lambda x: to_utc_aware(x) if x is not None else None),
 ]
 
 #: An ObjectId field that defaults to a new ObjectId on document creation.
