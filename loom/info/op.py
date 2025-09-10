@@ -1,4 +1,4 @@
-def div(numerator, denominator) -> dict:
+def divide(numerator, denominator) -> dict:
     """
     Returns a MongoDB `$divide` operator structure.
 
@@ -12,7 +12,7 @@ def div(numerator, denominator) -> dict:
     return {"$divide": [numerator, denominator]}
 
 
-def mult(a, b) -> dict:
+def multiply(a, b) -> dict:
     """
     Returns a MongoDB `$multiply` operator structure.
 
