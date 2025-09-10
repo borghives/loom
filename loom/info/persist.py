@@ -10,7 +10,6 @@ from pymongo.database import Database
 from loom.info.aggregation import Aggregation
 from loom.info.universal import get_remote_db_client, get_local_db_client
 from loom.info.model import (
-    AfterPersist,
     CoalesceOnIncr,
     CoalesceOnInsert,
     CoalesceOnSet,
@@ -37,14 +36,15 @@ class Persistable(Model):
 
     Attributes:
         updated_time (TimeUpdated): A timestamp that is automatically updated
-            when the model is modified.
+            when the model is persisted to database.
         created_at (TimeInserted): A timestamp that is set once when the model
             is first inserted into the database.
         _has_update (bool): A private flag indicating if the model has pending
-            changes to be persisted. Defaults to `True` on creation.
+            changes to be persisted.  It is the responsibility of the logic to 
+            update this flag.  Defaults to `True` on creation.
     """
 
-    updated_time: TimeUpdated = Field(description="Timestamp of the last update.", default=None)
+    updated_time: TimeUpdated = Field(description="Timestamp of the last update.")
     created_at: TimeInserted = Field(
         description="Entity Created Time (does not exist if entity has not been persisted)",
         default=None,
@@ -93,7 +93,6 @@ class Persistable(Model):
         """
         return Filter({"_id": self.collapse_id()})
 
-
     def get_set_on_insert_instruction(self) -> Tuple[dict, list]:
         """
         Constructs the `$setOnInsert` part of a MongoDB update operation.
@@ -111,7 +110,9 @@ class Persistable(Model):
         if model_version is not None:
             set_on_insert_op["version"] = model_version
 
-        for field, transformers in self.get_fields_with_metadata(CoalesceOnInsert).items():
+        for field, transformers in self.get_fields_with_metadata(
+            CoalesceOnInsert
+        ).items():
             set_on_insert_op[field] = self.coalesce_field(field, transformers)
 
         if len(set_on_insert_op) == 0:
@@ -132,14 +133,16 @@ class Persistable(Model):
             list of the fields included in the operation.
         """
         increment_instruction: dict = {}
-        for field, transformers in self.get_fields_with_metadata(CoalesceOnIncr).items():
+        for field, transformers in self.get_fields_with_metadata(
+            CoalesceOnIncr
+        ).items():
             increment_value = getattr(self, field).get_changes()
             increment_instruction[field] = increment_value
             self.coalesce_field(field, transformers)
 
         if len(increment_instruction) == 0:
             return {}, []
-        
+
         return {"$inc": increment_instruction}, list(increment_instruction.keys())
 
     def get_set_instruction(self, exclude_fields: list = []) -> Tuple[dict, list]:
@@ -164,7 +167,7 @@ class Persistable(Model):
 
         for field, transformers in self.get_fields_with_metadata(CoalesceOnSet).items():
             doc[field] = self.coalesce_field(field, transformers)
-        
+
         if len(doc) == 0:
             return {}, []
 
@@ -182,9 +185,13 @@ class Persistable(Model):
             dict: A dictionary representing the full update instruction.
         """
 
-        set_on_insert_instruction, set_insert_fields = self.get_set_on_insert_instruction()
+        set_on_insert_instruction, set_insert_fields = (
+            self.get_set_on_insert_instruction()
+        )
         increment_instruction, inc_fields = self.get_increment_instruction()
-        set_instruction, _ = self.get_set_instruction(exclude_fields=inc_fields + set_insert_fields)
+        set_instruction, _ = self.get_set_instruction(
+            exclude_fields=inc_fields + set_insert_fields
+        )
         update_instr: dict[str, Any] = {}
 
         update_instr.update(set_instruction)
@@ -610,9 +617,6 @@ class Persistable(Model):
         if result_doc:
             # Update the current object with the values from the database
             self.__dict__.update(self.from_db_doc(result_doc).__dict__)
-
-        for field, transformers in self.get_fields_with_metadata(AfterPersist).items():
-            self.coalesce_field(field, transformers)
 
     def persist(self, lazy: bool = False) -> bool:
         """

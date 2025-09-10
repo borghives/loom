@@ -33,10 +33,7 @@ class Collapsible:
 
 class CoalesceOnInsert(Collapsible):
     """
-    A `Collapsible` that finalize a value on document creation.
-
-    If the field's value is `None`, it calls the `collapse` function to generate
-    a new value. This is intended for use with `$setOnInsert` operations.
+    A Collapsible that finalize a value on document creation for database insertion (not update).
     """
 
     def __init__(self, collapse):
@@ -50,11 +47,8 @@ class CoalesceOnInsert(Collapsible):
 
 class CoalesceOnSet(Collapsible):
     """
-    A `Collapsible` that provides a value on any update.
-
-    If the field's value is `None`, it calls the `collapse` function to generate
-    a new value. This is intended for use with `$set` operations where a value
-    needs to be refreshed on every save.
+    A Collapsible that provides a value on any database update (not insertion).
+    This is intended when a value needs to be refreshed on every save.
     """
 
     def __init__(self, collapse):
@@ -64,6 +58,24 @@ class CoalesceOnSet(Collapsible):
         if v is None:
             return self.collapse()
         return v
+
+
+class CoalesceOnIncr(Collapsible):
+    """
+    A Collapsible that provides an increment value on update.
+
+    If the field's value is `None`, it calls the `collapse` function to generate
+    a new value. This is intended for use with `$inc` operations.
+    """
+
+    def __init__(self, collapse):
+        self.collapse = collapse
+
+    def __call__(self, v):
+        if v is None:
+            return self.collapse()
+        return v
+
 
 class NormalizeQueryInput(Collapsible):
     """
@@ -80,23 +92,6 @@ class NormalizeQueryInput(Collapsible):
         return self.collapse(v)
 
 
-class CoalesceOnIncr(Collapsible):
-    """
-    A `Collapsible` that provides an increment value on update.
-
-    If the field's value is `None`, it calls the `collapse` function to generate
-    a new value. This is intended for use with `$inc` operations.
-    """
-
-    def __init__(self, collapse):
-        self.collapse = collapse
-
-    def __call__(self, v):
-        if v is None:
-            return self.collapse()
-        return v
-
-
 def coalesce(value, transformers: list):
     """Applies a list of transformers sequentially to a value."""
     for transformer in transformers:
@@ -111,51 +106,26 @@ class BeforeSetAttr:
     This is used within the model's `__setattr__` to apply a function to the
     value before it is assigned to the attribute.
     """
-    def __init__(self, func):
-        self.func = func
-
-    def __call__(self, v):
-        return self.func(v)
-
-
-class AfterPersist:
-    """
-    An annotation for logic to be executed after a model has been persisted.
-
-    This allows for custom logic to be executed after the model has been saved to
-    the database, such as updating internal state or triggering side effects.
-    This is not a Pydantic validator, but a marker for other parts of the
-    persistence logic.
-    """
 
     def __init__(self, func):
         self.func = func
 
     def __call__(self, v):
-        """
-        Executes the wrapped function.
-
-        Args:
-            v: The value of the field.
-
-        Returns:
-            The result of the wrapped function.
-        """
         return self.func(v)
 
 
 #: An annotated string type that automatically converts the value to uppercase.
 StrUpper = Annotated[
-    str, 
-    AfterValidator(str.upper), 
+    str,
+    AfterValidator(str.upper),
     CoalesceOnSet(str.upper),
-    NormalizeQueryInput(str.upper)
+    NormalizeQueryInput(str.upper),
 ]
 
 #: An annotated string type that automatically converts the value to lowercase.
 StrLower = Annotated[
-    str, 
-    AfterValidator(str.lower), 
+    str,
+    AfterValidator(str.lower),
     CoalesceOnSet(str.lower),
     NormalizeQueryInput(str.lower),
 ]
@@ -165,6 +135,7 @@ TimeInserted = Annotated[
     datetime | None,
     AfterValidator(lambda x: to_utc_aware(x) if x is not None else None),
     CoalesceOnInsert(collapse=get_current_time),
+    Field(default=None),
 ]
 
 #: A datetime field that defaults to the current UTC time on document update.
@@ -172,11 +143,17 @@ TimeUpdated = Annotated[
     datetime | None,
     AfterValidator(lambda x: to_utc_aware(x) if x is not None else None),
     CoalesceOnSet(collapse=get_current_time),
+    Field(default=None),
 ]
 
 
-JsObjectId = Annotated[ObjectId, PlainSerializer(str, when_used='json')] # A serializer for ObjectId to convert it to a string in JSON output.
-JsSet = Annotated[set, PlainSerializer(list, when_used='json')] # A serializer for set to convert it to a list in JSON output.
+JsObjectId = Annotated[
+    ObjectId, PlainSerializer(str, when_used="json")
+]  # A serializer for ObjectId to convert it to a string in JSON output.
+JsSet = Annotated[
+    set, PlainSerializer(list, when_used="json")
+]  # A serializer for set to convert it to a list in JSON output.
+
 
 class Model(ABC, BaseModel):
     """
@@ -281,7 +258,9 @@ class Model(ABC, BaseModel):
         return {key: value for key, value in meta_map.items() if len(value) > 0}
 
     @classmethod
-    def get_field_metadata(cls, field_name: str, hint_type: Optional[type] = None) -> list:
+    def get_field_metadata(
+        cls, field_name: str, hint_type: Optional[type] = None
+    ) -> list:
         """
         Gets the metadata for a specific field, optionally filtered by type.
 
