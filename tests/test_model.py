@@ -1,5 +1,6 @@
+import json
 from bson import ObjectId
-from loom.info.model import Model, TimeInserted, StrUpper, Collapsible
+from loom.info.model import Model, TimeInserted, StrUpper, StrLower, Collapsible
 
 # A concrete model for testing
 class MyTestModel(Model):
@@ -7,6 +8,7 @@ class MyTestModel(Model):
     value: int
     created_at: TimeInserted = None
     description: StrUpper = ""
+    notes: StrLower = ""
 
 def test_model_creation():
     """Tests that a model is created with no id."""
@@ -51,10 +53,29 @@ def test_dump_doc_aliases_id():
     assert "id" not in doc
     assert doc["_id"] == m.id
 
+def test_dump_json_serializes_objectid():
+    """Tests that dump_json correctly serializes ObjectId to a string."""
+    m = MyTestModel(name="test", value=1)
+    m.collapse_id()
+    
+    json_output = m.dump_json()
+    
+    # Parse the JSON to check the type
+    data = json.loads(json_output)
+    
+    assert "_id" in data
+    assert isinstance(data["_id"], str)
+    assert data["_id"] == str(m.id)
+
 def test_queryable_transformer():
     """Tests the StrUpper annotation."""
     m = MyTestModel(name="test", value=1, description="hello world")
     assert m.description == "HELLO WORLD"
+
+def test_str_lower_transformer():
+    """Tests the StrLower annotation."""
+    m = MyTestModel(name="test", value=1, notes="HELLO WORLD")
+    assert m.notes == "hello world"
 
 def test_get_field_hints():
     """Tests get_field_hints method."""

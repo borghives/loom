@@ -1,27 +1,12 @@
-import json
 from abc import ABC
 from datetime import datetime
 from enum import Enum
 from typing import Annotated, Optional
 
 from bson import ObjectId
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PlainSerializer
 
 from loom.time.util import get_current_time, to_utc_aware
-
-
-class QueryableTransformer(AfterValidator):
-    """
-    A Pydantic `AfterValidator` that also serves as a query value transformer.
-
-    This allows a single annotation to define a transformation (e.g., `str.upper`)
-    that is applied both during Pydantic validation and when constructing
-    database queries.
-    """
-
-    def __call__(self, v):
-        """Allows the instance to be used as a function for validation."""
-        return self.func(v)  # type: ignore
 
 
 class UpdateType(Enum):
@@ -36,10 +21,10 @@ class UpdateType(Enum):
 
 class Collapsible:
     """
-    Abstract base for annotations that generate a default value on demand.
+    Abstract base for annotations that generate a value on demand.
 
-    This pattern is used for fields that should only get a value when they are
-    explicitly "collapsed" or accessed when their current value is `None`.
+    This pattern is used for fields that get a final form of their value when they are
+    explicitly "collapsed".  The __call__ function should be idempotent as in f(f(x)) == f(x).
     """
 
     def __call__(self, v):
@@ -48,7 +33,7 @@ class Collapsible:
 
 class CoalesceOnInsert(Collapsible):
     """
-    A `Collapsible` that provides a value only on document creation.
+    A `Collapsible` that finalize a value on document creation.
 
     If the field's value is `None`, it calls the `collapse` function to generate
     a new value. This is intended for use with `$setOnInsert` operations.
@@ -80,6 +65,21 @@ class CoalesceOnSet(Collapsible):
             return self.collapse()
         return v
 
+class NormalizeQueryInput(Collapsible):
+    """
+    A `Collapsible` that provides a normalize value for query input.
+
+    This is intended for use with query input where a value needs to be
+    normalized based the field attribute.
+    """
+
+    def __init__(self, collapse):
+        self.collapse = collapse
+
+    def __call__(self, v):
+        return self.collapse(v)
+
+
 class CoalesceOnIncr(Collapsible):
     """
     A `Collapsible` that provides an increment value on update.
@@ -96,66 +96,87 @@ class CoalesceOnIncr(Collapsible):
             return self.collapse()
         return v
 
+
 def coalesce(value, transformers: list):
     """Applies a list of transformers sequentially to a value."""
     for transformer in transformers:
         value = transformer(value)
     return value
 
+
+class BeforeSetAttr:
+    """
+    An annotation to transform a value before it is set on a model field.
+
+    This is used within the model's `__setattr__` to apply a function to the
+    value before it is assigned to the attribute.
+    """
+    def __init__(self, func):
+        self.func = func
+
+    def __call__(self, v):
+        return self.func(v)
+
+
 class AfterPersist:
     """
-    A Pydantic `AfterValidator` that is called after a model has been persisted.
+    An annotation for logic to be executed after a model has been persisted.
 
     This allows for custom logic to be executed after the model has been saved to
     the database, such as updating internal state or triggering side effects.
+    This is not a Pydantic validator, but a marker for other parts of the
+    persistence logic.
     """
 
     def __init__(self, func):
         self.func = func
+
     def __call__(self, v):
         """
-        Called after the model has been persisted.
+        Executes the wrapped function.
 
         Args:
-            v: The value of the field being transformed.
+            v: The value of the field.
 
         Returns:
-            The transformed value.
+            The result of the wrapped function.
         """
         return self.func(v)
-    
-class BeforeSetAttr:
-    def __init__(self, func):
-        self.func = func
-    def __call__(self, v):
-        return self.func(v)
+
 
 #: An annotated string type that automatically converts the value to uppercase.
-StrUpper = Annotated[str, QueryableTransformer(str.upper)]
+StrUpper = Annotated[
+    str, 
+    AfterValidator(str.upper), 
+    CoalesceOnSet(str.upper),
+    NormalizeQueryInput(str.upper)
+]
 
 #: An annotated string type that automatically converts the value to lowercase.
-StrLower = Annotated[str, QueryableTransformer(str.lower)]
+StrLower = Annotated[
+    str, 
+    AfterValidator(str.lower), 
+    CoalesceOnSet(str.lower),
+    NormalizeQueryInput(str.lower),
+]
 
 #: A datetime field that defaults to the current UTC time on document creation.
 TimeInserted = Annotated[
     datetime | None,
-    CoalesceOnInsert(collapse=get_current_time),
     AfterValidator(lambda x: to_utc_aware(x) if x is not None else None),
+    CoalesceOnInsert(collapse=get_current_time),
 ]
 
 #: A datetime field that defaults to the current UTC time on document update.
 TimeUpdated = Annotated[
     datetime | None,
-    CoalesceOnSet(collapse=get_current_time),
     AfterValidator(lambda x: to_utc_aware(x) if x is not None else None),
+    CoalesceOnSet(collapse=get_current_time),
 ]
 
-#: An ObjectId field that defaults to a new ObjectId on document creation.
-SuperId = Annotated[
-    ObjectId | None,
-    CoalesceOnInsert(collapse=ObjectId),
-]
 
+JsObjectId = Annotated[ObjectId, PlainSerializer(str, when_used='json')] # A serializer for ObjectId to convert it to a string in JSON output.
+JsSet = Annotated[set, PlainSerializer(list, when_used='json')] # A serializer for set to convert it to a list in JSON output.
 
 class Model(ABC, BaseModel):
     """
@@ -172,7 +193,7 @@ class Model(ABC, BaseModel):
             on first access if one is not already present.
     """
 
-    id: ObjectId | None = Field(
+    id: JsObjectId | None = Field(
         description="A universal id that this model entity can be linked with.",
         alias="_id",
         default=None,
@@ -181,10 +202,6 @@ class Model(ABC, BaseModel):
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         populate_by_name=True,
-        json_encoders={
-            ObjectId: str,  # Encode ObjectId as string in JSON
-            set: lambda s: list(s),  # Convert set to list in JSON
-        },
         protected_namespaces=(),
     )
 
@@ -203,7 +220,7 @@ class Model(ABC, BaseModel):
         Returns:
             Any: The coalesced value for the field.
         """
-        
+
         current_value = getattr(self, field_name)
         new_value = coalesce(current_value, transformers)
         setattr(self, field_name, new_value)
@@ -306,8 +323,7 @@ class Model(ABC, BaseModel):
         Returns:
             str: The model as a JSON string.
         """
-        doc = self.dump_doc()
-        return json.dumps(doc)
+        return self.model_dump_json(by_alias=True, exclude_none=True)
 
     def init_private_fields_from_doc(self, doc):
         """
@@ -323,6 +339,9 @@ class Model(ABC, BaseModel):
         pass
 
     def __setattr__(self, name: str, value) -> None:
+        """
+        Sets an attribute on the model, applying any `BeforeSetAttr` transformers.
+        """
         transformers = self.get_field_hint(name, BeforeSetAttr)
         value = coalesce(value, transformers)
         return super().__setattr__(name, value)

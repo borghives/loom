@@ -15,12 +15,12 @@ from loom.info.model import (
     CoalesceOnInsert,
     CoalesceOnSet,
     Model,
-    QueryableTransformer,
+    NormalizeQueryInput,
     TimeUpdated,
     TimeInserted,
+    coalesce,
 )
 from loom.info.filter import Filter, Size, SortDesc, SortOp
-from loom.time.util import get_current_time
 
 
 class Persistable(Model):
@@ -301,7 +301,7 @@ class Persistable(Model):
         """
         Parses a `Filter` object or dict into a MongoDB query dictionary.
 
-        This method also applies any `QueryableTransformer` annotations on the
+        This method also applies any `NormalizeQueryInput` annotations on the
         model's fields to transform corresponding values in the filter.
 
         Args:
@@ -310,15 +310,15 @@ class Persistable(Model):
         Returns:
             dict: A MongoDB-compatible query dictionary.
         """
-        before_query_map = cls.get_field_hints(QueryableTransformer)
+        normalized_query_map = cls.get_field_hints(NormalizeQueryInput)
 
         retval: dict = filter.get_exp() if isinstance(filter, Filter) else filter
-        if not before_query_map:
+        if not normalized_query_map:
             return retval
 
-        for key, before_query in before_query_map.items():
+        for key, normalize_transformers in normalized_query_map.items():
             if key in retval:
-                for transformer in before_query:
+                for transformer in normalize_transformers:
                     retval[key] = transformer(retval[key])
 
         return retval
@@ -662,22 +662,16 @@ class Persistable(Model):
 
         collection = cls.get_db_collection()
 
-        if updated_time is None:
-            if "updated_time" not in dataframe.columns:
-                dataframe["updated_time"] = get_current_time()
-        else:
+        if updated_time is not None:
             dataframe["updated_time"] = updated_time
+
+        transformer_map = cls.get_field_hints(CoalesceOnSet)
+        for key, transformers in transformer_map.items():
+            dataframe[key] = coalesce(dataframe.get(key), transformers)
 
         model_version = cls.get_model_code_version()
         if model_version is not None:
             dataframe["version"] = model_version
-
-        transformer_map = cls.get_field_hints(QueryableTransformer)
-
-        for key, transformers in transformer_map.items():
-            if key in dataframe.columns:
-                for transformer in transformers:
-                    dataframe[key] = dataframe[key].apply(transformer)
 
         try:
             collection.insert_many(
