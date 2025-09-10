@@ -44,7 +44,7 @@ class Persistable(Model):
             changes to be persisted. Defaults to `True` on creation.
     """
 
-    updated_time: TimeUpdated = Field(description="Entity Time", default=None)
+    updated_time: TimeUpdated = Field(description="Timestamp of the last update.", default=None)
     created_at: TimeInserted = Field(
         description="Entity Created Time (does not exist if entity has not been persisted)",
         default=None,
@@ -103,7 +103,8 @@ class Persistable(Model):
         created.
 
         Returns:
-            dict: The `$setOnInsert` dictionary for an update operation.
+            Tuple[dict, list]: A tuple containing the `$setOnInsert` dictionary
+            and a list of the fields included in the operation.
         """
         model_version = self.get_model_code_version()
         set_on_insert_op: dict = {}
@@ -119,6 +120,17 @@ class Persistable(Model):
         return {"$setOnInsert": set_on_insert_op}, list(set_on_insert_op.keys())
 
     def get_increment_instruction(self) -> Tuple[dict, list]:
+        """
+        Constructs the `$inc` part of a MongoDB update operation.
+
+        It processes fields marked with `CoalesceOnIncr`. It is expected that
+        these fields have a `get_changes()` method that returns the value to
+        increment by.
+
+        Returns:
+            Tuple[dict, list]: A tuple containing the `$inc` dictionary and a
+            list of the fields included in the operation.
+        """
         increment_instruction: dict = {}
         for field, transformers in self.get_field_hints(CoalesceOnIncr).items():
             increment_value = getattr(self, field).get_changes()
@@ -131,6 +143,20 @@ class Persistable(Model):
         return {"$inc": increment_instruction}, list(increment_instruction.keys())
 
     def get_set_instruction(self, exclude_fields: list = []) -> Tuple[dict, list]:
+        """
+        Constructs the `$set` part of a MongoDB update operation.
+
+        This includes all model fields except those specified in `exclude_fields`.
+        It also processes fields marked with `CoalesceOnSet`.
+
+        Args:
+            exclude_fields (list, optional): A list of fields to exclude from
+                the `$set` operation. Defaults to [].
+
+        Returns:
+            Tuple[dict, list]: A tuple containing the `$set` dictionary and a
+            list of the fields included in the operation.
+        """
         doc = self.dump_doc()
         for field in exclude_fields:
             if field in doc:
