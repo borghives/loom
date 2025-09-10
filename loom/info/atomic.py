@@ -49,13 +49,13 @@ class IntCounter(int):
         """
         return IntCounter(int(self) + self._incr_value)
 
-def check_incr_int_counter(value):
+def check_int_counter(value):
     if isinstance(value, IntCounter) :
         return value
     raise AttributeError("Cannot set on an IncrIntCounter directly. Must use += operator to increment.")
 
-IncrIntCounter = Annotated[int, 
-    CoalesceOnIncr(collapse=lambda x: x.collapse() if x is not None and isinstance(x, IntCounter) else 0), 
+IncrCounter = Annotated[int, 
+    CoalesceOnIncr(collapse=lambda x: x.collapse()), 
     AfterValidator(IntCounter),
-    BeforeSetAttr(check_incr_int_counter),
+    BeforeSetAttr(check_int_counter),
     Field(default_factory=IntCounter)]

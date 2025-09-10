@@ -8,7 +8,7 @@ from pydantic import Field
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 
-from loom.info.atomic import IncrIntCounter, IntCounter
+from loom.info.atomic import IncrCounter
 from loom.info.persist import Persistable, declare_persist_db
 from loom.info.model import CoalesceOnSet, CoalesceOnInsert
 
@@ -21,8 +21,8 @@ class TestModel(Persistable):
 @declare_persist_db(collection_name="test_inc_collection", db_name="test_db", test=True)
 class TestIncModel(Persistable):
     test_field: str
-    counter: IncrIntCounter  = Field(description="An incrementing integer counter", default_factory=IntCounter)
-    counter2: IncrIntCounter = Field(description="An incrementing integer counter", default_factory=IntCounter)
+    counter: IncrCounter  = Field(description="An incrementing integer counter")
+    counter2: IncrCounter = Field(description="An incrementing integer counter")
 
 class PersistableTest(unittest.TestCase):
 
