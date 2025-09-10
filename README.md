@@ -1,8 +1,6 @@
 # Loom
 
-Weaves information and time into one reality.
-
-The two most important concepts for coding are **information** and **time**.  This is one way to frame it.
+Weaves information and time into one reality--the two most important concepts for coding.  This is one way to frame it.
 
 ## Philosophy
 
