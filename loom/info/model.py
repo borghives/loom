@@ -210,14 +210,9 @@ class Model(ABC, BaseModel):
         Gets or creates the `ObjectId` for the model instance.
 
         This method "collapses" the ID from its potential state to a definite one.
-        If the `id` field is `None`, it triggers the `CoalesceOnInsert` logic
-        from the `SuperId` annotation to generate a new `ObjectId`.
 
         Returns:
             ObjectId: The document's unique `ObjectId`.
-
-        Raises:
-            ValueError: If the collapsing logic fails to produce an `ObjectId`.
         """
         if self.id is not None:
             return self.id
