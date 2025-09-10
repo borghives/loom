@@ -2,11 +2,11 @@
 
 Weaves the fabric of information and time into one reality.
 
-A tapestry to which ideas are carried into reality swiftly, safely, and simply. The two most important concepts for such a reality are **information** and **time**.
+A tapestry to which ideas are woven into reality swiftly, safely, and simply. The two most important concepts for such a reality are **information** and **time**.
 
 ## Philosophy
 
--   **Lower the mental load of coding**: Abstract away boilerplate and repetitive tasks, letting developers focus on business logic.
+-   **Lower mental load**: Abstract away boilerplate and repetitive tasks, letting developers focus on business logic.
 -   **Create friction for unsafe practices**: Make the safe way the easy way. The framework should guide developers away from common pitfalls, especially in data and time management.
 -   **Promote simple, elegant code**: Prioritize clarity and simplicity over exhaustive features. We are willing to sacrifice capability for a simpler, more focused codebase. For example, Loom is intentionally built only for MongoDB to avoid the complexity of supporting multiple database paradigms.
 
@@ -70,6 +70,7 @@ User.persist_many([new_user, another_user])
 
 -   **`Model` & `Persistable`**: Your data models inherit from `loom.info.model.Model` and mix in `loom.info.persist.Persistable`. This gives them database-aware capabilities.
 -   **`@declare_persist_db`**: A class decorator that links your model to a specific MongoDB database and collection. It keeps your persistence logic clean and co-located with your data definition.
+-   **Declarative Field Behavior**: Use annotations like `CoalesceOnInsert`, `CoalesceOnIncr`, and `QueryableTransformer` to declare how fields should behave during persistence and querying, further reducing boilerplate logic.
 -   **Fluent API for Queries**: `Aggregation`, `Filter`, and `SortOp` provide a structured, chainable API to build complex database operations without writing raw MongoDB queries, making your code more readable and maintainable.
 -   **Automatic Field Management**: Specialized types like `SuperId`, `TimeInserted`, and `TimeUpdated` automatically manage `ObjectId` generation and timestamps (`created_at`, `updated_time`), reducing boilerplate and ensuring consistency.
 -   **Rich Querying and Loading**: Beyond simple `load_one` and `load_many`, Loom provides `load_latest`, `from_id`, `exists`, and a powerful `aggregate` method for complex data retrieval, including loading data directly into a pandas `DataFrame` with `load_dataframe`.

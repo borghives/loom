@@ -21,8 +21,8 @@ class TestModel(Persistable):
 @declare_persist_db(collection_name="test_inc_collection", db_name="test_db", test=True)
 class TestIncModel(Persistable):
     test_field: str
-    counter: IncrIntCounter
-    counter2: IncrIntCounter
+    counter: IncrIntCounter  = Field(description="An incrementing integer counter", default_factory=IntCounter)
+    counter2: IncrIntCounter = Field(description="An incrementing integer counter", default_factory=IntCounter)
 
 class PersistableTest(unittest.TestCase):
 
