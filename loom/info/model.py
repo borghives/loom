@@ -80,6 +80,22 @@ class CoalesceOnSet(Collapsible):
             return self.collapse()
         return v
 
+class CoalesceOnIncr(Collapsible):
+    """
+    A `Collapsible` that provides an increment value on update.
+
+    If the field's value is `None`, it calls the `collapse` function to generate
+    a new value. This is intended for use with `$set` operations where a value
+    needs to be refreshed on every save.
+    """
+
+    def __init__(self, collapse):
+        self.collapse = collapse
+
+    def __call__(self, v):
+        if v is None:
+            return self.collapse()
+        return v
 
 def coalesce(value, transformers: list):
     """Applies a list of transformers sequentially to a value."""
@@ -87,6 +103,27 @@ def coalesce(value, transformers: list):
         value = transformer(value)
     return value
 
+class AfterPersist:
+    """
+    A Pydantic `AfterValidator` that is called after a model has been persisted.
+
+    This allows for custom logic to be executed after the model has been saved to
+    the database, such as updating internal state or triggering side effects.
+    """
+
+    def __init__(self, func):
+        self.func = func
+    def __call__(self, v):
+        """
+        Called after the model has been persisted.
+
+        Args:
+            v: The value of the field being transformed.
+
+        Returns:
+            The transformed value.
+        """
+        return self.func(v)
 
 #: An annotated string type that automatically converts the value to uppercase.
 StrUpper = Annotated[str, QueryableTransformer(str.upper)]
@@ -145,6 +182,27 @@ class Model(ABC, BaseModel):
         },
         protected_namespaces=(),
     )
+
+    def coalesce_field(self, field_name: str, transformers: list):
+        """
+        Coalesces a field's value using the provided transformers.
+
+        This method retrieves the current value of the specified field and applies
+        the list of transformers to it sequentially. If the field's value is `None`,
+        it will be transformed by the first transformer that can handle `None`.
+
+        Args:
+            field_name (str): The name of the field to coalesce.
+            transformers (list): A list of transformer functions to apply.
+
+        Returns:
+            Any: The coalesced value for the field.
+        """
+        
+        current_value = getattr(self, field_name)
+        new_value = coalesce(current_value, transformers)
+        setattr(self, field_name, new_value)
+        return new_value
 
     def collapse_id(self) -> ObjectId:
         """

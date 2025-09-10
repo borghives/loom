@@ -4,9 +4,11 @@ from bson import ObjectId
 import pandas as pd
 from datetime import datetime, timezone
 
+from pydantic import Field
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 
+from loom.info.atomic import IncrIntCounter, IntCounter
 from loom.info.persist import Persistable, declare_persist_db
 from loom.info.model import CoalesceOnSet, CoalesceOnInsert
 
@@ -16,6 +18,11 @@ class TestModel(Persistable):
     name: str
     value: int
 
+@declare_persist_db(collection_name="test_inc_collection", db_name="test_db", test=True)
+class TestIncModel(Persistable):
+    test_field: str
+    counter: IncrIntCounter
+    counter2: IncrIntCounter
 
 class PersistableTest(unittest.TestCase):
 
@@ -41,7 +48,7 @@ class PersistableTest(unittest.TestCase):
         model = TestModel(name="test", value=10)
         model.updated_time = None  # Ensure coalesce is triggered
 
-        set_instr = model.get_set_instruction()
+        set_instr, _ = model.get_set_instruction()
         self.assertIn("$set", set_instr)
         set_doc = set_instr["$set"]
 
@@ -72,6 +79,55 @@ class PersistableTest(unittest.TestCase):
         self.assertIn("$setOnInsert", update_instr)
         set_on_insert_doc = update_instr["$setOnInsert"]
         self.assertEqual(set_on_insert_doc["created_at"], fixed_time)
+
+    def test_inc_op(self):
+        # 1. Create and persist a new model with an increment
+        model = TestIncModel(test_field="inc_test")
+
+        print(f"Type of read_count: {type(model.counter)}")
+
+        model.counter += 2
+        model.counter2 += 3
+
+        assert model.counter == 2
+        assert model.counter2 == 3
+
+        print(f"Type of read_count: {type(model.counter)}")
+
+        model.persist()
+
+        assert model.counter == 2
+        assert model.counter2 == 3
+        model.persist()
+
+        # 2. Check the database for the initial state
+        collection = TestIncModel.get_db_collection()
+        db_data = collection.find_one(model.self_filter().get_exp())
+        assert db_data is not None
+        assert db_data["test_field"] == "inc_test"
+         # On first insert, then inc is 2. So it should be 2.
+        assert db_data["counter"] == 2
+        assert db_data["counter2"] == 3
+        assert db_data["_id"] == model.id
+
+        # 3. Load from DB, increment again, and persist
+        assert model.id is not None
+        loaded_model = TestIncModel.from_id(model.id)
+        assert loaded_model is not None
+        assert loaded_model.counter == 2
+
+        loaded_model.counter += 3
+        loaded_model.persist()
+
+        # 4. Check the database for the updated state
+        db_data_updated = collection.find_one(model.self_filter().get_exp())
+        assert db_data_updated is not None
+        # 2 + 3 = 5
+        assert db_data_updated["counter"] == 5
+
+        # Clean up
+        collection.delete_one(model.self_filter().get_exp())
+
 
     @patch.object(TestModel, 'get_db_collection')
     def test_persist_instance(self, mock_get_collection):
@@ -160,6 +216,7 @@ class PersistableTest(unittest.TestCase):
             TestModel.insert_dataframe(df)
         except BulkWriteError:
             self.fail("BulkWriteError with duplicate key was not ignored")
+
 
 if __name__ == "__main__":
     unittest.main()

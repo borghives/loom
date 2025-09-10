@@ -2,7 +2,6 @@
 
 Weaves the fabric of information and time into one reality.
 
-## North Star
 A tapestry to which ideas are carried into reality swiftly, safely, and simply. The two most important concepts for such a reality are **information** and **time**.
 
 ## Philosophy

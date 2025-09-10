@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 from bson import ObjectId
 import pandas as pd
 from pydantic import Field, PrivateAttr
@@ -10,6 +10,8 @@ from pymongo.database import Database
 from loom.info.aggregation import Aggregation
 from loom.info.universal import get_remote_db_client, get_local_db_client
 from loom.info.model import (
+    AfterPersist,
+    CoalesceOnIncr,
     CoalesceOnInsert,
     CoalesceOnSet,
     Model,
@@ -92,7 +94,8 @@ class Persistable(Model):
         """
         return Filter({"_id": self.collapse_id()})
 
-    def get_set_on_insert_instruction(self) -> dict:
+
+    def get_set_on_insert_instruction(self, exclude_fields: list = []) -> Tuple[dict, list]:
         """
         Constructs the `$setOnInsert` part of a MongoDB update operation.
 
@@ -109,20 +112,38 @@ class Persistable(Model):
             set_on_insert_op["version"] = model_version
 
         for field, transformers in self.get_field_hints(CoalesceOnInsert).items():
-            set_on_insert_op[field] = coalesce(getattr(self, field), transformers)
+            set_on_insert_op[field] = self.coalesce_field(field, transformers)
 
-        return set_on_insert_op
+        if len(set_on_insert_op) == 0:
+            return {}, []
 
-    def get_set_instruction(self, exclude_fields: list = []) -> dict:
+        return {"$setOnInsert": set_on_insert_op}, list(set_on_insert_op.keys())
+
+    def get_increment_instruction(self, exclude_fields: list = []) -> Tuple[dict, list]:
+        increment_instruction: dict = {}
+        for field, transformers in self.get_field_hints(CoalesceOnIncr).items():
+            increment_value = getattr(self, field).get_changes()
+            increment_instruction[field] = increment_value
+            self.coalesce_field(field, transformers)
+
+        if len(increment_instruction) == 0:
+            return {}, []
+        
+        return {"$inc": increment_instruction}, list(increment_instruction.keys())
+
+    def get_set_instruction(self, exclude_fields: list = []) -> Tuple[dict, list]:
         doc = self.dump_doc()
         for field in exclude_fields:
             if field in doc:
                 del doc[field]
 
         for field, transformers in self.get_field_hints(CoalesceOnSet).items():
-            doc[field] = coalesce(getattr(self, field), transformers)
+            doc[field] = self.coalesce_field(field, transformers)
+        
+        if len(doc) == 0:
+            return {}, []
 
-        return {"$set": doc}
+        return {"$set": doc}, list(doc.keys())
 
     def get_update_instruction(self) -> dict:
         """
@@ -136,17 +157,14 @@ class Persistable(Model):
             dict: A dictionary representing the full update instruction.
         """
 
-        set_on_insert_op: dict[str, Any] = self.get_set_on_insert_instruction()
-        set_instr_op: dict[str, Any] = self.get_set_instruction(
-            exclude_fields=[field for field in set_on_insert_op.keys()]
-        )
+        set_on_insert_instruction, set_insert_fields = self.get_set_on_insert_instruction()
+        increment_instruction, inc_fields = self.get_increment_instruction(exclude_fields=set_insert_fields)
+        set_instruction, _ = self.get_set_instruction(exclude_fields=inc_fields + set_insert_fields)
         update_instr: dict[str, Any] = {}
 
-        if "$set" in set_instr_op and len(set_instr_op["$set"]) > 0:
-            update_instr["$set"] = set_instr_op["$set"]
-
-        if len(set_on_insert_op) > 0:
-            update_instr["$setOnInsert"] = set_on_insert_op
+        update_instr.update(set_instruction)
+        update_instr.update(set_on_insert_instruction)
+        update_instr.update(increment_instruction)
 
         return update_instr
 
@@ -577,6 +595,9 @@ class Persistable(Model):
         if result_doc:
             # Update the current object with the values from the database
             self.__dict__.update(self.from_db_doc(result_doc).__dict__)
+
+        for field, transformers in self.get_field_hints(AfterPersist).items():
+            self.coalesce_field(field, transformers)
 
     def persist(self, lazy: bool = False) -> bool:
         """
