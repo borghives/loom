@@ -19,7 +19,7 @@ from loom.info.model import (
     TimeInserted,
     coalesce,
 )
-from loom.info.filter import Filter, Size, SortDesc, SortOp
+from loom.info.load import Filter, Size, SortDesc, SortOp
 
 
 class Persistable(Model):

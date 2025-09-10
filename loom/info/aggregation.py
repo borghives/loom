@@ -18,7 +18,7 @@ Example:
     mongo_pipeline = pipeline.Pipeline()
 """
 from typing import List
-from loom.info.filter import SortOp, Filter, Size
+from loom.info.load import SortOp, Filter, Size
 from pyrsistent import pvector, PVector, PMap, freeze, thaw
 
 class Aggregation:
