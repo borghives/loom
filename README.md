@@ -7,8 +7,8 @@ The two most important concepts for coding are **information** and **time**.  Th
 ## Philosophy
 
 -   **Lower mental load**: Abstract away boilerplate and repetitive tasks, letting developers focus on logic.
--   **Promote simple, elegant code**: Prioritize clarity and simplicity over exhaustive features. We are willing to sacrifice capability for a simpler, more focused codebase. For example, Loom is intentionally built only for MongoDB to avoid the complexity of supporting multiple database paradigms.
--   **Make the safe way the easy way**: Create coding friction for unsafe practices. The framework should guide developers away from common pitfalls, especially in data and time management.  But does not exhaustively build out guardrail if it come at the cost of simplicity.
+-   **Promote simple, elegant code**: Prioritize clarity and simplicity over exhaustive features. We are willing to sacrifice capability for a simpler, more focused codebase. For example, Loom is intentionally built only for MongoDB to avoid the complexity of supporting multiple database paradigms.  It is unlikely that it will support any other database.
+-   **Make the safe way the easy way**: The framework should guide developers away from common pitfalls, especially in data and time management.  Create coding friction for unsafe practices. But does not exhaustively build out guardrail if it comes at the cost of simplicity.
 
 ## Philosophy in Action
 
@@ -24,7 +24,7 @@ Here’s how Loom's code reflects its core philosophy:
 
 ## Information Management
 
-The core of Loom's information management is a declarative and fluent data persistence layer built on top of Pydantic and MongoDB.
+The core of Loom's information management is a declarative persistence layer built on top of Pydantic and MongoDB.
 
 ### Quick Start
 
@@ -78,7 +78,7 @@ User.persist_many([new_user, another_user])
 
 ### Initial limitations for simplicity:
 - Support for MongoDB only.
-- Secret management is handled via `google-cloud-secret-manager` or local `keyring`.
+- Secret management is handled via `google-cloud-secret-manager`, local `keyring`, or environment variable.
 
 ## Time
 
