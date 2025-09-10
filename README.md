@@ -7,7 +7,7 @@ A tapestry to which ideas are woven into reality swiftly, safely, and simply. Th
 ## Philosophy
 
 -   **Lower mental load**: Abstract away boilerplate and repetitive tasks, letting developers focus on business logic.
--   **Create friction for unsafe practices**: Make the safe way the easy way. The framework should guide developers away from common pitfalls, especially in data and time management.
+-   **Make the safe way the easy way**: Create friction for unsafe practices. The framework should guide developers away from common pitfalls, especially in data and time management.
 -   **Promote simple, elegant code**: Prioritize clarity and simplicity over exhaustive features. We are willing to sacrifice capability for a simpler, more focused codebase. For example, Loom is intentionally built only for MongoDB to avoid the complexity of supporting multiple database paradigms.
 
 ## Philosophy in Action
