@@ -310,20 +310,10 @@ class Persistable(Model):
         Returns:
             dict: A MongoDB-compatible query dictionary.
         """
-        meta_map = {
-            key: [
-                item
-                for item in value.metadata
-                if isinstance(item, QueryableTransformer)
-            ]
-            for key, value in cls.model_fields.items()
-        }
-        before_query_map = {
-            key: value for key, value in meta_map.items() if len(value) > 0
-        }
+        before_query_map = cls.get_field_hints(QueryableTransformer)
 
         retval: dict = filter.get_exp() if isinstance(filter, Filter) else filter
-        if len(before_query_map) == 0:
+        if not before_query_map:
             return retval
 
         for key, before_query in before_query_map.items():
@@ -682,21 +672,12 @@ class Persistable(Model):
         if model_version is not None:
             dataframe["version"] = model_version
 
-        meta_map = {
-            key: [
-                item
-                for item in value.metadata
-                if isinstance(item, QueryableTransformer)
-            ]
-            for key, value in cls.model_fields.items()
-        }
-        transformer_map = {
-            key: value for key, value in meta_map.items() if len(value) > 0
-        }
+        transformer_map = cls.get_field_hints(QueryableTransformer)
 
         for key, transformers in transformer_map.items():
-            for transformer in transformers:
-                dataframe[key] = dataframe[key].apply(transformer)
+            if key in dataframe.columns:
+                for transformer in transformers:
+                    dataframe[key] = dataframe[key].apply(transformer)
 
         try:
             collection.insert_many(

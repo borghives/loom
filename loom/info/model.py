@@ -85,8 +85,7 @@ class CoalesceOnIncr(Collapsible):
     A `Collapsible` that provides an increment value on update.
 
     If the field's value is `None`, it calls the `collapse` function to generate
-    a new value. This is intended for use with `$set` operations where a value
-    needs to be refreshed on every save.
+    a new value. This is intended for use with `$inc` operations.
     """
 
     def __init__(self, collapse):
