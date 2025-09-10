@@ -10,7 +10,7 @@ from pymongo.errors import BulkWriteError
 
 from loom.info.atomic import IncrCounter
 from loom.info.persist import Persistable, declare_persist_db
-from loom.info.model import CoalesceOnSet, CoalesceOnInsert
+from loom.info.model import RefreshOnSet, CoalesceOnInsert
 
 
 @declare_persist_db(db_name="test_db", collection_name="test_collection", version=1, test=True)
@@ -42,8 +42,8 @@ class PersistableTest(unittest.TestCase):
         fixed_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         
         # Directly modify the collapse function for the test
-        updated_time_transformer = TestModel.get_field_metadata("updated_time", CoalesceOnSet)[0]
-        updated_time_transformer.collapse = lambda: fixed_time
+        updated_time_transformer = TestModel.get_field_metadata("updated_time", RefreshOnSet)[0]
+        updated_time_transformer.collapse = lambda x: fixed_time
 
         model = TestModel(name="test", value=10)
         model.updated_time = None  # Ensure coalesce is triggered
@@ -60,10 +60,10 @@ class PersistableTest(unittest.TestCase):
         fixed_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         
         # Directly modify the collapse functions for the test
-        updated_time_transformer = TestModel.get_field_metadata("updated_time", CoalesceOnSet)[0]
-        updated_time_transformer.collapse = lambda: fixed_time
+        updated_time_transformer = TestModel.get_field_metadata("updated_time", RefreshOnSet)[0]
+        updated_time_transformer.collapse = lambda x: fixed_time
         created_at_transformer = TestModel.get_field_metadata("created_at", CoalesceOnInsert)[0]
-        created_at_transformer.collapse = lambda: fixed_time
+        created_at_transformer.collapse = lambda : fixed_time
 
         model = TestModel(name="test", value=10)
         model.id = None

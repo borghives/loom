@@ -45,7 +45,7 @@ class CoalesceOnInsert(Collapsible):
         return v
 
 
-class CoalesceOnSet(Collapsible):
+class RefreshOnSet(Collapsible):
     """
     A Collapsible that provides a value on any database update (not insertion).
     This is intended when a value needs to be refreshed on every save.
@@ -55,9 +55,7 @@ class CoalesceOnSet(Collapsible):
         self.collapse = collapse
 
     def __call__(self, v):
-        if v is None:
-            return self.collapse()
-        return v
+        return self.collapse(v)
 
 
 class CoalesceOnIncr(Collapsible):
@@ -118,7 +116,7 @@ class BeforeSetAttr:
 StrUpper = Annotated[
     str,
     AfterValidator(str.upper),
-    CoalesceOnSet(str.upper),
+    RefreshOnSet(str.upper),
     NormalizeQueryInput(str.upper),
 ]
 
@@ -126,7 +124,7 @@ StrUpper = Annotated[
 StrLower = Annotated[
     str,
     AfterValidator(str.lower),
-    CoalesceOnSet(str.lower),
+    RefreshOnSet(str.lower),
     NormalizeQueryInput(str.lower),
 ]
 
@@ -142,7 +140,7 @@ TimeInserted = Annotated[
 TimeUpdated = Annotated[
     datetime | None,
     AfterValidator(lambda x: to_utc_aware(x) if x is not None else None),
-    CoalesceOnSet(collapse=get_current_time),
+    RefreshOnSet(collapse=lambda x: get_current_time()),
     Field(default=None),
 ]
 
@@ -202,6 +200,10 @@ class Model(ABC, BaseModel):
         new_value = coalesce(current_value, transformers)
         setattr(self, field_name, new_value)
         return new_value
+    
+    def coalesce_fields_for(self, field_type: type):
+        for field, transformers in self.get_fields_with_metadata(field_type).items():
+            self.coalesce_field(field, transformers)
 
     def collapse_id(self) -> ObjectId:
         """

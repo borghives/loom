@@ -12,7 +12,7 @@ from loom.info.universal import get_remote_db_client, get_local_db_client
 from loom.info.model import (
     CoalesceOnIncr,
     CoalesceOnInsert,
-    CoalesceOnSet,
+    RefreshOnSet,
     Model,
     NormalizeQueryInput,
     TimeUpdated,
@@ -165,7 +165,7 @@ class Persistable(Model):
             if field in doc:
                 del doc[field]
 
-        for field, transformers in self.get_fields_with_metadata(CoalesceOnSet).items():
+        for field, transformers in self.get_fields_with_metadata(RefreshOnSet).items():
             doc[field] = self.coalesce_field(field, transformers)
 
         if len(doc) == 0:
@@ -656,7 +656,7 @@ class Persistable(Model):
         operations: list = []
 
         persist_items = [
-            item
+            item 
             for item in items
             if isinstance(item, Persistable) and (item.should_persist or not lazy)
         ]
@@ -695,7 +695,7 @@ class Persistable(Model):
         if updated_time is not None:
             dataframe["updated_time"] = updated_time
 
-        transformer_map = cls.get_fields_with_metadata(CoalesceOnSet)
+        transformer_map = cls.get_fields_with_metadata(RefreshOnSet)
         for key, transformers in transformer_map.items():
             dataframe[key] = coalesce(dataframe.get(key), transformers)
 
