@@ -2,7 +2,7 @@
 
 Weaves information and time into one reality.
 
-The two most important concepts for a coding reality are **information** and **time**.
+The two most important concepts for coding are **information** and **time**.  This is one way to frame it.
 
 ## Philosophy
 
