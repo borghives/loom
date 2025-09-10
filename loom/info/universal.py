@@ -15,6 +15,7 @@ ZERO_ID = ObjectId("000000000000000000000000")
 class SecretManager(Enum):
     GCS_SECRET_MANAGER = "gcs_secret_manager"
     LOCAL_KEYRING = "keyring"
+    ENV = "env_variable"
 
 
 def access_secret(
@@ -62,6 +63,10 @@ def access_secret(
             if ret is None:
                 raise Exception("Secret not found in keyring")
             return ret
+        case SecretManager.ENV:
+            ret = os.getenv(secret_id)
+            if ret is None:
+                raise Exception("Secret not found in environment")
 
     raise Exception("Unknown secret manager")
 
@@ -108,6 +113,9 @@ def set_secret(
                 or getpass.getuser()
             )
             keyring.set_password(secret_id, username, secret_value)
+            return
+        case SecretManager.ENV:
+            os.environ[secret_id] = secret_value
             return
 
     raise Exception("Unknown secret manager")

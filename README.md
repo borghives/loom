@@ -1,14 +1,14 @@
 # Loom
 
-Weaves the fabric of information and time into one reality.
+Weaves information and time into one reality.
 
-A tapestry to which ideas are woven into reality swiftly, safely, and simply. The two most important concepts for such a reality are **information** and **time**.
+The two most important concepts for a coding reality are **information** and **time**.
 
 ## Philosophy
 
--   **Lower mental load**: Abstract away boilerplate and repetitive tasks, letting developers focus on business logic.
--   **Make the safe way the easy way**: Create friction for unsafe practices. The framework should guide developers away from common pitfalls, especially in data and time management.
+-   **Lower mental load**: Abstract away boilerplate and repetitive tasks, letting developers focus on logic.
 -   **Promote simple, elegant code**: Prioritize clarity and simplicity over exhaustive features. We are willing to sacrifice capability for a simpler, more focused codebase. For example, Loom is intentionally built only for MongoDB to avoid the complexity of supporting multiple database paradigms.
+-   **Make the safe way the easy way**: Create coding friction for unsafe practices. The framework should guide developers away from common pitfalls, especially in data and time management.  But does not exhaustively build out guardrail if it come at the cost of simplicity.
 
 ## Philosophy in Action
 
@@ -17,7 +17,7 @@ Here’s how Loom's code reflects its core philosophy:
 | Goal | Feature | How It Works |
 | :--- | :--- | :--- |
 | **Lower Mental Load** | **Declarative Persistence** (`Persistable`, `@declare_persist_db`) | Instead of writing database logic, you declare persistence by adding a mixin and a decorator to your Pydantic model. The framework handles the rest. |
-| | **Automatic Timestamps & IDs** (`SuperId`, `TimeInserted`, `TimeUpdated`) | Common fields like `_id`, `created_at`, and `updated_time` are managed automatically through type annotations, reducing boilerplate and potential errors. |
+| | **Automatic Timestamps & IDs** (`TimeInserted`, `TimeUpdated`) | Common fields like `_id`, `created_at`, and `updated_time` are managed automatically through type annotations, reducing boilerplate and potential errors. |
 | **Friction for Unsafe Code** | **Forced Secret Management** (`get_remote_db_client`) | The system requires a secret for remote database connections, preventing insecure configurations from the start. |
 | | **Fluent Query API** (`Aggregation`, `Filter`) | Building queries with a structured, chainable API (`.Match()`, `.Group()`, etc.) is safer and less error-prone than writing raw MongoDB dictionaries. |
 | **Simple, Elegant Code** | **Focused Design** | By targeting only MongoDB, the entire information management system remains lean, consistent, and easy to understand. |
