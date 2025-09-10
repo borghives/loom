@@ -124,6 +124,12 @@ class AfterPersist:
             The transformed value.
         """
         return self.func(v)
+    
+class BeforeSetAttr:
+    def __init__(self, func):
+        self.func = func
+    def __call__(self, v):
+        return self.func(v)
 
 #: An annotated string type that automatically converts the value to uppercase.
 StrUpper = Annotated[str, QueryableTransformer(str.upper)]
@@ -316,6 +322,11 @@ class Model(ABC, BaseModel):
             doc (dict): The document retrieved from the database.
         """
         pass
+
+    def __setattr__(self, name: str, value) -> None:
+        transformers = self.get_field_hint(name, BeforeSetAttr)
+        value = coalesce(value, transformers)
+        return super().__setattr__(name, value)
 
     @classmethod
     def from_db_doc(cls, doc: dict):

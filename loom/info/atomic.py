@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pydantic import AfterValidator, Field
 
-from loom.info.model import CoalesceOnIncr
+from loom.info.model import BeforeSetAttr, CoalesceOnIncr
 
 
 class IntCounter(int):
@@ -49,7 +49,13 @@ class IntCounter(int):
         """
         return IntCounter(int(self) + self._incr_value)
 
+def check_incr_int_counter(value):
+    if isinstance(value, IntCounter) :
+        return value
+    raise AttributeError("Cannot set on an IncrIntCounter directly. Must use += operator to increment.")
+
 IncrIntCounter = Annotated[int, 
     CoalesceOnIncr(collapse=lambda x: x.collapse() if x is not None and isinstance(x, IntCounter) else 0), 
     AfterValidator(IntCounter),
+    BeforeSetAttr(check_incr_int_counter),
     Field(default_factory=IntCounter)]

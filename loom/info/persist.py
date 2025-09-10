@@ -94,7 +94,7 @@ class Persistable(Model):
         return Filter({"_id": self.collapse_id()})
 
 
-    def get_set_on_insert_instruction(self, exclude_fields: list = []) -> Tuple[dict, list]:
+    def get_set_on_insert_instruction(self) -> Tuple[dict, list]:
         """
         Constructs the `$setOnInsert` part of a MongoDB update operation.
 
@@ -118,7 +118,7 @@ class Persistable(Model):
 
         return {"$setOnInsert": set_on_insert_op}, list(set_on_insert_op.keys())
 
-    def get_increment_instruction(self, exclude_fields: list = []) -> Tuple[dict, list]:
+    def get_increment_instruction(self) -> Tuple[dict, list]:
         increment_instruction: dict = {}
         for field, transformers in self.get_field_hints(CoalesceOnIncr).items():
             increment_value = getattr(self, field).get_changes()
@@ -157,7 +157,7 @@ class Persistable(Model):
         """
 
         set_on_insert_instruction, set_insert_fields = self.get_set_on_insert_instruction()
-        increment_instruction, inc_fields = self.get_increment_instruction(exclude_fields=set_insert_fields)
+        increment_instruction, inc_fields = self.get_increment_instruction()
         set_instruction, _ = self.get_set_instruction(exclude_fields=inc_fields + set_insert_fields)
         update_instr: dict[str, Any] = {}
 

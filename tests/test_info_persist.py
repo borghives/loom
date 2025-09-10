@@ -89,6 +89,12 @@ class PersistableTest(unittest.TestCase):
         model.counter += 2
         model.counter2 += 3
 
+        try:
+            model.counter = 2
+            assert False, "Expected AttributeError when setting counter directly"
+        except AttributeError as e:
+            print(f"Caught expected exception: {e}")
+
         assert model.counter == 2
         assert model.counter2 == 3
 
