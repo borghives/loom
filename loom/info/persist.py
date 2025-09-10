@@ -111,7 +111,7 @@ class Persistable(Model):
         if model_version is not None:
             set_on_insert_op["version"] = model_version
 
-        for field, transformers in self.get_field_hints(CoalesceOnInsert).items():
+        for field, transformers in self.get_fields_with_metadata(CoalesceOnInsert).items():
             set_on_insert_op[field] = self.coalesce_field(field, transformers)
 
         if len(set_on_insert_op) == 0:
@@ -132,7 +132,7 @@ class Persistable(Model):
             list of the fields included in the operation.
         """
         increment_instruction: dict = {}
-        for field, transformers in self.get_field_hints(CoalesceOnIncr).items():
+        for field, transformers in self.get_fields_with_metadata(CoalesceOnIncr).items():
             increment_value = getattr(self, field).get_changes()
             increment_instruction[field] = increment_value
             self.coalesce_field(field, transformers)
@@ -162,7 +162,7 @@ class Persistable(Model):
             if field in doc:
                 del doc[field]
 
-        for field, transformers in self.get_field_hints(CoalesceOnSet).items():
+        for field, transformers in self.get_fields_with_metadata(CoalesceOnSet).items():
             doc[field] = self.coalesce_field(field, transformers)
         
         if len(doc) == 0:
@@ -336,7 +336,7 @@ class Persistable(Model):
         Returns:
             dict: A MongoDB-compatible query dictionary.
         """
-        normalized_query_map = cls.get_field_hints(NormalizeQueryInput)
+        normalized_query_map = cls.get_fields_with_metadata(NormalizeQueryInput)
 
         retval: dict = filter.get_exp() if isinstance(filter, Filter) else filter
         if not normalized_query_map:
@@ -611,7 +611,7 @@ class Persistable(Model):
             # Update the current object with the values from the database
             self.__dict__.update(self.from_db_doc(result_doc).__dict__)
 
-        for field, transformers in self.get_field_hints(AfterPersist).items():
+        for field, transformers in self.get_fields_with_metadata(AfterPersist).items():
             self.coalesce_field(field, transformers)
 
     def persist(self, lazy: bool = False) -> bool:
@@ -691,7 +691,7 @@ class Persistable(Model):
         if updated_time is not None:
             dataframe["updated_time"] = updated_time
 
-        transformer_map = cls.get_field_hints(CoalesceOnSet)
+        transformer_map = cls.get_fields_with_metadata(CoalesceOnSet)
         for key, transformers in transformer_map.items():
             dataframe[key] = coalesce(dataframe.get(key), transformers)
 

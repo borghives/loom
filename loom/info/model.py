@@ -259,11 +259,11 @@ class Model(ABC, BaseModel):
         return self.id is not None
 
     @classmethod
-    def get_field_hints(cls, meta_type) -> dict[str, list]:
+    def get_fields_with_metadata(cls, meta_type) -> dict[str, list]:
         """
         Finds all model fields that are annotated with a specific metadata type.
 
-        This is useful for discovering fields with custom annotations like
+        This is useful for discovering fields with custom metadata annotations like
         `CoalesceOnInsert` or `QueryableTransformer`.
 
         Args:
@@ -281,13 +281,13 @@ class Model(ABC, BaseModel):
         return {key: value for key, value in meta_map.items() if len(value) > 0}
 
     @classmethod
-    def get_field_hint(cls, field_name: str, hint_type: Optional[type] = None) -> list:
+    def get_field_metadata(cls, field_name: str, hint_type: Optional[type] = None) -> list:
         """
         Gets the metadata for a specific field, optionally filtered by type.
 
         Args:
             field_name: The name of the field to inspect.
-            hint_type: If provided, only metadata items of this type are
+            hint_type (type, optional): If provided, only metadata items of this type are
                 returned. Defaults to None.
 
         Returns:
@@ -342,7 +342,7 @@ class Model(ABC, BaseModel):
         """
         Sets an attribute on the model, applying any `BeforeSetAttr` transformers.
         """
-        transformers = self.get_field_hint(name, BeforeSetAttr)
+        transformers = self.get_field_metadata(name, BeforeSetAttr)
         value = coalesce(value, transformers)
         return super().__setattr__(name, value)
 

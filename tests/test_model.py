@@ -77,18 +77,18 @@ def test_str_lower_transformer():
     m = MyTestModel(name="test", value=1, notes="HELLO WORLD")
     assert m.notes == "hello world"
 
-def test_get_field_hints():
-    """Tests get_field_hints method."""
-    hints = MyTestModel.get_field_hints(Collapsible)
+def test_get_fields_with_metadata():
+    """Tests get_fields_with_metadata method."""
+    hints = MyTestModel.get_fields_with_metadata(Collapsible)
     assert "id" not in hints
     assert "created_at" in hints
     assert "name" not in hints
 
-def test_get_field_hint():
-    """Tests get_field_hint method."""
+def test_get_field_metadata():
+    """Tests get_field_metadata method."""
     
-    name_hints = MyTestModel.get_field_hint("name", Collapsible)
+    name_hints = MyTestModel.get_field_metadata("name", Collapsible)
     assert len(name_hints) == 0
 
-    non_existent_hints = MyTestModel.get_field_hint("non_existent_field")
+    non_existent_hints = MyTestModel.get_field_metadata("non_existent_field")
     assert len(non_existent_hints) == 0

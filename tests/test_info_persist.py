@@ -42,7 +42,7 @@ class PersistableTest(unittest.TestCase):
         fixed_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         
         # Directly modify the collapse function for the test
-        updated_time_transformer = TestModel.get_field_hint("updated_time", CoalesceOnSet)[0]
+        updated_time_transformer = TestModel.get_field_metadata("updated_time", CoalesceOnSet)[0]
         updated_time_transformer.collapse = lambda: fixed_time
 
         model = TestModel(name="test", value=10)
@@ -60,9 +60,9 @@ class PersistableTest(unittest.TestCase):
         fixed_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         
         # Directly modify the collapse functions for the test
-        updated_time_transformer = TestModel.get_field_hint("updated_time", CoalesceOnSet)[0]
+        updated_time_transformer = TestModel.get_field_metadata("updated_time", CoalesceOnSet)[0]
         updated_time_transformer.collapse = lambda: fixed_time
-        created_at_transformer = TestModel.get_field_hint("created_at", CoalesceOnInsert)[0]
+        created_at_transformer = TestModel.get_field_metadata("created_at", CoalesceOnInsert)[0]
         created_at_transformer.collapse = lambda: fixed_time
 
         model = TestModel(name="test", value=10)
