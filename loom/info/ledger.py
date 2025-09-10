@@ -9,20 +9,27 @@ TIMESERIES_META_NAME = "_db_series_metadata"
 
 class LedgerModel(Persistable):
     """
-    A non-destructive persistence model that creates a new document for each
-    `persist` call.
+    Represents a non-destructive, append-only persistence model.
 
-    This model is useful for creating immutable records, where each save
-    operation results in a new entry in the database.
+    Each call to `persist` creates a new document in the database, making it
+    ideal for creating immutable records or logs. This behavior is analogous
+    to a ledger where new entries are always added without modifying existing
+    ones.
     """
 
     def persist(self, lazy: bool = False) -> bool:
         """
-        Saves the model to the database as a new document.
+        Saves the current state of the model as a new document in the database.
+
+        If `lazy` is True, the operation is skipped if the model has no pending
+        updates (`should_persist` is False).
 
         Args:
-            override_client (Optional[MongoClient], optional): A MongoDB client
-                to use instead of the default client. Defaults to `None`.
+            lazy (bool): If True, persist only if there are pending changes.
+                         Defaults to False.
+
+        Returns:
+            bool: True if the document was saved, False otherwise.
         """
 
         if lazy and not self.should_persist:
@@ -31,21 +38,26 @@ class LedgerModel(Persistable):
         collection = self.get_db_collection()
 
         self.coalesce_fields_for(CoalesceOnInsert)
-        self.coalesce_fields_for(RefreshOnSet)        
+        self.coalesce_fields_for(RefreshOnSet)
         result = collection.insert_one(self.dump_doc())
         if result:
             self._id = result.inserted_id
 
         self.has_update = False
         return True
-    
+
     @classmethod
     def persist_many(cls, items: list, lazy: bool = False) -> None:
         """
-        Saves multiple models to the database as new documents.
+        Saves a list of model instances as new documents in a single bulk operation.
+
+        This method is more efficient than calling `persist` on each item
+        individually.
 
         Args:
-            items (list): A list of models to save.
+            items (list): A list of model instances to save.
+            lazy (bool): If True, only persist items that have pending changes.
+                         Defaults to False.
         """
 
         operations: list = []
@@ -67,23 +79,28 @@ class LedgerModel(Persistable):
 
 class TimeSeriesLedgerModel(LedgerModel):
     """
-    A ledger model that is specifically designed for time-series data.
+    A ledger model specifically designed for MongoDB time-series collections.
 
-    This model extends `LedgerModel` and provides additional features for
-    creating and managing time-series collections in MongoDB.
+    This model extends `LedgerModel` and works in conjunction with the
+    `@declare_timeseries` decorator to configure and create time-series
+    collections automatically. It assumes that documents will be stored in a
+    collection optimized for data points recorded over time.
     """
 
     # --- Information on the timeseries the model ---
     @classmethod
     def get_timeseries_info(cls) -> dict:
         """
-        Gets the time-series information for the model.
+        Retrieves the time-series configuration for the model class.
 
-        This information is used to create the time-series collection in
-        MongoDB.
+        This configuration is defined by the `@declare_timeseries` decorator.
 
         Returns:
-            dict: The time-series information for the model.
+            dict: A dictionary containing the time-series configuration,
+                  including metakey, granularity, and TTL.
+
+        Raises:
+            Exception: If the class is not decorated with `@declare_timeseries`.
         """
 
         if not hasattr(cls, TIMESERIES_META_NAME):
@@ -96,7 +113,12 @@ class TimeSeriesLedgerModel(LedgerModel):
     @classmethod
     def create_collection(cls) -> None:
         """
-        Creates the time-series collection in MongoDB.
+        Creates a time-series collection in MongoDB based on the model's
+        declaration.
+
+        If the collection does not already exist, it will be created using the
+        parameters specified in the `@declare_timeseries` decorator. The time
+        field is automatically set to 'updated_time'.
         """
         db = cls.get_db()
         collection_names = db.list_collection_names()
@@ -127,17 +149,29 @@ def declare_timeseries(
     ttl: Optional[int] = None,
 ):
     """
-    A class decorator that declares how a model should be persisted to
-    MongoDB.
+    A class decorator to configure a `TimeSeriesLedgerModel` for a MongoDB
+    time-series collection.
+
+    This decorator attaches the necessary metadata to the model class, which is
+    then used by `TimeSeriesLedgerModel.create_collection` to set up the
+    database collection correctly.
+
+    Example:
+        @declare_timeseries(metakey='device_id', granularity='minutes', ttl=3600)
+        class SensorData(TimeSeriesLedgerModel):
+            device_id: str
+            temperature: float
 
     Args:
-        metakey (Optional[str], optional): The name of the meta key for
-            time-series collections. Defaults to `None`.
-        granularity (Optional[str], optional): The granularity of
-            time-series collections. Can be `"seconds"`, `"minutes"`, or
+        metakey (Optional[str], optional): The name of the field that contains
+            metadata for the time-series. This is used as the `metaField` in
+            MongoDB. Defaults to `None`.
+        granularity (Optional[str], optional): The granularity of the
+            time-series data. Valid options are `"seconds"`, `"minutes"`, or
             `"hours"`. Defaults to `None`.
-        ttl (Optional[int], optional): The TTL of time-series
-            collections in seconds. Defaults to `None`.
+        ttl (Optional[int], optional): The time-to-live (TTL) for documents in
+            the collection, specified in seconds. Documents will automatically
+            be deleted after this duration. Defaults to `None`.
     """
 
     def decorator(cls):
