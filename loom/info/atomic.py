@@ -1,10 +1,9 @@
 
 from typing import Annotated
-from typing_extensions import Final
 
 from pydantic import AfterValidator, Field
 
-from loom.info.model import AfterPersist, CoalesceOnIncr
+from loom.info.model import CoalesceOnIncr
 
 
 class IntCounter(int):

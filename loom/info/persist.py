@@ -18,7 +18,6 @@ from loom.info.model import (
     QueryableTransformer,
     TimeUpdated,
     TimeInserted,
-    coalesce,
 )
 from loom.info.filter import Filter, Size, SortDesc, SortOp
 from loom.time.util import get_current_time
