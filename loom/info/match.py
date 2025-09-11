@@ -119,7 +119,7 @@ class Eq(MatchDirective):
 
 
 @dataclass
-class InTime(MatchDirective):
+class Time(MatchDirective):
     """
     A match directive that creates a time-based filter.
     """
@@ -140,22 +140,22 @@ class InTime(MatchDirective):
 
         return time_match
     
-    def after(self, time : datetime) -> "InTime":
+    def after(self, time : datetime) -> "Time":
         self.after_t = to_utc_aware(time)
         self.after_incl = False
         return self
     
-    def before(self, time : datetime) -> "InTime":
+    def before(self, time : datetime) -> "Time":
         self.before_t = to_utc_aware(time)
         self.before_incl = False
         return self
     
-    def inclusive_after(self, time : datetime) -> "InTime":
+    def inclusive_after(self, time : datetime) -> "Time":
         self.after_t = to_utc_aware(time)
         self.after_incl = True
         return self
     
-    def inclusive_before(self, time : datetime) -> "InTime":
+    def inclusive_before(self, time : datetime) -> "Time":
         self.before_t = to_utc_aware(time)
         self.before_incl = True
         return self
