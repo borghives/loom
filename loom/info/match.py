@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 from loom.info.load import MatchDirective
+from loom.time.timeframing import TimeFrame
 from loom.time.util import to_utc_aware
 
 
@@ -159,3 +160,13 @@ class Time(MatchDirective):
         self.before_t = to_utc_aware(time)
         self.before_incl = True
         return self
+    
+    def within(self, floor: datetime, ceiling: datetime) -> "Time":
+        self.after_t = to_utc_aware(floor)
+        self.after_incl = True
+        self.before_t = to_utc_aware(ceiling)
+        self.before_incl = False
+        return self
+    
+    def in_frame(self, frame: TimeFrame) -> "Time":
+        return self.within(frame.floor, frame.ceiling)

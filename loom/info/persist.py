@@ -163,12 +163,13 @@ class Persistable(Model):
             list of the fields included in the operation.
         """
         doc = self.dump_doc()
+        
+        for field, transformers in self.get_fields_with_metadata(RefreshOnSet).items():
+            doc[field] = self.coalesce_field(field, transformers)
+
         for field in exclude_fields:
             if field in doc:
                 del doc[field]
-
-        for field, transformers in self.get_fields_with_metadata(RefreshOnSet).items():
-            doc[field] = self.coalesce_field(field, transformers)
 
         if len(doc) == 0:
             return {}, []
