@@ -57,6 +57,18 @@ class RefreshOnSet(Collapsible):
     def __call__(self, v):
         return self.collapse(v)
 
+class RefreshOnDataframeInsert(Collapsible):
+    """
+    A Collapsible that provides a value on database dataframe insertion.
+    This is intended when a value needs to be refreshed on dataframe insertion.
+    """
+
+    def __init__(self, collapse):
+        self.collapse = collapse
+
+    def __call__(self, v):
+        return self.collapse(v)
+
 
 class CoalesceOnIncr(Collapsible):
     """
@@ -116,6 +128,7 @@ StrUpper = Annotated[
     str,
     AfterValidator(str.upper),
     RefreshOnSet(str.upper),
+    RefreshOnDataframeInsert(str.upper),
     NormalizeQueryInput(str.upper),
 ]
 
@@ -124,6 +137,7 @@ StrLower = Annotated[
     str,
     AfterValidator(str.lower),
     RefreshOnSet(str.lower),
+    RefreshOnDataframeInsert(str.lower),
     NormalizeQueryInput(str.lower),
 ]
 

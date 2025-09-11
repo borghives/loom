@@ -1,24 +1,27 @@
 from typing import Any, Optional, Tuple
-from bson import ObjectId
+
 import pandas as pd
+from bson import ObjectId
 from pydantic import Field, PrivateAttr
 from pymongo import MongoClient, ReturnDocument, UpdateOne
-from pymongo.errors import BulkWriteError
 from pymongo.collection import Collection
 from pymongo.database import Database
+from pymongo.errors import BulkWriteError
+
 from loom.info.aggregation import Aggregation
-from loom.info.universal import get_remote_db_client, get_local_db_client
+from loom.info.load import Filter, Size, SortDesc, SortOp
 from loom.info.model import (
     CoalesceOnIncr,
     CoalesceOnInsert,
-    RefreshOnSet,
     Model,
     NormalizeQueryInput,
-    TimeUpdated,
+    RefreshOnDataframeInsert,
+    RefreshOnSet,
     TimeInserted,
+    TimeUpdated,
     coalesce,
 )
-from loom.info.load import Filter, Size, SortDesc, SortOp
+from loom.info.universal import get_local_db_client, get_remote_db_client
 
 
 class Persistable(Model):
@@ -684,6 +687,9 @@ class Persistable(Model):
         """
         Inserts a pandas DataFrame into the database.
 
+        Note: to have RefreshOnDataframeInsert fields refresh, the columns must exist in the DataFrame.  
+        Default columns to None if to have field trigger content.
+
         Args:
             dataframe (pd.DataFrame): The DataFrame to insert.
         """
@@ -692,12 +698,7 @@ class Persistable(Model):
 
         collection = cls.get_db_collection()
 
-        transformer_map = cls.get_fields_with_metadata(RefreshOnSet)
-        for key, transformers in transformer_map.items():
-            if key in dataframe.columns:
-                dataframe[key] = dataframe[key].apply(lambda x: coalesce(x, transformers))
-        
-        transformer_map = cls.get_fields_with_metadata(CoalesceOnInsert)
+        transformer_map = cls.get_fields_with_metadata(RefreshOnDataframeInsert)
         for key, transformers in transformer_map.items():
             if key in dataframe.columns:
                 dataframe[key] = dataframe[key].apply(lambda x: coalesce(x, transformers))
