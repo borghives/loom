@@ -1,7 +1,8 @@
 # Loom
 
-Weaves information and time into one reality--the two most important concepts for coding.  This is one way to frame it.
+Weaves ideas and concept using information and time construct.  
 
+This is one way to frame it.
 ## Philosophy
 
 -   **Lower mental load**: Abstract away boilerplate and repetitive tasks, letting developers focus on logic.
