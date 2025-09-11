@@ -1,5 +1,8 @@
+from datetime import datetime
+from typing import Optional
 import numpy as np
-from pydantic import BaseModel, Field
+import pandas as pd
+from pydantic import BaseModel, ConfigDict, Field
 
 from loom.fabric.insight.pdf_value import PdfValue
 from loom.fabric.insight.regression import Regression
@@ -24,4 +27,45 @@ class Trending(BaseModel):
             range=Spread.calculate(data_points),
             regression=Regression.calculate(x, data_points),
             likely=PdfValue.calculate(data_points)
+        )
+    
+class TrendingFrame(BaseModel):
+    """
+    Represents the analysis of an option contract's market data at a specific moment in time.
+    It analyzes the trend of the contract's market value and its percentage change over a future/past window.
+    """
+    ceiling_time    : datetime              = Field(description="The timestamp of the latest data point included in this frame.")
+    floor_time      : datetime              = Field(description="The timestamp of the earliest data point included in this frame.")
+    data_count      : int                   = Field(description="The number of data points used in the analysis.")
+
+    model_config = ConfigDict(extra='allow')
+    
+
+    @classmethod
+    def consume_data(cls, option_chain_df: pd.DataFrame, target_fields: list[str], time_field: str = 'time_distance_hr') -> Optional["TrendingFrame"]:
+        """
+        Factory method to create a FutureMarketFrame from a DataFrame of option chain data.
+        """
+        if time_field not in option_chain_df.columns:
+            ValueError(f"DataFrame must contain a '{time_field}' column representing time distances.")
+        
+        df = option_chain_df.replace([np.inf, -np.inf], np.nan).dropna()
+        data_count = len(df)
+        if data_count <= 1:
+            return None
+        
+        
+        
+        time_data = df[time_field].to_numpy() # time distance from a context moment
+
+        trending_value = {}
+        for field in target_fields:
+
+            trending_value[field] = Trending.calculate(time_data, df[field].to_numpy())
+        
+        return cls(
+            ceiling_time    = df['updated_time'].max(),
+            floor_time      = df['updated_time'].min(),
+            data_count      = data_count,
+            **trending_value
         )
