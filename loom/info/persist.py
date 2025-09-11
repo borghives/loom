@@ -679,23 +679,18 @@ class Persistable(Model):
 
     @classmethod
     def insert_dataframe(
-        cls, dataframe: pd.DataFrame, updated_time: Optional[datetime] = None
+        cls, dataframe: pd.DataFrame
     ):
         """
         Inserts a pandas DataFrame into the database.
 
         Args:
             dataframe (pd.DataFrame): The DataFrame to insert.
-            updated_time (Optional[datetime], optional): The time to use as the
-                `updated_time` for all documents. Defaults to `None`.
         """
         if dataframe.empty:
             return
 
         collection = cls.get_db_collection()
-
-        if updated_time is not None:
-            dataframe["updated_time"] = updated_time
 
         transformer_map = cls.get_fields_with_metadata(RefreshOnSet)
         for key, transformers in transformer_map.items():
