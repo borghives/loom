@@ -37,6 +37,6 @@ class Moment(Persistable):
         return self.time.strftime("%Y-%m-%d")
     
     @classmethod
-    def create(cls, event_time: Optional[datetime] = None, **kwargs):
-        retval = cls(**kwargs, updated_time=event_time)
+    def create(cls, time: Optional[datetime] = None, **kwargs):
+        retval = cls(**kwargs, updated_time=time)
         return retval
