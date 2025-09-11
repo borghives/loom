@@ -40,11 +40,13 @@ class Persistable(Model):
         created_at (TimeInserted): A timestamp that is set once when the model
             is first inserted into the database.
         _has_update (bool): A private flag indicating if the model has pending
-            changes to be persisted.  It is the responsibility of the logic to 
+            changes to be persisted.  It is the responsibility of the logic to
             update this flag.  Defaults to `True` on creation.
     """
 
-    updated_time: TimeUpdated = Field(description="Timestamp of the last update.")
+    updated_time: TimeUpdated = Field(
+        description="Timestamp of the last update.", default=None
+    )
     created_at: TimeInserted = Field(
         description="Entity Created Time (does not exist if entity has not been persisted)",
         default=None,
@@ -656,7 +658,7 @@ class Persistable(Model):
         operations: list = []
 
         persist_items = [
-            item 
+            item
             for item in items
             if isinstance(item, Persistable) and (item.should_persist or not lazy)
         ]

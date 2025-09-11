@@ -150,12 +150,12 @@ class Time(MatchDirective):
         self.before_incl = False
         return self
     
-    def inclusive_after(self, time : datetime) -> "Time":
+    def iafter(self, time : datetime) -> "Time":
         self.after_t = to_utc_aware(time)
         self.after_incl = True
         return self
     
-    def inclusive_before(self, time : datetime) -> "Time":
+    def ibefore(self, time : datetime) -> "Time":
         self.before_t = to_utc_aware(time)
         self.before_incl = True
         return self
