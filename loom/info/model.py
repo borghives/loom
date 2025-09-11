@@ -230,7 +230,7 @@ class Model(ABC, BaseModel):
         Returns:
             bool: `True` if the document has an `ObjectId`, `False` otherwise.
         """
-        return self.id is not None
+        return self.id is not None and ObjectId.is_valid(str(self.id))
 
     @classmethod
     def get_fields_with_metadata(cls, meta_type) -> dict[str, list]:
