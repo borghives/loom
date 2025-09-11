@@ -4,7 +4,6 @@ from enum import Enum
 from typing import Annotated, Optional
 
 from bson import ObjectId
-import pandas as pd
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PlainSerializer
 
 from loom.time.util import get_current_time, to_utc_aware
@@ -112,30 +111,20 @@ class BeforeSetAttr:
     def __call__(self, v):
         return self.func(v)
 
-def to_upper_str_or_series(v):
-    if isinstance(v, pd.Series):
-        return v.str.upper()
-    return v.upper()
-
-def to_lower_str_or_series(v):
-    if isinstance(v, pd.Series):
-        return v.str.upper()
-    return v.upper()
-
 #: An annotated string type that automatically converts the value to uppercase.
 StrUpper = Annotated[
     str,
-    AfterValidator(to_upper_str_or_series),
-    RefreshOnSet(to_upper_str_or_series),
-    NormalizeQueryInput(to_upper_str_or_series),
+    AfterValidator(str.upper),
+    RefreshOnSet(str.upper),
+    NormalizeQueryInput(str.upper),
 ]
 
 #: An annotated string type that automatically converts the value to lowercase.
 StrLower = Annotated[
     str,
-    AfterValidator(to_lower_str_or_series),
-    RefreshOnSet(to_lower_str_or_series),
-    NormalizeQueryInput(to_lower_str_or_series),
+    AfterValidator(str.lower),
+    RefreshOnSet(str.lower),
+    NormalizeQueryInput(str.lower),
 ]
 
 #: A datetime field that defaults to the current UTC time on document creation.

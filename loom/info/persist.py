@@ -680,7 +680,7 @@ class Persistable(Model):
     @classmethod
     def insert_dataframe(
         cls, dataframe: pd.DataFrame
-    ):
+    ) -> pd.DataFrame:
         """
         Inserts a pandas DataFrame into the database.
 
@@ -688,13 +688,19 @@ class Persistable(Model):
             dataframe (pd.DataFrame): The DataFrame to insert.
         """
         if dataframe.empty:
-            return
+            return dataframe
 
         collection = cls.get_db_collection()
 
         transformer_map = cls.get_fields_with_metadata(RefreshOnSet)
         for key, transformers in transformer_map.items():
-            dataframe[key] = coalesce(dataframe.get(key), transformers)
+            if key in dataframe.columns:
+                dataframe[key] = dataframe[key].apply(lambda x: coalesce(x, transformers))
+        
+        transformer_map = cls.get_fields_with_metadata(CoalesceOnInsert)
+        for key, transformers in transformer_map.items():
+            if key in dataframe.columns:
+                dataframe[key] = dataframe[key].apply(lambda x: coalesce(x, transformers))
 
         model_version = cls.get_model_code_version()
         if model_version is not None:
@@ -708,6 +714,8 @@ class Persistable(Model):
             for error in bwe.details["writeErrors"]:
                 if error["code"] != 11000:  # Not DuplicateKeyError propagate error
                     raise error
+                
+        return dataframe
 
     # ---END: Save to persistence storage ---
 
