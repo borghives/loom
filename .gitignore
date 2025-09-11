@@ -5,3 +5,7 @@
 .venv
 reference_material
 .DS_Store
+poetry.lock
+poetry.lock.bak
+.vscode
+.vscode.bak
