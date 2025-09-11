@@ -1,10 +1,11 @@
+from typing import Optional
 from pydantic import Field
 from datetime import datetime
 from functools import total_ordering
 from pydantic import ConfigDict
 from loom.info.model import StrUpper
 from loom.info.persist import Persistable
-from loom.time.util import get_current_time, to_utc_aware
+from loom.time.util import to_utc_aware
 
 @total_ordering
 class Moment(Persistable):
@@ -36,11 +37,6 @@ class Moment(Persistable):
         return self.time.strftime("%Y-%m-%d")
     
     @classmethod
-    def create_now(cls, **kwargs):
-        return cls.create_time(event_time=get_current_time(), **kwargs)
-
-    @classmethod
-    def create_time(cls, event_time: datetime, **kwargs):
-        retval = cls(**kwargs)
-        retval.updated_time = event_time
+    def create(cls, event_time: Optional[datetime] = None, **kwargs):
+        retval = cls(**kwargs, updated_time=event_time)
         return retval
