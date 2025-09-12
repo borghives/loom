@@ -45,31 +45,6 @@ class CoalesceOnInsert(Collapsible):
         return v
 
 
-class RefreshOnSet(Collapsible):
-    """
-    A Collapsible that provides a value on any database update (not insertion).
-    This is intended when a value needs to be refreshed on every save.
-    """
-
-    def __init__(self, collapse):
-        self.collapse = collapse
-
-    def __call__(self, v):
-        return self.collapse(v)
-
-class RefreshOnDataframeInsert(Collapsible):
-    """
-    A Collapsible that provides a value on database dataframe insertion.
-    This is intended when a value needs to be refreshed on dataframe insertion.
-    """
-
-    def __init__(self, collapse):
-        self.collapse = collapse
-
-    def __call__(self, v):
-        return self.collapse(v)
-
-
 class CoalesceOnIncr(Collapsible):
     """
     A Collapsible that provides an increment value on update.
@@ -86,20 +61,40 @@ class CoalesceOnIncr(Collapsible):
             return self.collapse()
         return v
 
-
-class NormalizeQueryInput(Collapsible):
+class Refreshable:
     """
-    A `Collapsible` that provides a normalize value for query input.
+    Abstract base for annotations that refresh a value on demand.
+
+    This pattern is used for fields that get a final form of their value when they are
+    explicitly "refreshed".  The __call__ function should be idempotent as in f(f(x)) == f(x).
+    """
+    def __init__(self, refresh):
+        self.refresh = refresh
+
+    def __call__(self, v):
+        return self.refresh(v)
+
+class RefreshOnSet(Refreshable):
+    """
+    A Refreshable that provides a value on any database update (not insertion).
+    This is intended when a value needs to be refreshed on every save.
+    """
+
+
+class RefreshOnDataframeInsert(Refreshable):
+    """
+    A Refreshable that provides a value on database dataframe insertion.
+    This is intended when a value needs to be refreshed on dataframe insertion.
+    """
+
+
+class NormalizeQueryInput(Refreshable):
+    """
+    A Refreshable that provides a normalize value for query input.
 
     This is intended for use with query input where a value needs to be
     normalized based the field attribute.
     """
-
-    def __init__(self, collapse):
-        self.collapse = collapse
-
-    def __call__(self, v):
-        return self.collapse(v)
 
 
 def coalesce(value, transformers: list):
@@ -145,7 +140,7 @@ StrLower = Annotated[
 TimeInserted = Annotated[
     datetime | None,
     AfterValidator(lambda x: to_utc_aware(x) if x is not None else None),
-    CoalesceOnInsert(collapse=get_current_time),
+    CoalesceOnInsert(get_current_time),
     Field(default=None),
 ]
 
@@ -153,7 +148,7 @@ TimeInserted = Annotated[
 TimeUpdated = Annotated[
     datetime | None,
     AfterValidator(lambda x: to_utc_aware(x) if x is not None else None),
-    RefreshOnSet(collapse=lambda x: get_current_time()),
+    RefreshOnSet(lambda x: get_current_time()),
     Field(default=None),
 ]
 
@@ -214,6 +209,11 @@ class Model(ABC, BaseModel):
         setattr(self, field_name, new_value)
         return new_value
     
+    def resolve_state(self):
+        """settling a moment state into a definite state"""
+        for field, transformers in self.get_fields_with_metadata(Collapsible):
+            self.coalesce_field(field, transformers)
+
     def coalesce_fields_for(self, field_type: type):
         for field, transformers in self.get_fields_with_metadata(field_type).items():
             self.coalesce_field(field, transformers)

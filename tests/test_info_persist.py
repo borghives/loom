@@ -43,7 +43,7 @@ class PersistableTest(unittest.TestCase):
         
         # Directly modify the collapse function for the test
         updated_time_transformer = TestModel.get_field_metadata("updated_time", RefreshOnSet)[0]
-        updated_time_transformer.collapse = lambda x: fixed_time
+        updated_time_transformer.refresh = lambda x: fixed_time
 
         model = TestModel(name="test", value=10)
         model.updated_time = None  # Ensure coalesce is triggered
@@ -59,9 +59,9 @@ class PersistableTest(unittest.TestCase):
         """Test the complete update instruction generation."""
         fixed_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         
-        # Directly modify the collapse functions for the test
+        # Directly modify the refresh functions for the test
         updated_time_transformer = TestModel.get_field_metadata("updated_time", RefreshOnSet)[0]
-        updated_time_transformer.collapse = lambda x: fixed_time
+        updated_time_transformer.refresh = lambda x: fixed_time
         created_at_transformer = TestModel.get_field_metadata("created_at", CoalesceOnInsert)[0]
         created_at_transformer.collapse = lambda : fixed_time
 
@@ -198,7 +198,7 @@ class PersistableTest(unittest.TestCase):
         mock_collection = MagicMock()
         mock_get_collection.return_value = mock_collection
 
-        df = pd.DataFrame({"name": ["df_user1"], "value": [10]})
+        df = pd.DataFrame({"name": ["df_user1"], "value": [10], "updated_time": [None]})
         TestModel.insert_dataframe(df)
 
         mock_collection.insert_many.assert_called_once()
