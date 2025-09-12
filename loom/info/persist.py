@@ -357,7 +357,11 @@ class Persistable(Model):
         for key, normalize_transformers in normalized_query_map.items():
             if key in retval:
                 for transformer in normalize_transformers:
-                    retval[key] = transformer(retval[key])
+                    original_value = retval[key]
+                    if isinstance(original_value, list):
+                        retval[key] = [transformer(v) for v in original_value]
+                    else:
+                        retval[key] = transformer(original_value)
 
         return retval
 

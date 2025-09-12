@@ -42,7 +42,7 @@ class MomentWindow:
     
     def __getitem__(self, key):
         if isinstance(key, slice):
-            return MomentWindow(self._symbol, self.moments[key])
+            return MomentWindow(moments=self.moments[key], symbol=self._symbol)
         elif isinstance(key, int):
             return self.moments[key]
         else:
