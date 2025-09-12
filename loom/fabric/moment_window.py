@@ -10,21 +10,23 @@ from loom.time.util import EASTERN_TIMEZONE, to_utc_aware
 class MomentWindow:
     """A window of moments in ascending time order"""
     moments : PVector[Moment]
-    _symbol : str
+    _symbol : Optional[str] = None
 
     @property
     def symbol(self) -> str:
-        return self._symbol.upper()
+        return self._symbol.upper() if self._symbol else ""
 
-    def __init__(self, symbol : str, moments : Optional[list[Moment] | PVector[Moment]] = None):
-        self._symbol = symbol
+    def __init__(self, moments : Optional[list[Moment] | PVector[Moment]] = None, symbol : Optional[str] = None):
         if moments is None:
             self.moments = pvector()
+            self._symbol = symbol if symbol else None
         else:
+            self._symbol = symbol if symbol else moments[0].symbol if len(moments) > 0 else None
             if isinstance(moments, PVector):
                 self.moments = pvector(moments)
+                
             else:
-                moments = [moment for moment in moments if moment.is_entangled() and moment.symbol == symbol]
+                moments = [moment for moment in moments if moment.is_entangled() and moment.symbol == self._symbol]
                 self.moments = pvector(sorted(moments))
     
     def __str__(self) -> str:
@@ -51,11 +53,14 @@ class MomentWindow:
         
     def sliding_window(self, window_size: int):
         for i in range(len(self) - window_size + 1):
-            yield MomentWindow(self.symbol, self.moments[i:i+window_size])
+            yield MomentWindow(moments=self.moments[i:i+window_size], symbol=self.symbol)
 
     def sliding_time_cone(self, past_size: int, future_size: int):
         for i in range(len(self) - past_size + 1):
-            yield MomentWindow(self.symbol, self.moments[i:i+past_size]), MomentWindow(self.symbol, self.moments[i+past_size:min(i+past_size+future_size, len(self))])
+            yield MomentWindow(moments=self.moments[i:i+past_size], symbol=self.symbol), MomentWindow(
+                    moments=self.moments[i+past_size:min(i+past_size+future_size, len(self))], 
+                    symbol=self.symbol
+                )
 
     def get_moments(self, after : Optional[datetime] = None, before : Optional[datetime] = None) :
         return [moment for moment in self.moments 
