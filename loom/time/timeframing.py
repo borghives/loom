@@ -1,10 +1,11 @@
-from datetime import datetime, timedelta, UTC, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
-from pydantic import BaseModel, Field, field_validator
+from zoneinfo import ZoneInfo
+
+from pydantic import BaseModel, Field, model_validator
 
 from loom.time.util import get_current_time, to_offset_aware, to_utc_aware
-from zoneinfo import ZoneInfo
 
 
 class TimeFrameResolution(str, Enum):
@@ -20,32 +21,19 @@ class TimeFrameResolution(str, Enum):
     quarterly = "quarterly"
     yearly = "yearly"
 
-    def current(self, tzone: Optional[timezone] = None) -> "TimeFrame":
+    def current(self, tzone: timezone | ZoneInfo = timezone.utc) -> "TimeFrame":
         """
         Gets the current time frame for the resolution.
 
         Args:
-            tzone (Optional[timezone], optional): The timezone to use.
+            tzone (Optional[timezone | ZoneInfo], optional): The timezone to use.
                 Defaults to `None`.
 
         Returns:
             TimeFrame: The current time frame.
         """
-        match self.value:
-            case TimeFrameResolution.hourly:
-                return HourlyFrame(tzone=tzone)
-            case TimeFrameResolution.daily:
-                return DailyFrame(tzone=tzone)
-            case TimeFrameResolution.weekly:
-                return WeeklyFrame(tzone=tzone)
-            case TimeFrameResolution.monthly:
-                return MonthlyFrame(tzone=tzone)
-            case TimeFrameResolution.quarterly:
-                return QuarterlyFrame(tzone=tzone)
-            case TimeFrameResolution.yearly:
-                return YearlyFrame(tzone=tzone)
-            case _:
-                return HourlyFrame(tzone=tzone)
+        frame_class = _RESOLUTION_TO_FRAME_CLASS_MAP.get(self, HourlyFrame)
+        return frame_class.create(tzone=tzone)
 
     @classmethod
     def from_name(
@@ -68,8 +56,7 @@ class TimeFrameResolution(str, Enum):
         except KeyError:
             if default:
                 return default
-            else:
-                return TimeFrameResolution.none
+            return TimeFrameResolution.none
 
     @classmethod
     def from_type(cls, type: type) -> "TimeFrameResolution":
@@ -82,19 +69,7 @@ class TimeFrameResolution(str, Enum):
         Returns:
             TimeFrameResolution: The `TimeFrameResolution`.
         """
-        if type == HourlyFrame:
-            return TimeFrameResolution.hourly
-        if type == DailyFrame:
-            return TimeFrameResolution.daily
-        if type == WeeklyFrame:
-            return TimeFrameResolution.weekly
-        if type == MonthlyFrame:
-            return TimeFrameResolution.monthly
-        if type == QuarterlyFrame:
-            return TimeFrameResolution.quarterly
-        if type == YearlyFrame:
-            return TimeFrameResolution.yearly
-        return TimeFrameResolution.none
+        return _FRAME_CLASS_TO_RESOLUTION_MAP.get(type, TimeFrameResolution.none)
 
 
 # UTC based time framing
@@ -104,78 +79,112 @@ class TimeFrame(BaseModel):
     Monthly, Quarterly, Yearly).
     """
 
-    floor: datetime = Field(description="inclusive bottom of the time frame")  # in utc
-    ceiling: datetime = Field(description="exclude top of the time frame")  # in utc
+    floor: datetime = Field(description="inclusive bottom of the time frame")
+    ceiling: datetime = Field(description="exclusive top of the time frame")
     alignment_offset_seconds: int = Field(
-        0, description="alignment offset as seconds positive east of UTC (negative west of UTC)."
-    )  # offset from utc
+        0,
+        description="alignment offset as seconds positive east of UTC (negative west of UTC).",
+    )
 
-    def __init__(
-        self,
-        floor: Optional[datetime] = None,
-        ceiling: Optional[datetime] = None,
-        alignment_offset_seconds: int = 0,
-        moment: Optional[datetime] = None,
-        tzone: Optional[timezone|ZoneInfo] = None,
-    ):
-        if floor and ceiling:
-            if floor.tzinfo is None:
-                floor = floor.replace(tzinfo=timezone.utc)
+    @classmethod
+    def create(cls, moment: Optional[datetime] = None, tzone: timezone | ZoneInfo = timezone.utc) -> "TimeFrame":
+        """
+        Create a TimeFrame instance.
 
-            if ceiling.tzinfo is None:
-                ceiling = ceiling.replace(tzinfo=timezone.utc)
+        Args:
+            moment (Optional[datetime], optional): A moment in time to align
+                the frame to. Defaults to `None`.
+            **kwargs: Additional keyword arguments to pass to the constructor.
 
-            if alignment_offset_seconds:
-                floor = floor.astimezone(
-                    timezone(timedelta(seconds=alignment_offset_seconds))
-                )
-                ceiling = ceiling.astimezone(
-                    timezone(timedelta(seconds=alignment_offset_seconds))
-                )
-            else:
-                floor = floor.astimezone(UTC)
-                ceiling = ceiling.astimezone(UTC)
+        Returns:
+            TimeFrame: The created TimeFrame instance.
+        """
+        if moment is None:
+            moment = get_current_time()
 
-            if floor > ceiling:
-                raise ValueError("Floor must be before ceiling")
+        moment = to_utc_aware(moment)
 
-        else:
+        if tzone:
+            moment = moment.astimezone(tzone)
+
+        alignment_offset_seconds = 0
+        moment_utc_offset = moment.utcoffset()
+        if moment_utc_offset:
+            alignment_offset_seconds = int(moment_utc_offset.total_seconds())
+
+        floor = cls.calculate_floor(moment)
+        ceiling = cls.calculate_ceiling(moment) or (floor + timedelta(hours=1))
+
+        return cls(floor=floor, ceiling=ceiling, alignment_offset_seconds=alignment_offset_seconds)  # type: ignore
+    
+    @model_validator(mode="before")
+    @classmethod
+    def _construct_and_prepare_fields(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        floor = data.get("floor")
+        ceiling = data.get("ceiling")
+
+        if floor is not None and ceiling is not None:
+            # Path 1: Direct construction from floor and ceiling
+            data["floor"] = to_utc_aware(floor)
+            data["ceiling"] = to_utc_aware(ceiling)
+        elif floor is None and ceiling is None:
+            # Path 2: Construct from a moment in time
+            moment = data.get("moment")
+            tzone = data.get("tzone")
+
             if moment is None:
                 moment = get_current_time()
 
-            if moment.tzinfo is None:
-                moment = moment.replace(tzinfo=timezone.utc)
+            moment = to_utc_aware(moment)
 
             if tzone:
                 moment = moment.astimezone(tzone)
 
+            alignment_offset_seconds = 0
             moment_utc_offset = moment.utcoffset()
-
             if moment_utc_offset:
                 alignment_offset_seconds = int(moment_utc_offset.total_seconds())
 
-            floor = self.calculate_floor(moment)
-            ceiling = self.calculate_ceiling(moment)
-            if not ceiling:
-                ceiling = floor + timedelta(hours=1)
+            floor = cls.calculate_floor(moment)
+            ceiling = cls.calculate_ceiling(moment) or (floor + timedelta(hours=1))
 
-        calculated_ceiling = self.calculate_ceiling(floor)
-        if calculated_ceiling and calculated_ceiling != ceiling:
-            raise ValueError("Ceiling does not match the calculated frame")
+            data.update(
+                {
+                    "floor": to_utc_aware(floor),
+                    "ceiling": to_utc_aware(ceiling),
+                    "alignment_offset_seconds": alignment_offset_seconds,
+                }
+            )
+        else:
+            raise ValueError(
+                "Either both floor and ceiling must be provided, or neither."
+            )
 
-        super().__init__(
-            floor=floor,
-            ceiling=ceiling,
-            alignment_offset_seconds=alignment_offset_seconds,
-        )
+        return data
 
-    @field_validator("floor")
-    def check_floor(cls, v):
-        return to_utc_aware(v)
+    @model_validator(mode="after")
+    def _validate_frame(self) -> "TimeFrame":
+        if self.floor >= self.ceiling:
+            raise ValueError("Floor must be before ceiling")
 
-    @field_validator("ceiling")
-    def check_ceiling(cls, v):
-        return to_utc_aware(v)
+        # To validate the ceiling, we must perform the calculation in the frame's
+        # original timezone context, which is stored in the alignment offset.
+        local_floor = to_offset_aware(self.floor, self.alignment_offset_seconds)
+        calculated_ceiling_local = self.calculate_ceiling(local_floor)
+
+        if calculated_ceiling_local:
+            # Convert the locally calculated ceiling back to UTC for comparison.
+            calculated_ceiling_utc = to_utc_aware(calculated_ceiling_local)
+            if (
+                calculated_ceiling_utc != self.ceiling
+                and type(self) is not TimeFrame
+            ):
+                raise ValueError("Ceiling does not match the calculated frame")
+
+        return self
 
     @classmethod
     def calculate_floor(cls, moment: datetime) -> datetime:
@@ -186,7 +195,7 @@ class TimeFrame(BaseModel):
         return None
 
     @classmethod
-    def get_inner_frame_type(cls):
+    def get_inner_frame_type(cls) -> Optional[type["TimeFrame"]]:
         return None
 
     def has_passed(self) -> bool:
@@ -207,7 +216,7 @@ class TimeFrame(BaseModel):
                 otherwise.
         """
         current = get_current_time()
-        return current >= self.floor and current < self.ceiling
+        return self.floor <= current < self.ceiling
 
     def elapsed(self) -> float:
         """
@@ -249,7 +258,7 @@ class TimeFrame(BaseModel):
         Returns:
             TimeFrame: The next time frame.
         """
-        return type(self)(moment=self.get_ceiling())
+        return self.create(moment=self.get_ceiling())
 
     def get_previous_frame(self) -> "TimeFrame":
         """
@@ -258,7 +267,8 @@ class TimeFrame(BaseModel):
         Returns:
             TimeFrame: The previous time frame.
         """
-        return type(self)(moment=self.get_floor() - timedelta(hours=1))
+        # Subtract a microsecond to get a moment guaranteed to be in the previous frame.
+        return self.create(moment=self.get_floor() - timedelta(microseconds=1))
 
     def get_previous_x_frame(self, x: int) -> "TimeFrame":
         """
@@ -282,12 +292,11 @@ class TimeFrame(BaseModel):
         Returns:
             timedelta: The interval of the time frame.
         """
-        upper_bound = self.ceiling if self.ceiling else get_current_time()
-        return upper_bound - self.floor
+        return self.ceiling - self.floor
 
     def get_floor(self) -> datetime:
         """
-        Gets the floor of the time frame.
+        Gets the floor of the time frame, adjusted to its local timezone.
 
         Returns:
             datetime: The floor of the time frame.
@@ -296,7 +305,7 @@ class TimeFrame(BaseModel):
 
     def get_ceiling(self) -> datetime:
         """
-        Gets the ceiling of the time frame.
+        Gets the ceiling of the time frame, adjusted to its local timezone.
 
         Returns:
             datetime: The ceiling of the time frame.
@@ -315,15 +324,9 @@ class HourlyFrame(TimeFrame):
     A time frame that represents an hour.
     """
 
-    def __init__(
-        self, moment: Optional[datetime] = None, tzone: Optional[timezone | ZoneInfo] = None, **kwargs
-    ):
-        super().__init__(moment=moment, tzone=tzone, **kwargs)
-
     @classmethod
     def calculate_floor(cls, moment: datetime) -> datetime:
-        floor = moment.replace(minute=0, second=0, microsecond=0)
-        return floor
+        return moment.replace(minute=0, second=0, microsecond=0)
 
     @classmethod
     def calculate_ceiling(cls, moment: datetime) -> datetime:
@@ -343,41 +346,29 @@ class DailyFrame(TimeFrame):
     A time frame that represents a day.
     """
 
-    def __init__(
-        self, moment: Optional[datetime] = None, tzone: Optional[timezone | ZoneInfo] = None, **kwargs
-    ):
-        super().__init__(moment=moment, tzone=tzone, **kwargs)
-
     @classmethod
     def calculate_floor(cls, moment: datetime) -> datetime:
-        floor = moment.replace(hour=0, minute=0, second=0, microsecond=0)
-        return floor
+        return moment.replace(hour=0, minute=0, second=0, microsecond=0)
 
     @classmethod
     def calculate_ceiling(cls, moment: datetime) -> datetime:
         return cls.calculate_floor(moment) + timedelta(days=1)
 
     @classmethod
-    def get_inner_frame_type(cls):
+    def get_inner_frame_type(cls) -> type[TimeFrame]:
         return HourlyFrame
 
     def get_pretty_name(self) -> str:
         return "Daily"
 
     def get_pretty_value(self) -> str:
-        floor = self.get_floor()
-        return f"{floor.strftime('%m/%d')}"
+        return f"{self.get_floor().strftime('%m/%d')}"
 
 
 class WeeklyFrame(TimeFrame):
     """
-    A time frame that represents a week.
+    A time frame that represents a week (starting on Monday).
     """
-
-    def __init__(
-        self, moment: Optional[datetime] = None, tzone: Optional[timezone | ZoneInfo] = None, **kwargs
-    ):
-        super().__init__(moment=moment, tzone=tzone, **kwargs)
 
     @classmethod
     def calculate_floor(cls, moment: datetime) -> datetime:
@@ -385,11 +376,11 @@ class WeeklyFrame(TimeFrame):
         return floor.replace(hour=0, minute=0, second=0, microsecond=0)
 
     @classmethod
-    def calculate_ceiling(cls, moment):
+    def calculate_ceiling(cls, moment: datetime) -> datetime:
         return cls.calculate_floor(moment) + timedelta(days=7)
 
     @classmethod
-    def get_inner_frame_type(cls):
+    def get_inner_frame_type(cls) -> type[TimeFrame]:
         return DailyFrame
 
     def get_pretty_name(self) -> str:
@@ -406,33 +397,30 @@ class MonthlyFrame(TimeFrame):
     A time frame that represents a month.
     """
 
-    def __init__(
-        self, moment: Optional[datetime] = None, tzone: Optional[timezone | ZoneInfo] = None, **kwargs
-    ):
-        super().__init__(moment=moment, tzone=tzone, **kwargs)
-
     @classmethod
     def calculate_floor(cls, moment: datetime) -> datetime:
         return moment.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     @classmethod
-    def calculate_ceiling(cls, moment):
-        oneMoreDayThanTheLongestMonth = timedelta(days=32)
-        # non inclusive next day of the month
-        someDayNextMonth = cls.calculate_floor(moment) + oneMoreDayThanTheLongestMonth
-        # change to 1st day of the next month and return
-        return someDayNextMonth.replace(day=1)
+    def calculate_ceiling(cls, moment: datetime) -> datetime:
+        # To get the start of the next month, we add a duration longer
+        # than any possible month (32 days) to the start of the current
+        # month, and then simply snap to the 1st day of that resulting month.
+        one_more_day_than_longest_month = timedelta(days=32)
+        some_day_next_month = (
+            cls.calculate_floor(moment) + one_more_day_than_longest_month
+        )
+        return some_day_next_month.replace(day=1)
 
     @classmethod
-    def get_inner_frame_type(cls):
+    def get_inner_frame_type(cls) -> type[TimeFrame]:
         return WeeklyFrame
 
     def get_pretty_name(self) -> str:
         return "Monthly"
 
     def get_pretty_value(self) -> str:
-        floor = self.get_floor()
-        return f"{floor.strftime('%b %Y')}"
+        return f"{self.get_floor().strftime('%b %Y')}"
 
 
 class QuarterlyFrame(TimeFrame):
@@ -440,30 +428,31 @@ class QuarterlyFrame(TimeFrame):
     A time frame that represents a quarter.
     """
 
-    def __init__(
-        self, moment: Optional[datetime] = None, tzone: Optional[timezone | ZoneInfo] = None, **kwargs
-    ):
-        super().__init__(moment=moment, tzone=tzone, **kwargs)
-
     @classmethod
     def calculate_floor(cls, moment: datetime) -> datetime:
-        quarter = (moment.month - 1) // 3 + 1
+        quarter = (moment.month - 1) // 3
         return moment.replace(
-            month=(quarter - 1) * 3 + 1, day=1, hour=0, minute=0, second=0, microsecond=0
+            month=quarter * 3 + 1, day=1, hour=0, minute=0, second=0, microsecond=0
         )
 
     @classmethod
     def calculate_ceiling(cls, moment: datetime) -> datetime:
-        oneMoreDayThanTheLongestQuarter = timedelta(days=93)
-        # non inclusive next day of the month
-        someDayNextQuarter = (
-            cls.calculate_floor(moment) + oneMoreDayThanTheLongestQuarter
+        # To get the start of the next quarter, we add a duration longer
+        # than any possible quarter (93 days) to the start of the current
+        # quarter, and then snap to the 1st day of the resulting month,
+        # which will be the first month of the next quarter.
+        one_more_day_than_longest_quarter = timedelta(days=93)
+        some_day_next_quarter = (
+            cls.calculate_floor(moment) + one_more_day_than_longest_quarter
         )
-        # change to 1st day of the next month and return
-        return someDayNextQuarter.replace(day=1)
+        # This works because adding ~3 months to the first month of a quarter
+        # (Jan, Apr, Jul, Oct) will always land in the first month of the next quarter.
+        return some_day_next_quarter.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
 
     @classmethod
-    def get_inner_frame_type(cls):
+    def get_inner_frame_type(cls) -> type[TimeFrame]:
         return MonthlyFrame
 
     def get_pretty_name(self) -> str:
@@ -479,30 +468,27 @@ class YearlyFrame(TimeFrame):
     A time frame that represents a year.
     """
 
-    def __init__(
-        self, moment: Optional[datetime] = None, tzone: Optional[timezone | ZoneInfo] = None, **kwargs
-    ):
-        super().__init__(moment=moment, tzone=tzone, **kwargs)
-
     @classmethod
     def calculate_floor(cls, moment: datetime) -> datetime:
         return moment.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
     @classmethod
     def calculate_ceiling(cls, moment: datetime) -> datetime:
-        someDayNextYear = cls.calculate_floor(moment) + timedelta(days=366)
-        return someDayNextYear.replace(day=1)
+        # Add 366 days to safely land in the next year, then snap to the
+        # beginning of that year.
+        return (cls.calculate_floor(moment) + timedelta(days=366)).replace(
+            month=1, day=1
+        )
 
     @classmethod
-    def get_inner_frame_type(cls):
+    def get_inner_frame_type(cls) -> type[TimeFrame]:
         return QuarterlyFrame
 
     def get_pretty_name(self) -> str:
         return "Yearly"
 
     def get_pretty_value(self) -> str:
-        floor = self.get_floor()
-        return f"{floor.year}"
+        return f"{self.get_floor().year}"
 
 
 def align_to_human_timeframe(
@@ -520,12 +506,20 @@ def align_to_human_timeframe(
     Returns:
         TimeFrame: The most appropriate `TimeFrame` type.
     """
-    align_type = YearlyFrame
-    while align_type is not None:
-        potential = align_type(moment=to_offset_aware(floor, alignment_offset_seconds))
+    # Use a moment in the middle of the frame for robustness against DST changes.
+    mid_point_utc = floor + (ceiling - floor) / 2
+    moment_local = to_offset_aware(mid_point_utc, alignment_offset_seconds)
+    tzone = timezone(timedelta(seconds=alignment_offset_seconds))
+
+    align_type: Optional[type[TimeFrame]] = YearlyFrame
+    while align_type:
+        # Construct a potential frame using the midpoint.
+        potential = align_type.create(moment=moment_local, tzone=tzone)
+
+        # Check if this potential frame exactly matches the provided boundaries.
         if (
-            potential.floor == floor
-            and potential.ceiling == ceiling
+            potential.floor == to_utc_aware(floor)
+            and potential.ceiling == to_utc_aware(ceiling)
             and potential.alignment_offset_seconds == alignment_offset_seconds
         ):
             return potential
@@ -534,3 +528,17 @@ def align_to_human_timeframe(
     return TimeFrame(
         floor=floor, ceiling=ceiling, alignment_offset_seconds=alignment_offset_seconds
     )
+
+
+# -- Module-level Mappings --
+_RESOLUTION_TO_FRAME_CLASS_MAP: dict[TimeFrameResolution, type[TimeFrame]] = {
+    TimeFrameResolution.hourly: HourlyFrame,
+    TimeFrameResolution.daily: DailyFrame,
+    TimeFrameResolution.weekly: WeeklyFrame,
+    TimeFrameResolution.monthly: MonthlyFrame,
+    TimeFrameResolution.quarterly: QuarterlyFrame,
+    TimeFrameResolution.yearly: YearlyFrame,
+}
+_FRAME_CLASS_TO_RESOLUTION_MAP: dict[type[TimeFrame], TimeFrameResolution] = {
+    v: k for k, v in _RESOLUTION_TO_FRAME_CLASS_MAP.items()
+}

@@ -16,30 +16,32 @@ from loom.time.timeframing import (
 # A fixed point in time for consistent testing
 MOMENT = datetime(2023, 10, 26, 10, 30, 0, tzinfo=timezone.utc)
 PST = timezone(timedelta(hours=-8))
-MOMENT_PST = MOMENT.astimezone(PST)
 
 
-def test_time_frame_resolution_from_name():
-    assert TimeFrameResolution.from_name("hourly") == TimeFrameResolution.hourly
-    assert TimeFrameResolution.from_name("daily") == TimeFrameResolution.daily
-    assert TimeFrameResolution.from_name("weekly") == TimeFrameResolution.weekly
-    assert TimeFrameResolution.from_name("monthly") == TimeFrameResolution.monthly
-    assert TimeFrameResolution.from_name("quarterly") == TimeFrameResolution.quarterly
-    assert TimeFrameResolution.from_name("yearly") == TimeFrameResolution.yearly
+@pytest.mark.parametrize(
+    "key, frame_type, resolution",
+    [
+        ("hourly", HourlyFrame, TimeFrameResolution.hourly),
+        ("daily", DailyFrame, TimeFrameResolution.daily),
+        ("weekly", WeeklyFrame, TimeFrameResolution.weekly),
+        ("monthly", MonthlyFrame, TimeFrameResolution.monthly),
+        ("quarterly", QuarterlyFrame, TimeFrameResolution.quarterly),
+        ("yearly", YearlyFrame, TimeFrameResolution.yearly),
+        ("none", TimeFrame, TimeFrameResolution.none),
+    ],
+)
+def test_time_frame_resolution_mapping(key, frame_type, resolution):
+    """Tests mapping from names and types to TimeFrameResolution."""
+    assert TimeFrameResolution.from_name(key) == resolution
+    assert TimeFrameResolution.from_type(frame_type) == resolution
+
+
+def test_time_frame_resolution_from_name_invalid():
+    """Tests the default case for from_name with an invalid name."""
     assert (
         TimeFrameResolution.from_name("invalid", default=TimeFrameResolution.none)
         == TimeFrameResolution.none
     )
-
-
-def test_time_frame_resolution_from_type():
-    assert TimeFrameResolution.from_type(HourlyFrame) == TimeFrameResolution.hourly
-    assert TimeFrameResolution.from_type(DailyFrame) == TimeFrameResolution.daily
-    assert TimeFrameResolution.from_type(WeeklyFrame) == TimeFrameResolution.weekly
-    assert TimeFrameResolution.from_type(MonthlyFrame) == TimeFrameResolution.monthly
-    assert TimeFrameResolution.from_type(QuarterlyFrame) == TimeFrameResolution.quarterly
-    assert TimeFrameResolution.from_type(YearlyFrame) == TimeFrameResolution.yearly
-    assert TimeFrameResolution.from_type(TimeFrame) == TimeFrameResolution.none
 
 
 class TestTimeFrame:
@@ -83,9 +85,7 @@ class TestTimeFrame:
             )
 
     def test_get_floor_ceiling_with_offset(self):
-        offset_seconds = -8 * 3600  # PST
-        tzone = timezone(timedelta(seconds=offset_seconds))
-        frame = DailyFrame(moment=MOMENT, tzone=tzone)
+        frame = DailyFrame(moment=MOMENT, tzone=PST)
 
         # Internally, floor/ceiling are UTC
         assert frame.floor.tzinfo == timezone.utc
@@ -93,12 +93,12 @@ class TestTimeFrame:
 
         # get_floor/get_ceiling should apply the offset
         local_floor = frame.get_floor()
-        assert local_floor.tzinfo == tzone
+        assert local_floor.tzinfo == PST
         assert local_floor.hour == 0
         assert local_floor.day == 26
 
         local_ceiling = frame.get_ceiling()
-        assert local_ceiling.tzinfo == tzone
+        assert local_ceiling.tzinfo == PST
         assert local_ceiling.hour == 0
         assert local_ceiling.day == 27
 
@@ -122,6 +122,7 @@ class TestTimeFrames:
     @pytest.mark.parametrize(
         "frame_class, moment, expected_floor, expected_ceiling",
         [
+            # Standard cases
             (
                 HourlyFrame,
                 MOMENT,
@@ -135,8 +136,8 @@ class TestTimeFrames:
                 datetime(2023, 10, 27, 0, 0, 0, tzinfo=timezone.utc),
             ),
             (
-                WeeklyFrame,  # Week starts on Monday
-                MOMENT,  # This is a Thursday
+                WeeklyFrame,  # Week starts on Monday, moment is a Thursday
+                MOMENT,
                 datetime(2023, 10, 23, 0, 0, 0, tzinfo=timezone.utc),
                 datetime(2023, 10, 30, 0, 0, 0, tzinfo=timezone.utc),
             ),
@@ -147,15 +148,8 @@ class TestTimeFrames:
                 datetime(2023, 11, 1, 0, 0, 0, tzinfo=timezone.utc),
             ),
             (
-                # Test MonthlyFrame with leap year
-                MonthlyFrame,
-                datetime(2024, 2, 15, tzinfo=timezone.utc),
-                datetime(2024, 2, 1, 0, 0, 0, tzinfo=timezone.utc),
-                datetime(2024, 3, 1, 0, 0, 0, tzinfo=timezone.utc),
-            ),
-            (
-                QuarterlyFrame,
-                MOMENT,  # October is in Q4
+                QuarterlyFrame,  # October is in Q4
+                MOMENT,
                 datetime(2023, 10, 1, 0, 0, 0, tzinfo=timezone.utc),
                 datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
             ),
@@ -165,91 +159,92 @@ class TestTimeFrames:
                 datetime(2023, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
                 datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
             ),
+            # Edge cases
+            (
+                MonthlyFrame,  # Leap year
+                datetime(2024, 2, 15, tzinfo=timezone.utc),
+                datetime(2024, 2, 1, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2024, 3, 1, 0, 0, 0, tzinfo=timezone.utc),
+            ),
+            (
+                WeeklyFrame,  # Sunday
+                datetime(2023, 10, 29, 15, 0, 0, tzinfo=timezone.utc),
+                datetime(2023, 10, 23, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2023, 10, 30, 0, 0, 0, tzinfo=timezone.utc),
+            ),
+            (
+                QuarterlyFrame,  # Q1
+                datetime(2023, 2, 15, tzinfo=timezone.utc),
+                datetime(2023, 1, 1, tzinfo=timezone.utc),
+                datetime(2023, 4, 1, tzinfo=timezone.utc),
+            ),
+            (
+                QuarterlyFrame,  # Q2
+                datetime(2023, 5, 15, tzinfo=timezone.utc),
+                datetime(2023, 4, 1, tzinfo=timezone.utc),
+                datetime(2023, 7, 1, tzinfo=timezone.utc),
+            ),
         ],
     )
     def test_frame_calculations(
         self, frame_class, moment, expected_floor, expected_ceiling
     ):
+        """Tests that floor and ceiling are calculated correctly for all frame types."""
         frame = frame_class(moment=moment)
         assert frame.floor == expected_floor
         assert frame.ceiling == expected_ceiling
 
-    def test_weekly_frame_edge_case(self):
-        # Test a Sunday
-        moment = datetime(2023, 10, 29, 15, 0, 0, tzinfo=timezone.utc)  # Sunday
-        frame = WeeklyFrame(moment=moment)
-        assert frame.floor == datetime(2023, 10, 23, 0, 0, 0, tzinfo=timezone.utc)
-        assert frame.ceiling == datetime(2023, 10, 30, 0, 0, 0, tzinfo=timezone.utc)
 
-    def test_quarterly_frame_edge_cases(self):
-        # Q1
-        q1_moment = datetime(2023, 2, 15, tzinfo=timezone.utc)
-        q1_frame = QuarterlyFrame(moment=q1_moment)
-        assert q1_frame.floor == datetime(2023, 1, 1, tzinfo=timezone.utc)
-        assert q1_frame.ceiling == datetime(2023, 4, 1, tzinfo=timezone.utc)
-        # Q2
-        q2_moment = datetime(2023, 5, 15, tzinfo=timezone.utc)
-        q2_frame = QuarterlyFrame(moment=q2_moment)
-        assert q2_frame.floor == datetime(2023, 4, 1, tzinfo=timezone.utc)
-        assert q2_frame.ceiling == datetime(2023, 7, 1, tzinfo=timezone.utc)
+@pytest.mark.parametrize(
+    "frame_class",
+    [YearlyFrame, QuarterlyFrame, MonthlyFrame, WeeklyFrame, DailyFrame, HourlyFrame],
+)
+def test_align_to_human_timeframe_standard(frame_class):
+    """Tests aligning a standard frame finds the correct type."""
+    frame = frame_class(moment=MOMENT)
+    aligned_frame = align_to_human_timeframe(frame.floor, frame.ceiling)
+    assert isinstance(aligned_frame, frame_class)
+    assert aligned_frame.floor == frame.floor
+    assert aligned_frame.ceiling == frame.ceiling
 
 
-def test_align_to_human_timeframe():
-    # Test Yearly
-    yearly = YearlyFrame(moment=MOMENT)
-    aligned_yearly = align_to_human_timeframe(yearly.floor, yearly.ceiling)
-    assert isinstance(aligned_yearly, YearlyFrame)
-    assert aligned_yearly.floor == yearly.floor
-    assert aligned_yearly.ceiling == yearly.ceiling
-
-    # Test Daily
-    daily = DailyFrame(moment=MOMENT)
-    aligned_daily = align_to_human_timeframe(daily.floor, daily.ceiling)
-    assert isinstance(aligned_daily, DailyFrame)
-
-    # Test with offset
-    offset_seconds = -7 * 3600
-    tzone = timezone(timedelta(seconds=offset_seconds))
-    monthly_pst = MonthlyFrame(moment=MOMENT, tzone=tzone)
+def test_align_to_human_timeframe_offset():
+    """Tests aligning a frame with a timezone offset."""
+    monthly_pst = MonthlyFrame(moment=MOMENT, tzone=PST)
     aligned_monthly = align_to_human_timeframe(
         monthly_pst.floor, monthly_pst.ceiling, monthly_pst.alignment_offset_seconds
     )
     assert isinstance(aligned_monthly, MonthlyFrame)
-    assert aligned_monthly.alignment_offset_seconds == offset_seconds
+    assert (
+        aligned_monthly.alignment_offset_seconds
+        == PST.utcoffset(None).total_seconds()
+    )
 
-    # Test non-standard frame
+
+def test_align_to_human_timeframe_non_standard():
+    """Tests that a non-standard interval returns a base TimeFrame."""
     floor = datetime(2023, 1, 1, tzinfo=timezone.utc)
     ceiling = datetime(2023, 1, 1, 12, 30, tzinfo=timezone.utc)  # 12.5 hours
     non_standard = align_to_human_timeframe(floor, ceiling)
     assert type(non_standard) is TimeFrame
 
 
-def test_has_passed_and_is_in_frame(monkeypatch):
+@pytest.mark.parametrize(
+    "current_time, expected_passed, expected_in_frame, expected_elapsed",
+    [
+        (datetime(2023, 10, 26, 9, 0, 0, tzinfo=timezone.utc), False, False, -1.0),
+        (datetime(2023, 10, 26, 10, 30, 0, tzinfo=timezone.utc), False, True, 0.5),
+        (datetime(2023, 10, 26, 12, 0, 0, tzinfo=timezone.utc), True, False, 1.0),
+    ],
+)
+def test_time_status(
+    monkeypatch, current_time, expected_passed, expected_in_frame, expected_elapsed
+):
+    """Tests has_passed(), is_in_frame(), and elapsed() at different times."""
     # Frame is 2023-10-26 10:00 to 11:00 UTC
     frame = HourlyFrame(moment=MOMENT)
+    monkeypatch.setattr("loom.time.timeframing.get_current_time", lambda: current_time)
 
-    # Case 1: Current time is before the frame
-    monkeypatch.setattr(
-        "loom.time.timeframing.get_current_time",
-        lambda: datetime(2023, 10, 26, 9, 0, 0, tzinfo=timezone.utc),
-    )
-    assert not frame.has_passed()
-    assert not frame.is_in_frame()
-
-    # Case 2: Current time is inside the frame
-    monkeypatch.setattr(
-        "loom.time.timeframing.get_current_time",
-        lambda: datetime(2023, 10, 26, 10, 30, 0, tzinfo=timezone.utc),
-    )
-    assert not frame.has_passed()
-    assert frame.is_in_frame()
-    assert frame.elapsed() == 0.5
-
-    # Case 3: Current time is after the frame
-    monkeypatch.setattr(
-        "loom.time.timeframing.get_current_time",
-        lambda: datetime(2023, 10, 26, 12, 0, 0, tzinfo=timezone.utc),
-    )
-    assert frame.has_passed()
-    assert not frame.is_in_frame()
-    assert frame.elapsed() == 1.0
+    assert frame.has_passed() == expected_passed
+    assert frame.is_in_frame() == expected_in_frame
+    assert frame.elapsed() == expected_elapsed
