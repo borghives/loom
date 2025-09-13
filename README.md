@@ -2,7 +2,7 @@
 
 Weaves ideas and concept using information and time construct.  
 
-This is one way to frame it.
+This is my way to frame it.  It is not the right way nor is it the only way, just simply a way.
 ## Philosophy
 
 -   **Lower mental load**: Abstract away boilerplate and repetitive tasks, letting developers focus on logic.
