@@ -4,6 +4,7 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from loom.time.util import get_current_time, to_offset_aware, to_utc_aware
+from zoneinfo import ZoneInfo
 
 
 class TimeFrameResolution(str, Enum):
@@ -115,7 +116,7 @@ class TimeFrame(BaseModel):
         ceiling: Optional[datetime] = None,
         alignment_offset_seconds: int = 0,
         moment: Optional[datetime] = None,
-        tzone: Optional[timezone] = None,
+        tzone: Optional[timezone|ZoneInfo] = None,
     ):
         if floor and ceiling:
             if floor.tzinfo is None:
@@ -315,7 +316,7 @@ class HourlyFrame(TimeFrame):
     """
 
     def __init__(
-        self, moment: Optional[datetime] = None, tzone: Optional[timezone] = None, **kwargs
+        self, moment: Optional[datetime] = None, tzone: Optional[timezone | ZoneInfo] = None, **kwargs
     ):
         super().__init__(moment=moment, tzone=tzone, **kwargs)
 
@@ -343,7 +344,7 @@ class DailyFrame(TimeFrame):
     """
 
     def __init__(
-        self, moment: Optional[datetime] = None, tzone: Optional[timezone] = None, **kwargs
+        self, moment: Optional[datetime] = None, tzone: Optional[timezone | ZoneInfo] = None, **kwargs
     ):
         super().__init__(moment=moment, tzone=tzone, **kwargs)
 
@@ -374,7 +375,7 @@ class WeeklyFrame(TimeFrame):
     """
 
     def __init__(
-        self, moment: Optional[datetime] = None, tzone: Optional[timezone] = None, **kwargs
+        self, moment: Optional[datetime] = None, tzone: Optional[timezone | ZoneInfo] = None, **kwargs
     ):
         super().__init__(moment=moment, tzone=tzone, **kwargs)
 
@@ -406,7 +407,7 @@ class MonthlyFrame(TimeFrame):
     """
 
     def __init__(
-        self, moment: Optional[datetime] = None, tzone: Optional[timezone] = None, **kwargs
+        self, moment: Optional[datetime] = None, tzone: Optional[timezone | ZoneInfo] = None, **kwargs
     ):
         super().__init__(moment=moment, tzone=tzone, **kwargs)
 
@@ -440,7 +441,7 @@ class QuarterlyFrame(TimeFrame):
     """
 
     def __init__(
-        self, moment: Optional[datetime] = None, tzone: Optional[timezone] = None, **kwargs
+        self, moment: Optional[datetime] = None, tzone: Optional[timezone | ZoneInfo] = None, **kwargs
     ):
         super().__init__(moment=moment, tzone=tzone, **kwargs)
 
@@ -479,7 +480,7 @@ class YearlyFrame(TimeFrame):
     """
 
     def __init__(
-        self, moment: Optional[datetime] = None, tzone: Optional[timezone] = None, **kwargs
+        self, moment: Optional[datetime] = None, tzone: Optional[timezone | ZoneInfo] = None, **kwargs
     ):
         super().__init__(moment=moment, tzone=tzone, **kwargs)
 
