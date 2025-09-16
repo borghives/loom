@@ -29,7 +29,7 @@ def test_moment_creation_and_properties():
     assert moment.symbol == "TEST_SYMBOL"  # StrUpper works
     assert moment.time == to_utc_aware(now)
     assert moment.date_str == to_utc_aware(now).strftime("%Y-%m-%d")
-    assert moment.value == 123 # extra fields are allowed
+    assert moment.value == 123 #type: ignore # extra fields are allowed
 
 def test_moment_comparison(moments):
     """Tests the comparison operators on Moment objects."""

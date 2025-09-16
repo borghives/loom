@@ -231,11 +231,6 @@ class Model(ABC, BaseModel):
         new_value = coalesce(current_value, transformers)
         setattr(self, field_name, new_value)
         return new_value
-    
-    def resolve_state(self):
-        """settling a moment state into a definite state"""
-        for field, transformers in self.get_fields_with_metadata(Collapsible):
-            self.coalesce_field(field, transformers)
 
     def coalesce_fields_for(self, field_type: type):
         for field, transformers in self.get_fields_with_metadata(field_type).items():
