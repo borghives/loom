@@ -1,9 +1,9 @@
 
 from typing import Annotated
 
-from pydantic import AfterValidator, Field
+from pydantic import AfterValidator
 
-from loom.info.model import BeforeSetAttr, CoalesceOnIncr
+from loom.info.model import BeforeSetAttr, CoalesceOnIncr, InitializeValue
 
 
 class IntCounter(int):
@@ -54,8 +54,15 @@ def check_int_counter(value):
         return value
     raise AttributeError("Cannot set on an IncrIntCounter directly. Must use += operator to increment.")
 
+def validate_int_counter(value):
+    if value is None:
+        return IntCounter(0)
+    if isinstance(value, IntCounter):
+        return value
+    return IntCounter(value)
+
 IncrCounter = Annotated[int, 
     CoalesceOnIncr(collapse=lambda x: x.collapse()), 
-    AfterValidator(IntCounter),
     BeforeSetAttr(check_int_counter),
-    Field(default_factory=IntCounter)]
+    InitializeValue(validate_int_counter),
+    AfterValidator(validate_int_counter)]

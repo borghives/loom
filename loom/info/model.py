@@ -4,9 +4,10 @@ from enum import Enum
 from typing import Annotated, Optional
 
 from bson import ObjectId
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PlainSerializer
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PlainSerializer, PrivateAttr
 
 from loom.time.util import get_current_time, to_utc_aware
+
 
 
 class UpdateType(Enum):
@@ -87,6 +88,13 @@ class RefreshOnDataframeInsert(Refreshable):
     This is intended when a value needs to be refreshed on dataframe insertion.
     """
 
+class NormalizeValue(Refreshable):
+    """
+    A Refreshable that provides a normalize value for query input.
+
+    This is intended for use with query input where a value needs to be
+    normalized based the field attribute.
+    """
 
 class NormalizeQueryInput(Refreshable):
     """
@@ -96,6 +104,21 @@ class NormalizeQueryInput(Refreshable):
     normalized based the field attribute.
     """
 
+class BeforeSetAttr(Refreshable):
+    """
+    An annotation to transform a value before it is set on a model field.
+    This only applies when the model has been fully initialized.
+
+    This is used within the model's `__setattr__` to apply a function to the
+    value before it is assigned to the attribute.
+    """
+
+class InitializeValue(Refreshable):
+    """
+    An annotation to transform a value before it is initialized.
+
+    This is used within the model's `__init__` to apply a function to the value
+    """
 
 def coalesce(value, transformers: list):
     """Applies a list of transformers sequentially to a value."""
@@ -103,36 +126,17 @@ def coalesce(value, transformers: list):
         value = transformer(value)
     return value
 
-
-class BeforeSetAttr:
-    """
-    An annotation to transform a value before it is set on a model field.
-
-    This is used within the model's `__setattr__` to apply a function to the
-    value before it is assigned to the attribute.
-    """
-
-    def __init__(self, func):
-        self.func = func
-
-    def __call__(self, v):
-        return self.func(v)
-
 #: An annotated string type that automatically converts the value to uppercase.
 StrUpper = Annotated[
     str,
-    AfterValidator(str.upper),
-    RefreshOnSet(str.upper),
-    RefreshOnDataframeInsert(str.upper),
+    NormalizeValue(str.upper),
     NormalizeQueryInput(str.upper),
 ]
 
 #: An annotated string type that automatically converts the value to lowercase.
 StrLower = Annotated[
     str,
-    AfterValidator(str.lower),
-    RefreshOnSet(str.lower),
-    RefreshOnDataframeInsert(str.lower),
+    NormalizeValue(str.lower),
     NormalizeQueryInput(str.lower),
 ]
 
@@ -182,11 +186,30 @@ class Model(ABC, BaseModel):
         default=None,
     )
 
+    _has_initialized: bool = PrivateAttr(False)
+
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         populate_by_name=True,
         protected_namespaces=(),
     )
+
+    def __init__(self, **data):
+
+        for field, transformers in self.get_fields_with_metadata(InitializeValue).items():
+            value = data.get(field)
+            new_value = coalesce(value, transformers)
+            data[field] = new_value
+
+        
+
+        super().__init__(**data)
+
+        for field, transformers in self.get_fields_with_metadata(NormalizeValue).items():
+            self.coalesce_field(field, transformers)
+        
+        self._has_initialized = True
+
 
     def coalesce_field(self, field_name: str, transformers: list):
         """
@@ -331,8 +354,13 @@ class Model(ABC, BaseModel):
         """
         Sets an attribute on the model, applying any `BeforeSetAttr` transformers.
         """
-        transformers = self.get_field_metadata(name, BeforeSetAttr)
-        value = coalesce(value, transformers)
+        if self._has_initialized:
+            transformers = self.get_field_metadata(name, BeforeSetAttr)
+            value = coalesce(value, transformers)
+
+            transformers = self.get_field_metadata(name, NormalizeValue)
+            value = coalesce(value, transformers)
+        
         return super().__setattr__(name, value)
 
     @classmethod

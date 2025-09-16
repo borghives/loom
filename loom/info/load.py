@@ -90,7 +90,7 @@ class Filter(LoadDirective):
         return convert_to_match_expression(self._value)
     
     @classmethod
-    def from_arg(cls, **kwargs) -> "Filter":
+    def fields(cls, **kwargs) -> "Filter":
         return cls(query=kwargs)
     
 
