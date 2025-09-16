@@ -48,20 +48,20 @@ class TestTimeFrame:
     def test_init_with_floor_and_ceiling(self):
         floor = datetime(2023, 1, 1, tzinfo=timezone.utc)
         ceiling = datetime(2023, 1, 2, tzinfo=timezone.utc)
-        frame = TimeFrame(floor=floor, ceiling=ceiling)
+        frame = TimeFrame.create(floor=floor, ceiling=ceiling)
         assert frame.floor == floor
         assert frame.ceiling == ceiling
 
     def test_init_with_moment(self):
         # This will just create a default timeframe with the moment as floor
-        frame = TimeFrame(moment=MOMENT)
+        frame = TimeFrame.create(moment=MOMENT)
         assert frame.floor == MOMENT
         # Default ceiling is floor + 1 hour
         assert frame.ceiling == MOMENT + timedelta(hours=1)
 
     def test_init_floor_after_ceiling_raises_error(self):
         with pytest.raises(ValueError, match="Floor must be before ceiling"):
-            TimeFrame(
+            TimeFrame.create(
                 floor=datetime(2023, 1, 2, tzinfo=timezone.utc),
                 ceiling=datetime(2023, 1, 1, tzinfo=timezone.utc),
             )
@@ -77,7 +77,7 @@ class TestTimeFrame:
         with pytest.raises(
             ValueError, match="Ceiling does not match the calculated frame"
         ):
-            TestFrame(
+            TestFrame.create(
                 floor=datetime(2023, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
                 ceiling=datetime(
                     2023, 1, 1, 12, 0, 0, tzinfo=timezone.utc
@@ -85,7 +85,7 @@ class TestTimeFrame:
             )
 
     def test_get_floor_ceiling_with_offset(self):
-        frame = DailyFrame(moment=MOMENT, tzone=PST)
+        frame = DailyFrame.create(moment=MOMENT, tzone=PST)
 
         # Internally, floor/ceiling are UTC
         assert frame.floor.tzinfo == timezone.utc
@@ -103,7 +103,7 @@ class TestTimeFrame:
         assert local_ceiling.day == 27
 
     def test_frame_navigation(self):
-        frame = DailyFrame(moment=MOMENT)
+        frame = DailyFrame.create(moment=MOMENT)
 
         next_frame = frame.get_next_frame()
         assert next_frame.floor == frame.ceiling
@@ -190,7 +190,7 @@ class TestTimeFrames:
         self, frame_class, moment, expected_floor, expected_ceiling
     ):
         """Tests that floor and ceiling are calculated correctly for all frame types."""
-        frame = frame_class(moment=moment)
+        frame = frame_class.create(moment=moment)
         assert frame.floor == expected_floor
         assert frame.ceiling == expected_ceiling
 
@@ -201,8 +201,8 @@ class TestTimeFrames:
 )
 def test_align_to_human_timeframe_standard(frame_class):
     """Tests aligning a standard frame finds the correct type."""
-    frame = frame_class(moment=MOMENT)
-    aligned_frame = align_to_human_timeframe(frame.floor, frame.ceiling)
+    frame = frame_class.create(moment=MOMENT)
+    aligned_frame = align_to_human_timeframe(frame.floor, frame.ceiling, frame.alignment_offset_seconds)
     assert isinstance(aligned_frame, frame_class)
     assert aligned_frame.floor == frame.floor
     assert aligned_frame.ceiling == frame.ceiling
@@ -210,7 +210,7 @@ def test_align_to_human_timeframe_standard(frame_class):
 
 def test_align_to_human_timeframe_offset():
     """Tests aligning a frame with a timezone offset."""
-    monthly_pst = MonthlyFrame(moment=MOMENT, tzone=PST)
+    monthly_pst = MonthlyFrame.create(moment=MOMENT, tzone=PST)
     aligned_monthly = align_to_human_timeframe(
         monthly_pst.floor, monthly_pst.ceiling, monthly_pst.alignment_offset_seconds
     )
@@ -242,7 +242,7 @@ def test_time_status(
 ):
     """Tests has_passed(), is_in_frame(), and elapsed() at different times."""
     # Frame is 2023-10-26 10:00 to 11:00 UTC
-    frame = HourlyFrame(moment=MOMENT)
+    frame = HourlyFrame.create(moment=MOMENT)
     monkeypatch.setattr("loom.time.timeframing.get_current_time", lambda: current_time)
 
     assert frame.has_passed() == expected_passed

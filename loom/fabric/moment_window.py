@@ -4,7 +4,7 @@ from typing import Optional, Iterator, Union
 from loom.fabric.moment import Moment
 from pyrsistent import pvector, PVector
 
-from loom.time.timeframing import DailyFrame
+from loom.time.timeframing import DailyFrame, TimeFrame
 from loom.time.util import EASTERN_TIMEZONE, to_utc_aware
 
 
@@ -149,7 +149,7 @@ class MomentWindow:
                 and (before is None or moment.time <= to_utc_aware(before))
                 ]
 
-    def get_day_frame(self) -> DailyFrame:
+    def get_day_frame(self) -> TimeFrame:
         """
         Get the daily frame for the latest moment in the window.
 
@@ -157,7 +157,7 @@ class MomentWindow:
             A `DailyFrame` object.
         """
         latest = self.get_latest()
-        frame = DailyFrame(moment=latest.time, tzone=EASTERN_TIMEZONE)
+        frame = DailyFrame.create(moment=latest.time, tzone=EASTERN_TIMEZONE)
         return frame
 
     def get_latest(self) -> Moment:

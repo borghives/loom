@@ -2,28 +2,33 @@
 
 Weaves ideas and concept using information and time construct.  
 
-This is my way to frame it.  It is not the right way nor is it the only way, just simply a way I find helpful.
+This is my way to frame reality.  It is not the right way nor is it the only way, just simply a way I find helpful.
+
 ## Philosophy
 
 -   **Lower mental load**: Abstract away boilerplate and repetitive tasks, letting developers focus on logic.
 -   **Promote simple, elegant code**: Prioritize clarity and simplicity over exhaustive features. We are willing to sacrifice capability for a simpler, more focused codebase. For example, Loom is intentionally built only for MongoDB to avoid the complexity of supporting multiple database paradigms.  It is unlikely that it can support any other database and still be simple.
 -   **Make the safe way the easy way**: The framework should guide developers away from common pitfalls, especially in data and time management.  Create coding friction for unsafe practices. But does not exhaustively build out guardrail if it comes at the cost of simplicity.
 
-## Philosophy in Action
+## Why?
 
-Here’s how Loom's code reflects its core philosophy:
+Minimize path of thinking to reduce mental load.  There are a lot of ways to do thing in Python, I am collecting the way that is most align with me.
 
-| Goal | Feature | How It Works |
-| :--- | :--- | :--- |
-| **Lower Mental Load** | **Declarative Persistence** (`Persistable`, `@declare_persist_db`) | Instead of writing database logic, you declare persistence by adding a mixin and a decorator to your Pydantic model. The framework handles the rest. |
-| | **Automatic Timestamps & IDs** (`TimeInserted`, `TimeUpdated`) | Common fields like `_id`, `created_at`, and `updated_time` are managed automatically through type annotations, reducing boilerplate and potential errors. |
-| **Friction for Unsafe Code** | **Forced Secret Management** (`get_remote_db_client`) | The system requires a secret for remote database connections, preventing insecure configurations from the start. |
-| | **Fluent Query API** (`Aggregation`, `Filter`) | Building queries with a structured, chainable API (`.Match()`, `.Group()`, etc.) is safer and less error-prone than writing raw MongoDB dictionaries. |
-| **Simple, Elegant Code** | **Focused Design** | By targeting only MongoDB, the entire information management system remains lean, consistent, and easy to understand. |
+Promote and glue together mental model that work well together and align with my need
+- [Apache Arrow](https://arrow.apache.org/)
+- [Pydantic](https://pydantic-docs.helpmanual.io/)
+- [MongoDB](https://www.mongodb.com/)
+- [PyMongoArrow](https://www.mongodb.com/docs/languages/python/pymongo-arrow-driver/current/)
+- [Arrow](https://arrow.readthedocs.io/en/latest/index.html)
+
+
+
+
+
 
 ## Information Management
 
-The core of Loom's information management is a declarative persistence layer built on top of Pydantic and MongoDB.
+The core of Loom's information management is a declarative persistence layer built on top of MongoDB, Pydantic, and PyMongoArrow
 
 ### Quick Start
 

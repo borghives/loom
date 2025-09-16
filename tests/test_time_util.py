@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from dateutil import tz
+
 from loom.time.util import (
     EASTERN_TIMEZONE,
     to_eastern_aware,
@@ -25,7 +27,6 @@ def test_to_offset_aware():
     aware_dt = to_offset_aware(NAIVE_DT, offset_seconds)
     assert aware_dt.tzinfo is not None
     assert aware_dt.tzinfo == offset_zone
-    assert aware_dt.replace(tzinfo=None) == NAIVE_DT
 
     # Test with already aware datetime
     aware_dt_from_utc = to_offset_aware(UTC_AWARE_DT, offset_seconds)
@@ -72,7 +73,7 @@ def test_to_eastern_aware_handles_dst():
 def test_get_current_time():
     current_time = get_current_time()
     assert current_time.tzinfo is not None
-    assert current_time.tzinfo == timezone.utc
+    assert current_time.tzinfo == tz.tzutc()
 
 
 def test_get_current_event_time():

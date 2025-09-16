@@ -1,6 +1,8 @@
 from datetime import UTC, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+import arrow
+
 # Using ZoneInfo to properly handle Daylight Saving Time for the Eastern timezone.
 # "EST" is a fixed offset, which is incorrect during EDT.
 EASTERN_TIMEZONE = ZoneInfo("America/New_York")
@@ -16,13 +18,7 @@ def to_offset_aware(dt: datetime, offset_seconds: int) -> datetime:
     Returns:
       An aware datetime object in the offset timezone.
     """
-
-    offset_zone = timezone(timedelta(seconds=offset_seconds))
-
-    if dt.tzinfo is not None:
-        return dt.astimezone(offset_zone)
-    else:
-        return dt.replace(tzinfo=offset_zone)
+    return arrow.get(dt).to(timezone(timedelta(seconds=offset_seconds))).datetime
 
 
 def to_eastern_aware(dt: datetime) -> datetime:
@@ -36,8 +32,7 @@ def to_eastern_aware(dt: datetime) -> datetime:
     Returns:
       An aware datetime object in the US/Eastern timezone.
     """
-
-    return to_utc_aware(dt).astimezone(EASTERN_TIMEZONE)
+    return arrow.get(dt).to(EASTERN_TIMEZONE).datetime
 
 
 def to_utc_aware(dt: datetime) -> datetime:
@@ -51,11 +46,7 @@ def to_utc_aware(dt: datetime) -> datetime:
     Returns:
       An aware datetime object in UTC.
     """
-
-    if dt.tzinfo is not None:
-        return dt.astimezone(UTC)
-    else:
-        return dt.replace(tzinfo=UTC)
+    return arrow.get(dt).to(UTC).datetime
 
 
 def get_current_event_time_str() -> str:
@@ -65,7 +56,7 @@ def get_current_event_time_str() -> str:
     Returns:
         str: The current time in US/Eastern as a string.
     """
-    return get_current_event_time().strftime("%Y/%m/%d %I:%M %p")
+    return arrow.now(EASTERN_TIMEZONE).format("YYYY/MM/DD hh:mm A")
 
 
 def get_current_event_time() -> datetime:
@@ -75,7 +66,7 @@ def get_current_event_time() -> datetime:
     Returns:
         datetime: The current time in the US/Eastern timezone.
     """
-    return datetime.now(EASTERN_TIMEZONE)
+    return arrow.now(EASTERN_TIMEZONE).datetime
 
 
 def get_current_time_str() -> str:
@@ -85,7 +76,7 @@ def get_current_time_str() -> str:
     Returns:
         str: The current time in UTC as a string in ISO format.
     """
-    return get_current_time().isoformat()
+    return arrow.utcnow().isoformat()
 
 
 def get_current_time() -> datetime:
@@ -95,4 +86,4 @@ def get_current_time() -> datetime:
     Returns:
         datetime: The current time in UTC.
     """
-    return datetime.now(UTC)
+    return arrow.utcnow().datetime
