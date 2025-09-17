@@ -403,7 +403,6 @@ class Persistable(Model):
         cls,
         filter: Filter = Filter(),
         sort: SortOp = SortOp(),
-        **kwargs,
     ):
         """
         Loads a single document from the database that matches the filter.
@@ -418,9 +417,6 @@ class Persistable(Model):
                 is found.
         """
         collection = cls.get_db_collection()
-
-        filter &= Filter(kwargs)
-
         doc = collection.find_one(cls.parse_filter(filter), sort=sort.get_tuples())
         return cls.from_db_doc(doc) if doc else None
 
@@ -429,7 +425,6 @@ class Persistable(Model):
         cls,
         filter: Filter = Filter(),
         sort: SortOp = SortDesc("updated_time"),
-        **kwargs,
     ):
         """
         Loads the most recently updated document from the database.
@@ -445,7 +440,7 @@ class Persistable(Model):
                 found.
         """
 
-        return cls.load_one(filter, sort=sort, **kwargs)
+        return cls.load_one(filter, sort=sort)
 
     @classmethod
     def from_id(cls, id: ObjectId | str):
@@ -465,7 +460,7 @@ class Persistable(Model):
                 return None
             id = ObjectId(id)
 
-        return cls.load_one(_id=id)
+        return cls.load_one(Filter.fields(_id=id))
 
     @classmethod
     def aggregate(
@@ -473,8 +468,7 @@ class Persistable(Model):
         aggregation: Optional[Aggregation] = None,
         filter: Filter = Filter(),
         sampling: Optional[Size] = None,
-        sort: SortOp = SortOp(),
-        **kwargs,
+        sort: SortOp = SortOp()
     ):
         """
         Performs an aggregation query on the model's collection.
@@ -497,7 +491,6 @@ class Persistable(Model):
         if aggregation is None:
             aggregation = Aggregation()
 
-        filter &= Filter(kwargs)
         if filter.has_filter():
             aggregation = aggregation.Match(filter)
 
@@ -514,8 +507,7 @@ class Persistable(Model):
         aggregation: Optional[Aggregation] = None,
         filter: Filter = Filter(),
         sampling: Optional[Size] = None,
-        sort: SortOp = SortOp(),
-        **kwargs,
+        sort: SortOp = SortOp()
     ):
         """
         Executes an aggregation and returns the results as a list of models.
@@ -536,7 +528,6 @@ class Persistable(Model):
             filter=filter,
             sampling=sampling,
             sort=sort,
-            **kwargs,
         ) as cursors:
             return [cls.from_db_doc(doc) for doc in cursors]
 
@@ -546,7 +537,6 @@ class Persistable(Model):
         filter: Filter = Filter(),
         limit: Size = Size(0),
         sort: SortOp = SortOp(),
-        **kwargs,
     ):
         """
         Loads multiple documents from the database.
@@ -563,8 +553,6 @@ class Persistable(Model):
         """
         collection = cls.get_db_collection()
 
-        filter &= Filter(kwargs)
-
         with collection.find(
             cls.parse_filter(filter), limit=limit.get_exp(), sort=sort.get_tuples()
         ) as cursor:
@@ -576,8 +564,7 @@ class Persistable(Model):
         aggregation: Optional[Aggregation] = None,
         filter: Filter = Filter(),
         sampling: Optional[Size] = None,
-        sort: SortOp = SortOp(),
-        **kwargs,
+        sort: SortOp = SortOp()
     ) -> pd.DataFrame:
         """
         Loads data from an aggregation query into a pandas DataFrame.
@@ -597,8 +584,6 @@ class Persistable(Model):
             aggregation=aggregation,
             filter=filter,
             sampling=sampling,
-            sort=sort,
-            **kwargs,
         ) as cursor:
             return pd.DataFrame(cursor)
 
