@@ -78,7 +78,13 @@ class Filter(LoadDirective):
     def __init__(self, query: Optional[dict] = None) -> None:
         self._value = query if query is not None else {}
 
-    def __and__(self, filter: "Filter") -> "Filter":
+    def __and__(self, filter) -> "Filter":
+        if (filter is None):
+            return self
+        
+        if (not isinstance(filter, Filter)):
+            ValueError("Invalid filter type")
+
         retval = Filter()
         retval._value = self.get_exp() | filter.get_exp()
         return retval
