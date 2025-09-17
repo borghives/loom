@@ -87,7 +87,7 @@ class Moment(Persistable):
         return self.time.strftime("%Y-%m-%d")
 
     @classmethod
-    def create(cls, time: Optional[datetime] = None, **kwargs):
+    def create(cls, time: datetime, **kwargs):
         """
         Create a Moment instance.
 
@@ -101,7 +101,7 @@ class Moment(Persistable):
         Returns:
             A new Moment instance.
         """
-        retval = cls(**kwargs, updated_time=time)
+        retval = cls(updated_time=time, **kwargs)
         return retval
 
 
