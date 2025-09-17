@@ -151,7 +151,8 @@ TimeInserted = Annotated[
 #: A datetime field that defaults to the current UTC time on document update.
 TimeUpdated = Annotated[
     datetime | None,
-    NormalizeValue(lambda x: to_utc_aware(x) if x is not None else get_current_time()),
+    AfterValidator(lambda x: to_utc_aware(x) if x is not None else None),
+    RefreshOnSet(lambda x: get_current_time()),
     Field(default=None),
 ]
 
