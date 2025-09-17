@@ -584,6 +584,7 @@ class Persistable(Model):
             aggregation=aggregation,
             filter=filter,
             sampling=sampling,
+            sort=sort,
         ) as cursor:
             return pd.DataFrame(cursor)
 
