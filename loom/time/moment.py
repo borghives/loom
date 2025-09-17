@@ -230,7 +230,7 @@ class MomentWindow:
                 symbol=self.symbol
             )
 
-    def get_moments(self, after: Optional[datetime] = None, before: Optional[datetime] = None) -> list[Moment]:
+    def get_moments(self, after: Optional[datetime] = None, before: Optional[datetime] = None):
         """
         Get moments within a specified time range.
 
@@ -257,7 +257,7 @@ class MomentWindow:
         frame = DailyFrame.create(moment=latest.time, tzone=EASTERN_TIMEZONE)
         return frame
 
-    def get_latest(self) -> Moment:
+    def get_latest(self):
         """
         Get the latest moment in the window.
 
