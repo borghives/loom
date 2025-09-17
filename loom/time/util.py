@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 import arrow
 
 # Using ZoneInfo to properly handle Daylight Saving Time for the Eastern timezone.
-# "EST" is a fixed offset, which is incorrect during EDT.
+EST_TIMEZONE = timezone(timedelta(hours=-5)) #fixed offset for EST
 EASTERN_TIMEZONE = ZoneInfo("America/New_York")
 
 
@@ -33,6 +33,19 @@ def to_eastern_aware(dt: datetime) -> datetime:
       An aware datetime object in the US/Eastern timezone.
     """
     return arrow.get(dt).to(EASTERN_TIMEZONE).datetime
+
+def to_est_aware(dt: datetime) -> datetime:
+    """Converts a naive datetime object to an aware datetime object in the US/Eastern timezone.
+
+    It's assumed the naive datetime is in UTC.
+
+    Args:
+      dt: The naive datetime object to convert (assumed to be in UTC).
+
+    Returns:
+      An aware datetime object in the US/Eastern timezone.
+    """
+    return arrow.get(dt).to(EST_TIMEZONE).datetime
 
 
 def to_utc_aware(dt: datetime) -> datetime:
