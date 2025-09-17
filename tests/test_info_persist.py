@@ -10,7 +10,7 @@ from pymongo.errors import BulkWriteError
 
 from loom.info.atomic import IncrCounter
 from loom.info.persist import Persistable, declare_persist_db
-from loom.info.model import RefreshOnSet, CoalesceOnInsert
+from loom.info.model import CoalesceOnInsert
 
 
 @declare_persist_db(db_name="test_db", collection_name="test_collection", version=1, test=True)
