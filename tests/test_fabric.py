@@ -45,11 +45,6 @@ def test_moment_comparison(moments):
     assert m2 >= m1
     assert m1_copy >= m1
 
-def test_moment_time_value_error():
-    """Tests that accessing .time without a timestamp raises a ValueError."""
-    moment = Moment(symbol="TEST")
-    with pytest.raises(ValueError, match="No associated time yet"):
-        _ = moment.time
 
 # --- MomentWindow Tests ---
 

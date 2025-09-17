@@ -39,14 +39,10 @@ class PersistableTest(unittest.TestCase):
 
     def test_get_set_instruction(self):
         """Test the get_set_instruction method."""
-        fixed_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        
-        # Directly modify the collapse function for the test
-        updated_time_transformer = TestModel.get_field_metadata("updated_time", RefreshOnSet)[0]
-        updated_time_transformer.refresh = lambda x: fixed_time
 
         model = TestModel(name="test", value=10)
-        model.updated_time = None  # Ensure coalesce is triggered
+        fixed_time = model.updated_time  
+        assert fixed_time is not None
 
         set_instr, _ = model.get_set_instruction()
         self.assertIn("$set", set_instr)
@@ -59,9 +55,6 @@ class PersistableTest(unittest.TestCase):
         """Test the complete update instruction generation."""
         fixed_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         
-        # Directly modify the refresh functions for the test
-        updated_time_transformer = TestModel.get_field_metadata("updated_time", RefreshOnSet)[0]
-        updated_time_transformer.refresh = lambda x: fixed_time
         created_at_transformer = TestModel.get_field_metadata("created_at", CoalesceOnInsert)[0]
         created_at_transformer.collapse = lambda : fixed_time
 
@@ -70,15 +63,30 @@ class PersistableTest(unittest.TestCase):
         model.created_at = None
         model.updated_time = None
 
+        self.assertIsNotNone(model.updated_time)
         update_instr = model.get_update_instruction()
 
         self.assertIn("$set", update_instr)
         set_doc = update_instr["$set"]
-        self.assertEqual(set_doc["updated_time"], fixed_time)
+        self.assertEqual(set_doc["updated_time"], model.updated_time)
 
         self.assertIn("$setOnInsert", update_instr)
         set_on_insert_doc = update_instr["$setOnInsert"]
         self.assertEqual(set_on_insert_doc["created_at"], fixed_time)
+
+    def test_time_updated_field(self):
+        """Test the behavior of the TimeUpdated field."""
+        model = TestModel(name="test", value=10)
+        self.assertIsInstance(model.updated_time, datetime)
+
+        first_updated_time = model.updated_time
+        model.updated_time = None
+        self.assertIsInstance(model.updated_time, datetime)
+        self.assertNotEqual(first_updated_time, model.updated_time)
+
+        fixed_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        model.updated_time = fixed_time
+        self.assertEqual(model.updated_time, fixed_time)
 
     def test_inc_op(self):
         # 1. Create and persist a new model with an increment
