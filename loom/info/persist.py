@@ -1,4 +1,5 @@
-from typing import Any, Optional, Tuple
+from datetime import datetime
+from typing import Any, Optional, Tuple, Union, get_origin, get_args
 
 import pandas as pd
 from bson import ObjectId
@@ -7,6 +8,9 @@ from pymongo import MongoClient, ReturnDocument, UpdateOne
 from pymongo.collection import Collection
 from pymongo.database import Database
 from pymongo.errors import BulkWriteError
+
+import pyarrow as pa
+from pymongoarrow.api import Schema, aggregate_arrow_all #type: ignore
 
 from loom.info.aggregation import Aggregation
 from loom.info.load import Filter, Size, SortDesc, SortOp
@@ -22,7 +26,6 @@ from loom.info.model import (
     coalesce,
 )
 from loom.info.universal import get_local_db_client, get_remote_db_client
-
 
 class Persistable(Model):
     """
@@ -559,7 +562,7 @@ class Persistable(Model):
             return [cls.from_db_doc(doc) for doc in cursor]
 
     @classmethod
-    def load_dataframe(
+    def _load_dataframe_legacy(
         cls,
         aggregation: Optional[Aggregation] = None,
         filter: Filter = Filter(),
@@ -586,7 +589,11 @@ class Persistable(Model):
             sampling=sampling,
             sort=sort,
         ) as cursor:
-            return pd.DataFrame(cursor)
+            df = pd.DataFrame(cursor)
+            if "_id" in df.columns:
+                df.set_index("_id", inplace=True)
+            return df
+            
 
     @classmethod
     def exists(cls, **kwargs) -> bool:
@@ -703,14 +710,103 @@ class Persistable(Model):
                 dataframe.to_dict("records"), ordered=False
             )  # ordered false so that a duplicate key error won't stop the insert of many
         except BulkWriteError as bwe:
-            for error in bwe.details["writeErrors"]:
-                if error["code"] != 11000:  # Not DuplicateKeyError propagate error
-                    raise error
+            # If there are errors other than duplicate key (11000), re-raise the original exception.
+            # This preserves the full error context for the caller to handle.
+            if any(error['code'] != 11000 for error in bwe.details['writeErrors']):
+                raise
                 
         return dataframe
 
     # ---END: Save to persistence storage ---
 
+    # --- PyArrow ---
+
+    @classmethod
+    def get_arrow_schema(cls) -> Schema:
+        """
+        Generates a PyMongoArrow Schema from the Pydantic model fields.
+        Handles Optional, list, and basic types. Fields with types not explicitly
+        mapped (like nested models or ObjectId) are omitted from the schema and
+        will be inferred by PyMongoArrow.
+        """
+        type_map = {
+            str: pa.string(),
+            int: pa.int64(),
+            float: pa.float64(),
+            bool: pa.bool_(),
+            datetime: pa.timestamp("ns"),
+        }
+
+        fields = {}
+        for name, field_info in cls.model_fields.items():
+            field_type = field_info.annotation
+
+            # Resolve Optional[T] to T
+            origin = get_origin(field_type)
+            if origin is Union:
+                args = [arg for arg in get_args(field_type) if arg is not type(None)]
+                if len(args) == 1:
+                    field_type = args[0]
+                    origin = get_origin(field_type)
+
+            # Handle basic types
+            elif field_type in type_map:
+                fields[name] = type_map[field_type]
+            # Other types (like ObjectId, nested models) are omitted to be inferred by pymongoarrow
+
+        return Schema(fields)
+
+    @classmethod
+    def aggregate_arrow(cls, aggregation: Aggregation, schema: Schema) -> pa.Table:
+        """
+        Executes an aggregation pipeline and returns a pyarrow.Table.
+        """
+        collection = cls.get_db_collection()
+        pipeline = cls.parse_agg_pipe(aggregation)
+        return aggregate_arrow_all(collection, pipeline, schema=schema)
+
+    @classmethod
+    def load_arrow_table(
+        cls,
+        aggregation: Optional[Aggregation] = None,
+        filter: Filter = Filter(),
+        sampling: Optional[Size] = None,
+        sort: SortOp = SortOp()
+    ) -> pa.Table:
+        """
+        Loads data from a query into a PyArrow Table.
+        """
+        if aggregation is None:
+            aggregation = Aggregation()
+
+        if filter.has_filter():
+            aggregation = aggregation.Match(filter)
+        if sampling:
+            aggregation = aggregation.Sample(sampling)
+        aggregation = aggregation.Sort(sort)
+        
+        schema = cls.get_arrow_schema()
+        return cls.aggregate_arrow(aggregation, schema)
+    
+    @classmethod
+    def load_dataframe(
+        cls,
+        aggregation: Optional[Aggregation] = None,
+        filter: Filter = Filter(),
+        sampling: Optional[Size] = None,
+        sort: SortOp = SortOp()
+    ) -> pd.DataFrame:
+        """
+        Loads data from an aggregation query into a pandas DataFrame using PyMongoArrow.
+        """
+        arrow_table = cls.load_arrow_table(
+            aggregation=aggregation, filter=filter, sampling=sampling, sort=sort,
+        )
+        df = arrow_table.to_pandas()
+        if "_id" in df.columns:
+            df.set_index("_id", inplace=True)
+        return df
+    # --- END: PyArrow ---
     @classmethod
     def create_collection(cls):
         """

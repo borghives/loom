@@ -114,9 +114,7 @@ class Persistable(Model):
             if field_type in type_map:
                 fields[name] = type_map[field_type]
 
-        # Override _id to always be a string, as it's converted in the pipeline
-        fields["_id"] = pa.string()
-        return Schema(fields)
+        return Schema(fields, _id_scheme='binary')
 
     @classmethod
     def aggregate_arrow(cls, aggregation: Aggregation, schema: Schema) -> pa.Table:
