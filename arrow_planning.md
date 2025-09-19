@@ -181,3 +181,107 @@ class Persistable(Model):
 This remains an important step. The revised plan provides a stronger foundation for addressing these points.
 
 This revised plan is more respectful of the existing architecture, promotes code reuse, and is more explicit about its operations, making it a better fit for the project's established style.
+
+### 8. Performance Testing Strategy
+
+To validate the benefits of this integration, a robust performance test is required. This involves two key components: generating a sufficiently large dataset and creating a benchmark test to compare the "before" and "after" scenarios (A/B testing).
+
+#### Data Generation
+
+We will create a script to populate a test MongoDB collection with a large volume of realistic data.
+
+-   **Tooling**: A standalone Python script using the `Faker` library to generate varied data types (names, dates, text, numbers).
+-   **Schema**: The script will use a dedicated Pydantic model that inherits from `Persistable` to define the data structure. This model will be decorated with `declare_persist_db(..., test=True)` to ensure it uses a separate test collection.
+-   **Insertion**: The script will generate a large number of documents (e.g., 100,000 or 1,000,000) and use the `insert_many` method for efficient bulk insertion.
+
+**Example Data Generation Script Sketch (`scripts/generate_test_data.py`):**
+
+```python
+import random
+from faker import Faker
+from loom.info.persist import Persistable, declare_persist_db
+
+# 1. Define a test model
+@declare_persist_db(collection_name="perf_test_data", db_name="test_db", test=True)
+class PerformanceTestModel(Persistable):
+    name: str
+    value: float
+    notes: str
+
+# 2. Create script to generate and insert data
+def generate_data(num_records: int):
+    fake = Faker()
+    records = [
+        PerformanceTestModel(
+            name=fake.name(),
+            value=random.random() * 1000,
+            notes=fake.text(),
+        ).dump_doc() for _ in range(num_records)
+    ]
+    
+    # Use a direct pymongo client for bulk insert for speed
+    collection = PerformanceTestModel.get_db_collection()
+    collection.insert_many(records)
+    print(f"Inserted {num_records} records into {collection.full_name}")
+
+if __name__ == "__main__":
+    generate_data(100_000)
+```
+
+#### A/B Benchmark Testing
+
+To perform the A/B test, we need to temporarily keep the old `load_dataframe` logic accessible.
+
+1.  **Preserve Legacy Method**: Before refactoring, rename the existing `load_dataframe` method to `_load_dataframe_legacy`.
+
+    ```python
+    # In loom/info/persist.py
+    
+    @classmethod
+    def _load_dataframe_legacy(...) -> pd.DataFrame:
+        # The original implementation
+        with cls.aggregate(...) as cursor:
+            df = pd.DataFrame(cursor)
+            if "_id" in df.columns:
+                df.set_index("_id", inplace=True)
+            return df
+    ```
+
+2.  **Implement New Method**: Implement the new `load_dataframe` using the `pymongoarrow` strategy as detailed in the plan.
+
+3.  **Create Benchmark Test**: Use the `timeit` module or a library like `pytest-benchmark` to compare the execution time of the two methods.
+
+**Example Benchmark Test Sketch (`tests/test_performance.py`):**
+
+```python
+import timeit
+from loom.info.persist import Persistable # Assuming PerformanceTestModel is accessible
+
+def run_benchmark():
+    # Ensure data exists before running
+    
+    # Time the legacy method
+    legacy_time = timeit.timeit(
+        "PerformanceTestModel._load_dataframe_legacy()",
+        globals=globals(),
+        number=10
+    )
+
+    # Time the new Arrow-based method
+    arrow_time = timeit.timeit(
+        "PerformanceTestModel.load_dataframe()",
+        globals=globals(),
+        number=10
+    )
+
+    print(f"Legacy implementation: {legacy_time:.4f} seconds")
+    print(f"Arrow implementation:  {arrow_time:.4f} seconds")
+    
+    improvement = ((legacy_time - arrow_time) / legacy_time) * 100
+    print(f"Improvement: {improvement:.2f}%")
+
+if __name__ == "__main__":
+    run_benchmark()
+```
+
+This testing strategy will provide concrete data on the performance gains from integrating `pymongoarrow` and validate the architectural changes.
