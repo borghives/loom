@@ -1,5 +1,4 @@
-from datetime import datetime
-from typing import Any, Optional, Tuple, Union, get_origin, get_args
+from typing import Any, Optional, Tuple
 
 import pandas as pd
 from bson import ObjectId
@@ -722,42 +721,43 @@ class Persistable(Model):
     # --- PyArrow ---
 
     @classmethod
-    def get_arrow_schema(cls) -> Schema:
+    def get_arrow_schema(cls) -> Optional[Schema]:
         """
         Generates a PyMongoArrow Schema from the Pydantic model fields.
         Handles Optional, list, and basic types. Fields with types not explicitly
         mapped (like nested models or ObjectId) are omitted from the schema and
         will be inferred by PyMongoArrow.
         """
-        type_map = {
-            str: pa.string(),
-            int: pa.int64(),
-            float: pa.float64(),
-            bool: pa.bool_(),
-            datetime: pa.timestamp("ns"),
-        }
+        # type_map = {
+        #     str: pa.string(),
+        #     int: pa.int64(),
+        #     float: pa.float64(),
+        #     bool: pa.bool_(),
+        #     datetime: pa.timestamp("ns"),
+        # }
 
-        fields = {}
-        for name, field_info in cls.model_fields.items():
-            field_type = field_info.annotation
+        # fields = {}
+        # for name, field_info in cls.model_fields.items():
+        #     field_name = field_info.alias or name
+        #     field_type = field_info.annotation
 
-            # Resolve Optional[T] to T
-            origin = get_origin(field_type)
-            if origin is Union:
-                args = [arg for arg in get_args(field_type) if arg is not type(None)]
-                if len(args) == 1:
-                    field_type = args[0]
-                    origin = get_origin(field_type)
+        #     # Resolve Optional[T] to T
+        #     origin = get_origin(field_type)
+        #     if origin is Union:
+        #         args = [arg for arg in get_args(field_type) if arg is not type(None)]
+        #         if len(args) == 1:
+        #             field_type = args[0]
+        #             origin = get_origin(field_type)
 
-            # Handle basic types
-            elif field_type in type_map:
-                fields[name] = type_map[field_type]
-            # Other types (like ObjectId, nested models) are omitted to be inferred by pymongoarrow
+        #     # Handle basic types
+        #     if field_type in type_map:
+        #         fields[field_name] = type_map[field_type]
 
-        return Schema(fields)
+        # return Schema(fields)
+        return None
 
     @classmethod
-    def aggregate_arrow(cls, aggregation: Aggregation, schema: Schema) -> pa.Table:
+    def aggregate_arrow(cls, aggregation: Aggregation, schema: Optional[Schema]) -> pa.Table:
         """
         Executes an aggregation pipeline and returns a pyarrow.Table.
         """

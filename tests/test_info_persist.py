@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pydantic import Field
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
+import rich
 
 from loom.info.atomic import IncrCounter
 from loom.info.persist import Persistable, declare_persist_db
@@ -17,6 +18,8 @@ from loom.info.model import RefreshOnSet, CoalesceOnInsert
 class TestModel(Persistable):
     name: str
     value: int
+    link_id: ObjectId | None = None
+
 
 @declare_persist_db(collection_name="test_inc_collection", db_name="test_db", test=True)
 class TestIncModel(Persistable):
@@ -222,6 +225,31 @@ class PersistableTest(unittest.TestCase):
             TestModel.insert_dataframe(df)
         except BulkWriteError:
             self.fail("BulkWriteError with duplicate key was not ignored")
+
+
+    def test_load_dataframe(self):
+        """Test loading data into a pandas DataFrame."""
+        collection = TestModel.get_db_collection()
+        collection.delete_many({})
+
+        df = pd.DataFrame([
+            {"name": "df_user1", "value": 11, "link_id": ObjectId()},
+            {"name": "df_user2", "value": 20, "link_id": ObjectId()},
+        ])
+        TestModel.insert_dataframe(df)
+
+        loaded_df = TestModel.load_dataframe()
+        self.assertEqual(len(loaded_df), 2)
+        self.assertIn("name", loaded_df.columns)
+        self.assertIn("value", loaded_df.columns)
+        
+        rich.print(loaded_df)
+
+        # Verify the index is set to _id
+        self.assertEqual(loaded_df.index.name, "_id")
+
+        # Clean up
+        collection.delete_many({})
 
 
 if __name__ == "__main__":
