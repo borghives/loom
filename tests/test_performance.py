@@ -1,5 +1,5 @@
 import timeit
-from tests.performance_test_model import PerformanceTestModel
+# from tests.performance_test_model import PerformanceTestModel
 
 def test_benchmark(capsys):
     # Time the legacy method
@@ -23,4 +23,4 @@ def test_benchmark(capsys):
         improvement = ((legacy_time - arrow_time) / legacy_time) * 100
         print(f"Improvement: {improvement:.2f}%")
 
-    assert arrow_time  < legacy_time + 0.8
+    assert arrow_time  < legacy_time

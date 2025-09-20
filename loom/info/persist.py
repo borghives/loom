@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Optional, Tuple, Union
+from typing import Any, Optional, Tuple
 
 import pandas as pd
 from bson import ObjectId
@@ -9,7 +9,7 @@ from pymongo.database import Database
 from pymongo.errors import BulkWriteError
 
 import pyarrow as pa
-from pymongoarrow.api import Schema, aggregate_arrow_all #type: ignore
+from pymongoarrow.api import Schema, find_arrow_all #type: ignore
 
 from loom.info.aggregation import Aggregation
 from loom.info.load import Filter, Size, SortDesc, SortOp
@@ -724,54 +724,9 @@ class Persistable(Model):
     def get_arrow_schema(cls) -> Optional[Schema]:
         """
         Generates a PyMongoArrow Schema from the Pydantic model fields.
-        Handles Optional types. Returns an explicit schema.
+        Returns an explicit schema for model
         """
         return None
-        # from typing import get_origin, get_args
-        # from datetime import datetime
-
-        # type_map = {
-        #     str: pa.string(),
-        #     int: pa.int64(),
-        #     float: pa.float64(),
-        #     datetime: pa.timestamp("ms"),
-        #     ObjectId: ObjectId,
-        # }
-
-        # fields = {}
-        # for name, field_info in cls.model_fields.items():
-        #     field_name = field_info.alias or name
-
-        #     field_type = field_info.annotation
-            
-        #     origin = get_origin(field_type)
-        #     args = [arg for arg in get_args(field_type) if arg is not type(None)]
-
-        #     # Resolve Optional[T] to T
-        #     if origin is Union:
-        #         args = [arg for arg in get_args(field_type) if arg is not type(None)]
-        #         if len(args) >= 1:
-        #             field_type = args[0]
-        #             origin = get_origin(field_type)
-
-        #             if origin is Annotated:
-        #                 args = [arg for arg in get_args(field_type) if arg is not type(None)]
-        #                 if len(args) >= 1:
-        #                     field_type = args[0]
-        #                     origin = get_origin(field_type)
-
-
-        #     # Handle basic types
-        #     if field_type in type_map:
-        #         fields[field_name] = type_map[field_type]
-
-        #     if origin and type(None) in args:
-        #         field_type = next(arg for arg in args if arg is not type(None))
-
-        #     if field_type in type_map:
-        #         fields[field_name] = type_map[field_type]
-
-        # return Schema(fields)
 
     @classmethod
     def aggregate_arrow(cls, aggregation: Aggregation, schema: Optional[Schema]) -> pa.Table:
@@ -780,7 +735,7 @@ class Persistable(Model):
         """
         collection = cls.get_db_collection()
         pipeline = cls.parse_agg_pipe(aggregation)
-        return aggregate_arrow_all(collection, pipeline, schema=schema)
+        return find_arrow_all(collection, pipeline, schema=schema or cls.get_arrow_schema())
 
     @classmethod
     def load_arrow_table(
@@ -788,7 +743,8 @@ class Persistable(Model):
         aggregation: Optional[Aggregation] = None,
         filter: Filter = Filter(),
         sampling: Optional[Size] = None,
-        sort: SortOp = SortOp()
+        sort: Optional[SortOp] = None,
+        schema: Optional[Schema] = None
     ) -> pa.Table:
         """
         Loads data from a query into a PyArrow Table.
@@ -798,12 +754,14 @@ class Persistable(Model):
 
         if filter.has_filter():
             aggregation = aggregation.Match(filter)
+
         if sampling:
             aggregation = aggregation.Sample(sampling)
-        aggregation = aggregation.Sort(sort)
+
+        if sort:
+            aggregation = aggregation.Sort(sort)
         
-        schema = cls.get_arrow_schema()
-        return cls.aggregate_arrow(aggregation, schema)
+        return cls.aggregate_arrow(aggregation, schema )
     
     @classmethod
     def load_dataframe(
@@ -815,6 +773,7 @@ class Persistable(Model):
     ) -> pd.DataFrame:
         """
         Loads data from an aggregation query into a pandas DataFrame using PyMongoArrow.
+        Set the _id as the index
         """
         arrow_table = cls.load_arrow_table(
             aggregation=aggregation, filter=filter, sampling=sampling, sort=sort,
@@ -822,7 +781,9 @@ class Persistable(Model):
         df = arrow_table.to_pandas()
         if "_id" in df.columns:
             df.set_index("_id", inplace=True)
+
         return df
+    
     # --- END: PyArrow ---
     @classmethod
     def create_collection(cls):

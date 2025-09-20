@@ -1,7 +1,6 @@
 import random
 from faker import Faker
 from tests.performance_test_model import PerformanceTestModel
-import pymongo
 
 # 2. Create script to generate and insert data
 def generate_data(num_records: int):
@@ -10,6 +9,8 @@ def generate_data(num_records: int):
         PerformanceTestModel(
             name=fake.name(),
             value=random.random() * 1000,
+            value2=random.random() * 1000,
+            date=fake.date_time_this_decade(),
             notes=fake.text(),
         ).dump_doc() for _ in range(num_records)
     ]
@@ -22,4 +23,4 @@ def generate_data(num_records: int):
     print(f"Inserted {num_records} records into {collection.full_name}")
 
 if __name__ == "__main__":
-    generate_data(100_000)
+    generate_data(200_000)
