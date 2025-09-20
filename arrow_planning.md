@@ -35,89 +35,87 @@ The integration will follow the existing layered architecture of `Persistable`. 
 3.  **`load_arrow_table`**: A new public method for users who want to work directly with Arrow Tables.
 4.  **`load_dataframe`**: The existing method will be updated to use `load_arrow_table` as its backend.
 
-### 4. Dynamic Schema Generation (Revised)
+### 4. Schema Inference Strategy
 
-The `@classmethod def get_arrow_schema(cls) -> pyarrow.Schema:` will be designed to be more robust.
+The implementation deviates from the original plan of dynamic schema generation. Instead of manually mapping Pydantic types to `pyarrow` types, the `get_arrow_schema` method returns `None`, delegating the schema inference to `pymongoarrow`.
 
--   It will inspect `cls.model_fields` to map Pydantic/Python types to `pyarrow` types.
--   It will correctly handle generic types like `Optional[T]` (by making the field nullable) and `list[T]`.
--   It will define `_id` as `pyarrow.string()`, as `ObjectId` is not a native Arrow type.
+-   **`get_arrow_schema`**: This class method is simplified to return `None`. This allows `pymongoarrow` to infer the schema directly from the data returned by the MongoDB query.
+-   **Flexibility**: This approach is more flexible as it doesn't require manual updates when the Pydantic model changes. However, it relies on `pymongoarrow`'s inference capabilities.
+-   **Future Implementation**: The method is designed so that individual `Persistable` subclasses can override it to provide an explicit schema if needed.
 
-### 5. New & Updated Methods (Revised Architecture)
+### 5. New & Updated Methods
 
-This revised architecture aligns with the project's philosophy of building public methods on top of more fundamental, lower-level ones.
+The implementation introduces a layered approach for data loading, with `load_dataframe` building on `load_arrow_table`, which in turn uses `aggregate_arrow`.
 
--   **`@classmethod def aggregate_arrow(cls, aggregation: Aggregation, schema: Schema) -> pa.Table:`**
-    - This is the new core primitive. It replaces the existing `aggregate` method for Arrow-based queries.
+-   **`@classmethod def aggregate_arrow(cls, aggregation: Aggregation, schema: Optional[Schema]) -> pa.Table:`**
+    - This is the core primitive for executing an aggregation pipeline and returning a `pyarrow.Table`.
     - **Implementation:**
-        1.  Get the `Collection` via `cls.get_db_collection()`.
-        2.  Parse the `Aggregation` object into a pipeline via `cls.parse_agg_pipe(aggregation)`.
-        3.  Execute the query using `pymongoarrow.aggregate.aggregate_arrow_all(collection, pipeline, schema=schema)`.
-        4.  Return the resulting `pyarrow.Table`.
+        1.  Gets the `Collection` via `cls.get_db_collection()`.
+        2.  Parses the `Aggregation` object into a pipeline via `cls.parse_agg_pipe(aggregation)`.
+        3.  Executes the query using `pymongoarrow.aggregate.aggregate_arrow_all(collection, pipeline, schema=schema)`. The `schema` is optional.
+        4.  Returns the resulting `pyarrow.Table`.
 
 -   **`@classmethod def load_arrow_table(...) -> pyarrow.Table:`**
-    - This will be the new public-facing method for Arrow-native workflows.
+    - This is the public-facing method for loading data into an Arrow Table.
     - **Implementation:**
-        1.  Construct the `Aggregation` object from `filter`, `sort`, and `sampling`, identical to the logic in the current `aggregate` method.
-        2.  **Crucially, prepend a stage to the aggregation to convert `_id` to a string**: `Aggregation().AddFields(_id={"$toString": "$_id"})`. This makes the `_id` conversion explicit and predictable.
-        3.  Generate the Arrow schema via `cls.get_arrow_schema()`.
-        4.  Call `cls.aggregate_arrow(aggregation, schema)` and return the result.
+        1.  Constructs the `Aggregation` object from `filter`, `sort`, and `sampling`.
+        2.  Calls `cls.get_arrow_schema()` (which returns `None`) to let `pymongoarrow` infer the schema.
+        3.  Calls `cls.aggregate_arrow(aggregation, schema)` and returns the result.
+    - **Note:** Unlike the original plan, this implementation does not prepend a stage to convert `_id` to a string. It relies on the default handling of `ObjectId` by `pymongoarrow` and `pyarrow`.
 
 -   **`@classmethod def load_dataframe(...) -> pd.DataFrame:` (Updated)**
-    - This method's signature remains the same, providing a transparent performance upgrade.
+    - This method's signature remains unchanged, providing a transparent performance upgrade to existing code.
     - **Implementation:**
-        1.  Call `cls.load_arrow_table(...)` with all arguments.
-        2.  Convert the resulting Arrow Table to a pandas DataFrame via `.to_pandas()`.
-        3.  Return the DataFrame.
+        1.  Calls `cls.load_arrow_table(...)` with all arguments.
+        2.  Converts the resulting Arrow Table to a pandas DataFrame via `.to_pandas()`.
+        3.  If an `_id` column exists, it is set as the DataFrame's index.
+        4.  Returns the DataFrame.
 
-### 6. Example Implementation Sketch (Revised)
+### 6. Implemented Code Sketch
 
-This sketch reflects the more modular, layered, and explicit approach.
+This sketch reflects the final implementation in `loom/info/persist.py`.
 
 ```python
 # In loom/info/persist.py
-
-import pyarrow as pa
-from pymongoarrow.api import Schema
-from pymongoarrow.aggregate import aggregate_arrow_all
-from typing import Optional, get_origin, get_args
-# No monkey-patching, to keep the implementation explicit.
 
 class Persistable(Model):
     # ... existing code ...
 
     @classmethod
-    def get_arrow_schema(cls) -> Schema:
+    def _load_dataframe_legacy(
+        cls,
+        aggregation: Optional[Aggregation] = None,
+        filter: Filter = Filter(),
+        sampling: Optional[Size] = None,
+        sort: SortOp = SortOp()
+    ) -> pd.DataFrame:
         """
-        Generates a PyMongoArrow Schema from the Pydantic model fields.
-        Handles Optional and list types.
+        Loads data from an aggregation query into a pandas DataFrame.
         """
-        type_map = {
-            str: pa.string(),
-            int: pa.int64(),
-            float: pa.float64(),
-            datetime: pa.timestamp("ns"),
-        }
-
-        fields = {}
-        for name, field_info in cls.model_fields.items():
-            field_type = field_info.annotation
-            is_nullable = False
-
-            origin = get_origin(field_type)
-            if origin is Optional:
-                is_nullable = True
-                field_type = get_args(field_type)[0]
+        with cls.aggregate(
+            aggregation=aggregation,
+            filter=filter,
+            sampling=sampling,
+            sort=sort,
+        ) as cursor:
+            df = pd.DataFrame(cursor)
+            if "_id" in df.columns:
+                df.set_index("_id", inplace=True)
+            return df
             
-            # Add more complex type handling here (e.g., list, nested models)
-
-            if field_type in type_map:
-                fields[name] = type_map[field_type]
-
-        return Schema(fields, _id_scheme='binary')
+    # --- PyArrow ---
 
     @classmethod
-    def aggregate_arrow(cls, aggregation: Aggregation, schema: Schema) -> pa.Table:
+    def get_arrow_schema(cls) -> Optional[Schema]:
+        """
+        None mean let PyMongoArrow infers one from the data
+        To be implemented by the inherit model return None here for default behavior
+        """
+        
+        return None
+
+    @classmethod
+    def aggregate_arrow(cls, aggregation: Aggregation, schema: Optional[Schema]) -> pa.Table:
         """
         Executes an aggregation pipeline and returns a pyarrow.Table.
         """
@@ -139,19 +137,15 @@ class Persistable(Model):
         if aggregation is None:
             aggregation = Aggregation()
 
-        # Prepend _id conversion stage. This is explicit and ensures compatibility.
-        id_conversion_stage = Aggregation().AddFields(_id={"$toString": "$_id"})
-        final_aggregation = id_conversion_stage + aggregation
-
         if filter.has_filter():
-            final_aggregation = final_aggregation.Match(filter)
+            aggregation = aggregation.Match(filter)
         if sampling:
-            final_aggregation = final_aggregation.Sample(sampling)
-        final_aggregation = final_aggregation.Sort(sort)
+            aggregation = aggregation.Sample(sampling)
+        aggregation = aggregation.Sort(sort)
         
         schema = cls.get_arrow_schema()
-        return cls.aggregate_arrow(final_aggregation, schema)
-
+        return cls.aggregate_arrow(aggregation, schema)
+    
     @classmethod
     def load_dataframe(
         cls,
@@ -170,13 +164,17 @@ class Persistable(Model):
         if "_id" in df.columns:
             df.set_index("_id", inplace=True)
         return df
-
+    # --- END: PyArrow ---
+    
     # ... rest of the class ...
 ```
 
-### 7. Open Questions & Considerations
+### 7. Implementation Notes and Deviations
 
-This remains an important step. The revised plan provides a stronger foundation for addressing these points.
+-   **Schema Generation**: The most significant deviation from the original plan is the schema generation strategy. The final implementation opts to have `pymongoarrow` infer the schema by default (by having `get_arrow_schema` return `None`). This simplifies the code and makes it more maintainable, as it doesn't require manual mapping between Pydantic and Arrow types. However, it relies on the quality of `pymongoarrow`'s type inference. The design allows for subclasses to provide an explicit schema by overriding `get_arrow_schema` if needed.
+
+-   **`_id` Handling**: The plan to explicitly cast `_id` to a string within an aggregation pipeline was not implemented. The current code relies on `pyarrow`'s default handling of BSON `ObjectId` types. The final `load_dataframe` method correctly sets the `_id` column as the index in the resulting pandas DataFrame.
+
 
 This revised plan is more respectful of the existing architecture, promotes code reuse, and is more explicit about its operations, making it a better fit for the project's established style.
 

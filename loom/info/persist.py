@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple
+from typing import Annotated, Any, Optional, Tuple, Union
 
 import pandas as pd
 from bson import ObjectId
@@ -724,10 +724,54 @@ class Persistable(Model):
     def get_arrow_schema(cls) -> Optional[Schema]:
         """
         Generates a PyMongoArrow Schema from the Pydantic model fields.
-        None mean let PyMongoArrow infers one from the data
+        Handles Optional types. Returns an explicit schema.
         """
-        
         return None
+        # from typing import get_origin, get_args
+        # from datetime import datetime
+
+        # type_map = {
+        #     str: pa.string(),
+        #     int: pa.int64(),
+        #     float: pa.float64(),
+        #     datetime: pa.timestamp("ms"),
+        #     ObjectId: ObjectId,
+        # }
+
+        # fields = {}
+        # for name, field_info in cls.model_fields.items():
+        #     field_name = field_info.alias or name
+
+        #     field_type = field_info.annotation
+            
+        #     origin = get_origin(field_type)
+        #     args = [arg for arg in get_args(field_type) if arg is not type(None)]
+
+        #     # Resolve Optional[T] to T
+        #     if origin is Union:
+        #         args = [arg for arg in get_args(field_type) if arg is not type(None)]
+        #         if len(args) >= 1:
+        #             field_type = args[0]
+        #             origin = get_origin(field_type)
+
+        #             if origin is Annotated:
+        #                 args = [arg for arg in get_args(field_type) if arg is not type(None)]
+        #                 if len(args) >= 1:
+        #                     field_type = args[0]
+        #                     origin = get_origin(field_type)
+
+
+        #     # Handle basic types
+        #     if field_type in type_map:
+        #         fields[field_name] = type_map[field_type]
+
+        #     if origin and type(None) in args:
+        #         field_type = next(arg for arg in args if arg is not type(None))
+
+        #     if field_type in type_map:
+        #         fields[field_name] = type_map[field_type]
+
+        # return Schema(fields)
 
     @classmethod
     def aggregate_arrow(cls, aggregation: Aggregation, schema: Optional[Schema]) -> pa.Table:
