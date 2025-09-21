@@ -12,7 +12,7 @@ This is my way to frame reality.  It is not the right way nor is it the only way
 
 ## Why?
 
-Minimize path of thinking to reduce mental load.  There are a lot of ways to do thing in Python, this is a collection of way that is harmonious.
+Minimize path of thinking to reduce mental load.  There are a lot of ways to do thing in Python, this is a collection of way that aligned in our philosophy.
 
 Promote and glue together mental model that work well together and align with my need
 - [Apache Arrow](https://arrow.apache.org/)
@@ -38,7 +38,7 @@ Getting started with Loom is simple. Define your model, decorate it, and start i
 
 ```python
 from loom.info.persist import Persistable, declare_persist_db
-from loom.info.load import Filter
+import loom as lm
 
 # 1. Define a Pydantic model and make it Persistable
 # The `_id`, `created_at`, and `updated_time` fields are handled automatically.
@@ -64,7 +64,7 @@ retrieved_user.persist()
 print(f"User's updated time: {retrieved_user.updated_time}")
 
 # 5. Load multiple users with a filter
-active_users = User.load_many(Filter.from_arg(age={"$lt": 40}))
+active_users = User.filter(lm.fld('age') < 40).load_many()
 print(f"Found {len(active_users)} active users.")
 
 # 6. Create another user to persist multiple documents at once
@@ -79,9 +79,74 @@ User.persist_many([new_user, another_user])
 -   **Specialized Persistence Models**:
     -   **`LedgerModel`**: For append-only data. Every `persist()` call creates a new document, ensuring an immutable history.
     -   **`TimeSeriesLedgerModel`**: Extends `LedgerModel` for use with MongoDB's native time-series collections, configured with the `@declare_timeseries` decorator.
--   **Fluent API for Queries**: `Aggregation`, `Filter`, and `SortOp` provide a structured, chainable API to build complex database operations without writing raw MongoDB queries, making your code more readable and maintainable.
--   **Rich Querying and Loading**: Beyond simple `load_one` and `load_many`, Loom provides `load_latest`, `from_id`, `exists`, and a powerful `aggregate` method for complex data retrieval, including loading data directly into a pandas `DataFrame` with `load_dataframe`.
+-   **Fluent Query API**: Loom provides a fluent and chainable API for building queries, starting with `YourModel.filter()` or `YourModel.aggregation()`. This returns a `LoadDirective` object that you can use to build and execute your query.
+-   **Expressive Filtering with `fld`**: The `fld` object allows you to create filter expressions in a more Pythonic way (e.g., `fld('age') < 40`).
+-   **Rich Querying and Loading**: The `LoadDirective` object provides a rich set of methods for loading data, including `load_one`, `load_many`, `load_latest`, `exists`, and methods for loading data into `pandas`, `polars`, and `pyarrow` data structures.
 -   **Bulk Operations**: Use `persist_many` and `insert_dataframe` to efficiently save multiple model instances or a whole pandas DataFrame at once.
+
+### The Query API
+
+Loom 2.0 introduces a new fluent API for building and executing queries. This API is designed to be more expressive, more Pythonic, and easier to use than the previous query API.
+
+#### Getting Started
+
+To start building a query, use the `filter()` or `aggregation()` class methods on your `Persistable` model. These methods return a `LoadDirective` object, which you can use to build and execute your query.
+
+```python
+# Start a query with a filter
+directive = User.filter(lm.fld('age') > 30)
+
+# Start a query with an aggregation
+directive = User.aggregation(Aggregation().Group(by="$name", sum_age=Aggregation.sum("$age")))
+```
+
+#### Building Queries
+
+The `LoadDirective` object provides a number of methods for building queries, including:
+
+- `filter(filter)`: Add a filter to the query.
+- `sort(sort)`: Add a sort to the query.
+- `limit(limit)`: Add a limit to the query.
+- `aggregation(aggregation)`: Add an aggregation pipeline to the query.
+
+These methods are chainable, so you can build complex queries in a single expression.
+
+```python
+# Build a query with a filter, sort, and limit
+users = User.filter(lm.fld('age') > 30).sort(SortDesc('age')).limit(10).load_many()
+```
+
+#### Expressive Filtering with `fld`
+
+The `fld` object provides a more Pythonic way to create filter expressions. You can use standard Python comparison operators to create filters.
+
+```python
+# Find users with age between 30 and 40
+users = User.filter((lm.fld('age') >= 30) & (lm.fld('age') <= 40)).load_many()
+
+# Find users with name 'Alice' or 'Bob'
+users = User.filter(lm.fld('name').is_in(['Alice', 'Bob'])).load_many()
+```
+
+#### Loading Data
+
+Once you have built your query, you can use one of the `load_*` methods to execute it and get the results.
+
+- `load_one()`: Load a single document.
+- `load_many()`: Load multiple documents.
+- `load_latest()`: Load the most recently updated document.
+- `exists()`: Check if a document exists.
+- `load_dataframe()`: Load the results into a pandas DataFrame.
+- `load_polars()`: Load the results into a polars DataFrame.
+- `load_table()`: Load the results into a pyarrow Table.
+
+```python
+# Load a single user
+user = User.filter(lm.fld('name') == 'Alice').load_one()
+
+# Load all users into a pandas DataFrame
+df = User.filter().load_dataframe()
+```
 
 ### Automatic Field Behaviors
 

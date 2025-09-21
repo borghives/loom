@@ -8,8 +8,6 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PlainSerializ
 
 from loom.time.util import get_current_time, to_utc_aware
 
-
-
 class UpdateType(Enum):
     """
     Specifies the type of MongoDB update operation for a field.
@@ -155,7 +153,6 @@ TimeUpdated = Annotated[
     RefreshOnSet(lambda x: get_current_time()),
     Field(default=None),
 ]
-
 
 JsObjectId = Annotated[
     ObjectId, PlainSerializer(str, when_used="json")
@@ -375,3 +372,4 @@ class Model(ABC, BaseModel):
         retval = cls(**doc)
         retval.init_private_fields_from_doc(doc)
         return retval
+

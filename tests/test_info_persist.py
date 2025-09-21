@@ -1,7 +1,9 @@
+from typing import cast
 import unittest
 from unittest.mock import MagicMock, patch
 from bson import ObjectId
 import pandas as pd
+import polars as pl
 from datetime import datetime, timezone
 
 from pydantic import Field
@@ -12,6 +14,7 @@ import rich
 from loom.info.atomic import IncrCounter
 from loom.info.persist import Persistable, declare_persist_db
 from loom.info.model import RefreshOnSet, CoalesceOnInsert
+from loom import fld
 
 
 @declare_persist_db(db_name="test_db", collection_name="test_collection", version=1, test=True)
@@ -111,7 +114,7 @@ class PersistableTest(unittest.TestCase):
 
         # 2. Check the database for the initial state
         collection = TestIncModel.get_db_collection()
-        db_data = collection.find_one(model.self_filter().get_exp())
+        db_data = collection.find_one(model.self_filter())
         assert db_data is not None
         assert db_data["test_field"] == "inc_test"
          # On first insert, then inc is 2. So it should be 2.
@@ -121,7 +124,7 @@ class PersistableTest(unittest.TestCase):
 
         # 3. Load from DB, increment again, and persist
         assert model.id is not None
-        loaded_model = TestIncModel.from_id(model.id)
+        loaded_model = cast(TestIncModel, TestIncModel.from_id(model.id))
         assert loaded_model is not None
         assert loaded_model.counter == 2
 
@@ -129,13 +132,13 @@ class PersistableTest(unittest.TestCase):
         loaded_model.persist()
 
         # 4. Check the database for the updated state
-        db_data_updated = collection.find_one(model.self_filter().get_exp())
+        db_data_updated = collection.find_one(model.self_filter())
         assert db_data_updated is not None
         # 2 + 3 = 5
         assert db_data_updated["counter"] == 5
 
         # Clean up
-        collection.delete_one(model.self_filter().get_exp())
+        collection.delete_one(model.self_filter())
 
 
     @patch.object(TestModel, 'get_db_collection')
@@ -226,7 +229,6 @@ class PersistableTest(unittest.TestCase):
         except BulkWriteError:
             self.fail("BulkWriteError with duplicate key was not ignored")
 
-
     def test_load_dataframe(self):
         """Test loading data into a pandas DataFrame."""
         collection = TestModel.get_db_collection()
@@ -238,18 +240,64 @@ class PersistableTest(unittest.TestCase):
         ])
         TestModel.insert_dataframe(df)
 
-        loaded_df = TestModel.load_dataframe()
+        loaded_df = TestModel.filter().load_dataframe()
+
         self.assertEqual(len(loaded_df), 2)
         self.assertIn("name", loaded_df.columns)
         self.assertIn("value", loaded_df.columns)
         
         rich.print(loaded_df)
 
-        # Verify the index is set to _id
-        self.assertEqual(loaded_df.index.name, "_id")
-
         # Clean up
         collection.delete_many({})
+
+class TestLoadDirective(unittest.TestCase):
+    def setUp(self):
+        self.collection = TestModel.get_db_collection()
+        self.collection.delete_many({})
+        TestModel(name="Alice", value=30).persist()
+        TestModel(name="Bob", value=40).persist()
+        TestModel(name="Charlie", value=50).persist()
+
+    def tearDown(self):
+        self.collection.delete_many({})
+
+    def test_load_one(self):
+        user = TestModel.filter(fld('name') == "Alice").load_one()
+        self.assertIsNotNone(user)
+        self.assertIsInstance(user, TestModel)
+        assert isinstance(user, TestModel)
+        self.assertEqual(user.name, "Alice")
+
+    def test_load_many(self):
+        users = TestModel.filter(fld('value') > 35).load_many()
+        self.assertEqual(len(users), 2)
+
+    def test_load_latest(self):
+        latest_user = cast(TestModel, TestModel.filter(fld('name') == "Charlie").load_latest())
+        self.assertIsNotNone(latest_user)
+        self.assertEqual(latest_user.name, "Charlie")
+
+    def test_exists(self):
+        self.assertTrue(TestModel.filter(fld('name') == "Alice").exists())
+        self.assertFalse(TestModel.filter(fld('name') == "David").exists())
+
+    def test_load_dataframe(self):
+        df = TestModel.filter().load_dataframe()
+        self.assertEqual(len(df), 3)
+        self.assertIn("name", df.columns)
+
+    def test_load_polars(self):
+        df = TestModel.filter().load_polars()
+        self.assertEqual(len(df), 3)
+        self.assertIsInstance(df, pl.DataFrame)
+        assert isinstance(df, pl.DataFrame)
+        self.assertIn("name", df.columns)
+
+    def test_load_table(self):
+        table = TestModel.filter().load_table()
+        self.assertEqual(len(table), 3)
+        self.assertIn("name", table.column_names)
 
 
 if __name__ == "__main__":

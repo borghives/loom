@@ -4,11 +4,10 @@ from typing import Any, List, Optional, Tuple
 
 from pymongo import ASCENDING, DESCENDING
 
-class LoadDirective(ABC):
+class LoadExpression(ABC):
     @abstractmethod
     def get_exp(self) -> Any:
         pass
-
 
 class MatchDirective(ABC):
     """
@@ -28,19 +27,14 @@ class MatchDirective(ABC):
         """
         pass
 
-class Size(LoadDirective):
-    def __init__(self, value: int) -> None:
-        self._value = value
-
-    def get_exp(self):
-        return self._value
-
-
-class SortOp(LoadDirective):
+class SortOp(LoadExpression):
     def __init__(self, value: Optional[dict] = None) -> None:
         self._value = value
 
     def __and__(self, sort: "SortOp") -> "SortOp":
+        if (sort is None):
+            return self
+        
         value1 = self.get_exp()
         value2 = sort.get_exp()
         if value1 is None:
@@ -69,12 +63,11 @@ class SortAsc(SortOp):
     def __init__(self, field: str) -> None:
         self._value = {field: ASCENDING}
 
-
 class SortDesc(SortOp):
     def __init__(self, field: str) -> None:
         self._value = {field: DESCENDING}
 
-class Filter(LoadDirective):
+class Filter(LoadExpression):
     def __init__(self, query: Optional[dict] = None) -> None:
         self._value = query if query is not None else {}
 
@@ -141,7 +134,7 @@ def parse_match_directive(value):
             return None
         return value.value
 
-    if isinstance(value, LoadDirective):
+    if isinstance(value, LoadExpression):
         raise ValueError(
             f"Detected a loading directive in match filter {type(value).__name__}.  Possible mismatch argument (check spelling)"
         )

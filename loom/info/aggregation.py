@@ -18,7 +18,7 @@ Example:
     mongo_pipeline = pipeline.Pipeline()
 """
 from typing import List
-from loom.info.load import SortOp, Filter, Size
+from loom.info.load import SortOp, Filter
 from pyrsistent import pvector, PVector, PMap, freeze, thaw
 
 class Aggregation:
@@ -91,6 +91,9 @@ class Aggregation:
             Aggregation: The `Aggregation` object for chaining.
         """
         if isinstance(filter, Filter):
+            if (not filter.has_filter()):
+                return self
+
             expression = filter.get_exp()
         else:
             expression = filter
@@ -171,7 +174,7 @@ class Aggregation:
             Aggregation: The `Aggregation` object for chaining.
         """
 
-        if sort.get_exp() is None:
+        if not sort.has_sort_op():
             return self
         
         return Aggregation(self.stages.append(freeze({"$sort": sort.get_exp()})))
@@ -189,6 +192,9 @@ class Aggregation:
         Returns:
             Aggregation: The `Aggregation` object for chaining.
         """
+        if limit == 0:
+            return self
+
         return Aggregation(self.stages.append(freeze({"$limit": limit})))
 
     def Skip(self, skip: int) -> "Aggregation":
@@ -282,19 +288,19 @@ class Aggregation:
         """
         return Aggregation(self.stages.append(freeze({"$out": coll})))
 
-    def Sample(self, size: Size) -> "Aggregation":
+    def Sample(self, size: int) -> "Aggregation":
         """
         Adds a `$sample` stage to the pipeline.
 
         Randomly selects the specified number of documents from its input.
 
         Args:
-            size (Size): The number of documents to sample.
+            size (int): The number of documents to sample.
 
         Returns:
             Aggregation: The `Aggregation` object for chaining.
         """
-        return Aggregation(self.stages.append(freeze({"$sample": {"size": size.get_exp()}})))
+        return Aggregation(self.stages.append(freeze({"$sample": {"size": size}})))
 
     def GraphLookup(self, fields: dict) -> "Aggregation":
         """

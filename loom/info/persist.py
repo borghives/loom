@@ -1,23 +1,20 @@
 from typing import Any, Optional, Tuple
 
-import pandas as pd
 from bson import ObjectId
+import pandas as pd
 from pydantic import Field, PrivateAttr
 from pymongo import MongoClient, ReturnDocument, UpdateOne
 from pymongo.collection import Collection
 from pymongo.database import Database
 from pymongo.errors import BulkWriteError
 
-import pyarrow as pa
-from pymongoarrow.api import Schema, find_arrow_all #type: ignore
-
+from pymongoarrow.api import Schema #type: ignore
+from loom.info.load import Filter
 from loom.info.aggregation import Aggregation
-from loom.info.load import Filter, Size, SortDesc, SortOp
 from loom.info.model import (
     CoalesceOnIncr,
     CoalesceOnInsert,
     Model,
-    NormalizeQueryInput,
     RefreshOnDataframeInsert,
     RefreshOnSet,
     TimeInserted,
@@ -91,14 +88,14 @@ class Persistable(Model):
         """
         return self.has_update or not self.is_entangled()
 
-    def self_filter(self) -> Filter:
+    def self_filter(self) -> dict:
         """
         Returns a filter to find the current document in the database by its ID.
 
         Returns:
-            Filter: A filter expression for finding the document by its `_id`.
+            dict: A filter expression for finding the document by its `_id`.
         """
-        return Filter({"_id": self.collapse_id()})
+        return {"_id": self.collapse_id()}
 
     def get_set_on_insert_instruction(self) -> Tuple[dict, list]:
         """
@@ -181,7 +178,7 @@ class Persistable(Model):
 
         return {"$set": doc}, list(doc.keys())
 
-    def get_update_instruction(self) -> dict:
+    def get_update_instruction(self) -> dict[str, Any]:
         """
         Constructs a complete MongoDB update instruction for an upsert operation.
 
@@ -245,12 +242,12 @@ class Persistable(Model):
             str: The name of the MongoDB collection.
 
         Raises:
-            Exception: If `collection_name` is not defined in the metadata.
+            ValueError: If `collection_name` is not defined in the metadata.
         """
         db_info = cls.get_db_info()
         name = db_info.get("collection_name")
         if not name:
-            raise Exception(
+            raise ValueError(
                 f"Class {cls.__name__} does not have collection_name defined in @declare_persist_db"
             )
         return name
@@ -264,12 +261,12 @@ class Persistable(Model):
             str: The name of the MongoDB database.
 
         Raises:
-            Exception: If `db_name` is not defined in the metadata.
+            ValueError: If `db_name` is not defined in the metadata.
         """
         db_info = cls.get_db_info()
         name = db_info.get("db_name")
         if not name:
-            raise Exception(
+            raise ValueError(
                 f"Class {cls.__name__} does not have db_name defined in @declare_persist_db"
             )
         return name
@@ -336,283 +333,6 @@ class Persistable(Model):
 
     # ---END: Information on how to persist the model ---
 
-    # --- Querying from persistence ---
-    @classmethod
-    def parse_filter(cls, filter: Filter | dict) -> dict:
-        """
-        Parses a `Filter` object or dict into a MongoDB query dictionary.
-
-        This method also applies any `NormalizeQueryInput` annotations on the
-        model's fields to transform corresponding values in the filter.
-
-        Args:
-            filter (Filter | dict): The filter expression to parse.
-
-        Returns:
-            dict: A MongoDB-compatible query dictionary.
-        """
-        normalized_query_map = cls.get_fields_with_metadata(NormalizeQueryInput)
-
-        retval: dict = filter.get_exp() if isinstance(filter, Filter) else filter
-        if not normalized_query_map:
-            return retval
-
-        for key, normalize_transformers in normalized_query_map.items():
-            if key in retval:
-                for transformer in normalize_transformers:
-                    original_value = retval[key]
-                    if isinstance(original_value, list):
-                        retval[key] = [transformer(v) for v in original_value]
-                    else:
-                        retval[key] = transformer(original_value)
-
-        return retval
-
-    @classmethod
-    def parse_agg_stage(cls, stage: str, expr) -> dict:
-        """
-        Parses a single stage of an aggregation pipeline.
-
-        If the stage is `$match`, it uses `parse_filter` to process the expression.
-
-        Args:
-            stage (str): The aggregation stage (e.g., `'$match'`).
-            expr: The expression for the stage.
-
-        Returns:
-            dict: A dictionary representing the aggregation stage.
-        """
-        if stage == "$match":
-            return {"$match": cls.parse_filter(expr)}
-
-        return {stage: expr}
-
-    @classmethod
-    def parse_agg_pipe(cls, aggregation: Aggregation) -> list[dict]:
-        """
-        Parses an `Aggregation` object into a MongoDB aggregation pipeline.
-
-        Args:
-            aggregation (Aggregation): The `Aggregation` object to parse.
-
-        Returns:
-            list[dict]: A list of dictionaries representing the pipeline.
-        """
-        return [cls.parse_agg_stage(stage, expr) for stage, expr in aggregation]
-
-    @classmethod
-    def load_one(
-        cls,
-        filter: Filter = Filter(),
-        sort: SortOp = SortOp(),
-    ):
-        """
-        Loads a single document from the database that matches the filter.
-
-        Args:
-            filter (Filter, optional): A filter to apply to the query.
-            sort (SortOp, optional): A sort directive.
-            **kwargs: Additional keyword arguments to form a filter.
-
-        Returns:
-            Optional[Self]: An instance of the model, or `None` if no document
-                is found.
-        """
-        collection = cls.get_db_collection()
-        doc = collection.find_one(cls.parse_filter(filter), sort=sort.get_tuples())
-        return cls.from_db_doc(doc) if doc else None
-
-    @classmethod
-    def load_latest(
-        cls,
-        filter: Filter = Filter(),
-        sort: SortOp = SortDesc("updated_time"),
-    ):
-        """
-        Loads the most recently updated document from the database.
-
-        Args:
-            filter (Filter, optional): A filter to apply to the query.
-            sort (SortOp, optional): Sort order. Defaults to `updated_time`
-                descending.
-            **kwargs: Additional keyword arguments to pass to `load_one`.
-
-        Returns:
-            Optional[Self]: An instance of the loaded document, or `None` if not
-                found.
-        """
-
-        return cls.load_one(filter, sort=sort)
-
-    @classmethod
-    def from_id(cls, id: ObjectId | str):
-        """
-        Loads a document from the database by its `ObjectId`.
-
-        Args:
-            id (ObjectId | str): The `ObjectId` of the document, either as an
-                `ObjectId` instance or its string representation.
-
-        Returns:
-            Optional[Self]: An instance of the loaded document, or `None` if not
-                found or the ID is invalid.
-        """
-        if isinstance(id, str):
-            if not ObjectId.is_valid(id):
-                return None
-            id = ObjectId(id)
-
-        return cls.load_one(Filter.fields(_id=id))
-
-    @classmethod
-    def aggregate(
-        cls,
-        aggregation: Optional[Aggregation] = None,
-        filter: Filter = Filter(),
-        sampling: Optional[Size] = None,
-        sort: SortOp = SortOp()
-    ):
-        """
-        Performs an aggregation query on the model's collection.
-
-        Args:
-            aggregation (Aggregation, optional): The aggregation pipeline to
-                execute.
-            filter (Filter, optional): A filter to apply before the aggregation.
-            sampling (Optional[Size], optional): The number of documents to
-                randomly sample.
-            sort (SortOp, optional): A sort directive to apply after the
-                aggregation.
-            **kwargs: Additional keyword arguments to form a filter.
-
-        Returns:
-            CommandCursor: A `pymongo` cursor to the results of the aggregation.
-        """
-        collection = cls.get_db_collection()
-
-        if aggregation is None:
-            aggregation = Aggregation()
-
-        if filter.has_filter():
-            aggregation = aggregation.Match(filter)
-
-        if sampling:
-            aggregation = aggregation.Sample(sampling)
-
-        aggregation = aggregation.Sort(sort)
-
-        return collection.aggregate(cls.parse_agg_pipe(aggregation))
-
-    @classmethod
-    def load_aggregate(
-        cls,
-        aggregation: Optional[Aggregation] = None,
-        filter: Filter = Filter(),
-        sampling: Optional[Size] = None,
-        sort: SortOp = SortOp()
-    ):
-        """
-        Executes an aggregation and returns the results as a list of models.
-
-        Args:
-            aggregation (Aggregation, optional): The aggregation pipeline.
-            filter (Filter, optional): A filter to apply to the aggregation.
-            sampling (Optional[Size], optional): The number of documents to
-                sample.
-            sort (SortOp, optional): A sort directive for the aggregation.
-            **kwargs: Additional keyword arguments to form a filter.
-
-        Returns:
-            list[Self]: A list of model instances.
-        """
-        with cls.aggregate(
-            aggregation=aggregation,
-            filter=filter,
-            sampling=sampling,
-            sort=sort,
-        ) as cursors:
-            return [cls.from_db_doc(doc) for doc in cursors]
-
-    @classmethod
-    def load_many(
-        cls,
-        filter: Filter = Filter(),
-        limit: Size = Size(0),
-        sort: SortOp = SortOp(),
-    ):
-        """
-        Loads multiple documents from the database.
-
-        Args:
-            filter (Filter, optional): A filter to apply to the query.
-            limit (Size, optional): The maximum number of documents to load.
-                Defaults to `0` (no limit).
-            sort (SortOp, optional): A sort directive.
-            **kwargs: Additional keyword arguments to form a filter.
-
-        Returns:
-            list[Self]: A list of loaded model instances.
-        """
-        collection = cls.get_db_collection()
-
-        with collection.find(
-            cls.parse_filter(filter), limit=limit.get_exp(), sort=sort.get_tuples()
-        ) as cursor:
-            return [cls.from_db_doc(doc) for doc in cursor]
-
-    @classmethod
-    def _load_dataframe_legacy(
-        cls,
-        aggregation: Optional[Aggregation] = None,
-        filter: Filter = Filter(),
-        sampling: Optional[Size] = None,
-        sort: SortOp = SortOp()
-    ) -> pd.DataFrame:
-        """
-        Loads data from an aggregation query into a pandas DataFrame.
-
-        Args:
-            aggregation (Aggregation, optional): The aggregation pipeline.
-            filter (Filter, optional): A filter to apply to the aggregation.
-            sampling (Optional[Size], optional): The number of documents to
-                sample.
-            sort (SortOp, optional): A sort directive for the aggregation.
-            **kwargs: Additional keyword arguments to form a filter.
-
-        Returns:
-            pd.DataFrame: A pandas DataFrame containing the loaded data.
-        """
-        with cls.aggregate(
-            aggregation=aggregation,
-            filter=filter,
-            sampling=sampling,
-            sort=sort,
-        ) as cursor:
-            df = pd.DataFrame(cursor)
-            if "_id" in df.columns:
-                df.set_index("_id", inplace=True)
-            return df
-            
-
-    @classmethod
-    def exists(cls, **kwargs) -> bool:
-        """
-        Checks if at least one document matching the filter exists.
-
-        Args:
-            **kwargs: Keyword arguments to use as a filter.
-
-        Returns:
-            bool: `True` if a matching document exists, `False` otherwise.
-        """
-        filter = Filter(kwargs)
-        exists = cls.get_db_collection().find_one(cls.parse_filter(filter))
-        if exists is None:
-            return False
-        return True
-
-    # ---END: Querying from persistence ---
-
     # --- Save to persistence storage ---
     def on_after_persist(self, result_doc: Optional[Any] = None):
         self.has_update = False
@@ -637,7 +357,7 @@ class Persistable(Model):
         update = self.get_update_instruction()
 
         result = collection.find_one_and_update(
-            filter.get_exp(),
+            filter,
             update,
             upsert=True,
             return_document=ReturnDocument.AFTER,
@@ -665,7 +385,7 @@ class Persistable(Model):
 
         for item in persist_items:
             update_op = UpdateOne(
-                item.self_filter().get_exp(),
+                item.self_filter(),
                 item.get_update_instruction(),
                 upsert=True,
             )
@@ -718,8 +438,36 @@ class Persistable(Model):
 
     # ---END: Save to persistence storage ---
 
-    # --- PyArrow ---
+    @classmethod
+    def from_id(cls, id: ObjectId | str):
+        """
+        Loads a document from the database by its `ObjectId`.
 
+        Args:
+            id (ObjectId | str): The `ObjectId` of the document, either as an
+                `ObjectId` instance or its string representation.
+
+        Returns:
+            Optional[Self]: An instance of the loaded document, or `None` if not
+                found or the ID is invalid.
+        """
+        if isinstance(id, str):
+            if not ObjectId.is_valid(id):
+                return None
+            id = ObjectId(id)
+        return cls.filter(Filter.fields(_id=id)).load_one()
+    
+    @classmethod
+    def filter(cls, filter: Filter = Filter()):
+        from loom.info.directive import LoadDirective
+        return LoadDirective(cls).filter(filter)
+
+    @classmethod
+    def aggregation(cls, aggregation: Aggregation = Aggregation()):
+        from loom.info.directive import LoadDirective
+        return LoadDirective(cls).aggregation(aggregation)
+
+    # --- PyArrow ---
     @classmethod
     def get_arrow_schema(cls) -> Optional[Schema]:
         """
@@ -727,64 +475,8 @@ class Persistable(Model):
         Returns an explicit schema for model
         """
         return None
-
-    @classmethod
-    def aggregate_arrow(cls, aggregation: Aggregation, schema: Optional[Schema]) -> pa.Table:
-        """
-        Executes an aggregation pipeline and returns a pyarrow.Table.
-        """
-        collection = cls.get_db_collection()
-        pipeline = cls.parse_agg_pipe(aggregation)
-        return find_arrow_all(collection, pipeline, schema=schema or cls.get_arrow_schema())
-
-    @classmethod
-    def load_arrow_table(
-        cls,
-        aggregation: Optional[Aggregation] = None,
-        filter: Filter = Filter(),
-        sampling: Optional[Size] = None,
-        sort: Optional[SortOp] = None,
-        schema: Optional[Schema] = None
-    ) -> pa.Table:
-        """
-        Loads data from a query into a PyArrow Table.
-        """
-        if aggregation is None:
-            aggregation = Aggregation()
-
-        if filter.has_filter():
-            aggregation = aggregation.Match(filter)
-
-        if sampling:
-            aggregation = aggregation.Sample(sampling)
-
-        if sort:
-            aggregation = aggregation.Sort(sort)
-        
-        return cls.aggregate_arrow(aggregation, schema )
-    
-    @classmethod
-    def load_dataframe(
-        cls,
-        aggregation: Optional[Aggregation] = None,
-        filter: Filter = Filter(),
-        sampling: Optional[Size] = None,
-        sort: SortOp = SortOp()
-    ) -> pd.DataFrame:
-        """
-        Loads data from an aggregation query into a pandas DataFrame using PyMongoArrow.
-        Set the _id as the index
-        """
-        arrow_table = cls.load_arrow_table(
-            aggregation=aggregation, filter=filter, sampling=sampling, sort=sort,
-        )
-        df = arrow_table.to_pandas()
-        if "_id" in df.columns:
-            df.set_index("_id", inplace=True)
-
-        return df
-    
     # --- END: PyArrow ---
+
     @classmethod
     def create_collection(cls):
         """
