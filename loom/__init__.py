@@ -13,6 +13,8 @@ from loom.info import (
     TimeSeriesLedgerModel,
 )
 
+from loom.info.universal import access_secret
+
 from loom.time import (
     TimeFrameResolution,
     TimeFrame,
@@ -50,6 +52,8 @@ __all__ = [
     "TimeUpdated",
     "declare_timeseries",
     "TimeSeriesLedgerModel",
+    "access_secret",
+
 
     #Time
     "TimeFrameResolution",
