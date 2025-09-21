@@ -3,6 +3,7 @@ from loom.info.filter import Filter
 from loom.info.persist import Persistable, declare_persist_db
 from loom.info.atomic import IncrCounter
 from loom.info.model import RefreshOnSet, CoalesceOnInsert, Collapsible, StrUpper, StrLower, Model, TimeUpdated, TimeInserted
+from loom.info.ledger import TimeSeriesLedgerModel, declare_timeseries
 
 
 __all__ = [
@@ -19,4 +20,6 @@ __all__ = [
     "StrUpper",
     "StrLower",
     "Model",
+    "TimeSeriesLedgerModel",
+    "declare_timeseries",
 ]

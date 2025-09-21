@@ -9,6 +9,8 @@ from loom.info import (
     StrLower,
     TimeInserted,
     TimeUpdated,
+    declare_timeseries,
+    TimeSeriesLedgerModel,
 )
 
 from loom.time import (
@@ -45,6 +47,8 @@ __all__ = [
     "StrLower",
     "TimeInserted",
     "TimeUpdated",
+    "declare_timeseries",
+    "TimeSeriesLedgerModel",
 
     #Time
     "TimeFrameResolution",
