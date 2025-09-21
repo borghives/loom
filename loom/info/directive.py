@@ -10,7 +10,8 @@ import pandas as pd
 import polars as pl
 
 from loom.info.aggregation import Aggregation
-from loom.info.load import Filter, SortDesc, SortOp
+from loom.info.filter import Filter
+from loom.info.load import SortDesc, SortOp
 from loom.info.model import NormalizeQueryInput
 from loom.info.persist import Persistable
 
@@ -26,7 +27,7 @@ class LoadDirective:
         self.sort_expr          : SortOp    = SortOp()
         self.limit_expr         : int       = 0
         self.aggregation_expr   : Optional[Aggregation] = None
-        
+
         self.persist_cls        = persistable
 
     def filter(self, filter: Filter) -> "LoadDirective":
@@ -311,7 +312,7 @@ class LoadDirective:
 
         normalized_query_map = p_cls.get_fields_with_metadata(NormalizeQueryInput)
 
-        retval: dict = filter.get_exp() if isinstance(filter, Filter) else filter
+        retval: dict = filter.express() if isinstance(filter, Filter) else filter
         if not normalized_query_map:
             return retval
 

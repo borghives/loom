@@ -9,7 +9,8 @@ from pymongo.database import Database
 from pymongo.errors import BulkWriteError
 
 from pymongoarrow.api import Schema #type: ignore
-from loom.info.load import Filter
+from loom.info.field import fld
+from loom.info.filter import Filter
 from loom.info.aggregation import Aggregation
 from loom.info.model import (
     CoalesceOnIncr,
@@ -455,7 +456,7 @@ class Persistable(Model):
             if not ObjectId.is_valid(id):
                 return None
             id = ObjectId(id)
-        return cls.filter(Filter.fields(_id=id)).load_one()
+        return cls.filter(fld("_id") == id).load_one()
     
     @classmethod
     def filter(cls, filter: Filter = Filter()):

@@ -1,21 +1,26 @@
+from enum import Enum
 from functools import wraps
-from typing import Protocol, runtime_checkable
-from loom.info.load import Filter
+from loom.info.filter import Filter
+from loom.info.query_op import (
+    All,
+    Exists,
+    In,
+    Gte,
+    Lte,
+    Gt, 
+    Lt,
+    Ne,
+    Eq,
+    NotAll,
+    NotIn,
+    Time,
+    QueryOpExpression,
+)
 
-@runtime_checkable
-class Expression(Protocol):
-    """
-    A protocol for expressions that can be converted to a MongoDB expression.
-    """
-    def express(self) -> dict:
-        ...
-
-def check_expr(func):
-    """Decorator to express an expr"""
-    @wraps(func)  # Preserves the original function's name and docstring
+def suppress_warning(func):
+    """suppress pylance error :-/ Not proud of myself! Picking on a dumb kid who you like"""
+    @wraps(func) 
     def wrapper(self, other):
-        if (isinstance(other, Expression)):
-            other = other.express()
         return func(self, other)
     return wrapper
 
@@ -23,43 +28,57 @@ class fld:
     def __init__(self, name: str):
         self.name = name
 
-    @check_expr
     def __gt__(self, other) -> Filter:
-        return Filter({self.name: {"$gt": other}})
+        return self.predicate(Gt(other))
 
-    @check_expr
     def __lt__(self, other) -> Filter:
-        return Filter({self.name: {"$lt": other}})
+        return self.predicate(Lt(other))
 
-    @check_expr
     def __ge__(self, other) -> Filter:
-        return Filter({self.name: {"$gte": other}})
+        return self.predicate(Gte(other)) 
 
-    @check_expr
     def __le__(self, other) -> Filter:
-        return Filter({self.name: {"$lte": other}})
+        return self.predicate(Lte(other)) 
 
-    @check_expr
+    @suppress_warning
     def __eq__(self, other) -> Filter:
-        return Filter({self.name: other})
+        return self.predicate(Eq(other)) 
 
-    @check_expr
+    @suppress_warning
     def __ne__(self, other) -> Filter:
-        return Filter({self.name: {"$ne": other}})
-    
-    @check_expr
+        return self.predicate(Ne(other)) 
+
     def is_in(self, other) -> Filter:
-        return Filter({self.name: {"$in": other}})
+        return self.predicate(In(other)) 
     
-    @check_expr
     def is_not_in(self, other) -> Filter:
-        return Filter({self.name: {"$nin": other}})
+        return self.predicate(NotIn(other))
+    
+    def is_all(self, other) -> Filter:
+        return self.predicate(All(other))
+    
+    def is_not_all(self, other) -> Filter:
+        return self.predicate(NotAll(other))
+    
+    def within(self, other: Time):
+        return self.predicate(other)
+    
+    def is_enum(self, other: Enum) -> Filter:
+        if (other.value == "ANY"):
+            return Filter()
+        return self.predicate(other.value)
     
     def is_exists(self) -> Filter:
-        return Filter({self.name: {"$exists": True}})
+        return self.predicate(Exists(True))
     
     def is_not_exists(self) -> Filter:
-        return Filter({self.name: {"$exists": False}})
+        return self.predicate(Exists(False))
+    
+    def is_none_or_missing(self) -> Filter:
+        return Filter({self.name: None})
+    
+    def predicate(self, query_op: QueryOpExpression) -> Filter:
+        return Filter({self.name: query_op})
 
 
 

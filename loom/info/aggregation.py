@@ -18,7 +18,8 @@ Example:
     mongo_pipeline = pipeline.Pipeline()
 """
 from typing import List
-from loom.info.load import SortOp, Filter
+from loom.info.load import SortOp
+from loom.info.filter import Filter
 from pyrsistent import pvector, PVector, PMap, freeze, thaw
 
 class Aggregation:
@@ -91,10 +92,10 @@ class Aggregation:
             Aggregation: The `Aggregation` object for chaining.
         """
         if isinstance(filter, Filter):
-            if (not filter.has_filter()):
+            if (filter.is_empty()):
                 return self
 
-            expression = filter.get_exp()
+            expression = filter.express()
         else:
             expression = filter
 
@@ -174,10 +175,10 @@ class Aggregation:
             Aggregation: The `Aggregation` object for chaining.
         """
 
-        if not sort.has_sort_op():
+        if sort.is_empty():
             return self
         
-        return Aggregation(self.stages.append(freeze({"$sort": sort.get_exp()})))
+        return Aggregation(self.stages.append(freeze({"$sort": sort.express()})))
 
     def Limit(self, limit: int) -> "Aggregation":
         """

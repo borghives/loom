@@ -2,7 +2,7 @@
 import pytest
 from datetime import datetime, timedelta
 from bson import ObjectId
-from loom.time.moment import Moment, MomentWindow
+from loom.fabric.moment import Moment, MomentWindow
 from loom.time.timeframing import DailyFrame
 from loom.time.util import to_utc_aware, EASTERN_TIMEZONE
 

@@ -20,7 +20,6 @@ from loom.time.util import (
     get_current_event_time,
 )
 
-from loom.time.moment import Moment, MomentWindow
 __all__ = [
     "TimeFrameResolution",
     "TimeFrame",
@@ -30,10 +29,6 @@ __all__ = [
     "MonthlyFrame",
     "QuarterlyFrame",
     "YearlyFrame",
-    
-    #moment
-    "Moment",
-    "MomentWindow",
 
     #util
     "EASTERN_TIMEZONE",
