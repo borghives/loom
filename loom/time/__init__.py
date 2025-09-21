@@ -16,6 +16,7 @@ from loom.time.util import (
     to_eastern_aware,
     to_offset_aware,
     to_utc_aware,
+    to_est_aware,
     get_current_time,
     get_current_event_time,
 )
@@ -36,6 +37,7 @@ __all__ = [
     "to_eastern_aware",
     "to_offset_aware",
     "to_utc_aware",
+    "to_est_aware",
     "get_current_time",
     "get_current_event_time",
     "align_to_human_timeframe",
