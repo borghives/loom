@@ -1,20 +1,20 @@
 # Loom
 
-Weaves ideas and concept using information and time construct.  
+Loom provides a structured way to weave together ideas and concepts using information and time constructs.
 
-This is my way to frame reality.  It is not the right way nor is it the only way, just simply a way that is helpful.
+It offers a pragmatic approach to framing code to complex reality.
 
 ## Philosophy
 
 -   **Lower mental load**: Abstract away boilerplate and repetitive tasks, letting developers focus on logic.
--   **Promote simple, elegant code**: Prioritize clarity and simplicity over exhaustive features. We are willing to sacrifice capability for a simpler, more focused codebase. For example, Loom is intentionally built only for MongoDB to avoid the complexity of supporting multiple database paradigms.  It is unlikely that we can add in other database and still be simple.
--   **Make the safe way the easy way**: The framework should guide developers away from common pitfalls, especially in data and time management.  Create coding friction for unsafe practices. But does not exhaustively build out guardrail if it comes at the cost of simplicity.
+-   **Promote simple, elegant code**: Prioritize clarity and simplicity over exhaustive features. We are willing to sacrifice capability for a simpler, more focused codebase. For example, Loom is intentionally built only for MongoDB to avoid the complexity of supporting multiple database paradigms. Supporting other databases would likely compromise this simplicity.
+-   **Make the safe way the easy way**: The framework guides developers away from common pitfalls, especially in data and time management. Though, it creates coding friction for unsafe practices, it does not build exhaustive guardrails at the cost of simplicity.
 
 ## Why?
 
-Minimize path of thinking to reduce mental load.  There are a lot of ways to do thing in Python, this is a collection of way that aligned in our philosophy.
+Loom aims to minimize the cognitive load on developers. While Python offers endless ways to accomplish tasks, Loom provides a collection of harmonized approaches that follow our philosophy.
 
-Promote and glue together mental model that work well together and align with my need
+It promotes and glues together mental models that work well together and align with our needs.
 - [Apache Arrow](https://arrow.apache.org/)
 - [Pydantic](https://pydantic-docs.helpmanual.io/)
 - [MongoDB](https://www.mongodb.com/)
@@ -28,7 +28,14 @@ Promote and glue together mental model that work well together and align with my
 The core of Loom's information management is a declarative persistence layer built on top of MongoDB, Pydantic, and PyMongoArrow
 
 ### PyMongoArrow: The Essential Bridge
-PyMongoArrow is a PyMongo extension that serves as the essential bridge between MongoDB and the Arrow ecosystem. Its purpose is to load MongoDB query result-sets directly into high-performance analytical structures. It is, in fact, the "recommended way to materialize MongoDB query result-sets as contiguous-in-memory typed arrays suited for in-memory analytical processing applications." PyMongoArrow can materialize data into several key data structures favored by data scientists and analysts: • Apache Arrow tables • NumPy arrays • Pandas DataFrames • Polars DataFrames By providing a direct conversion path to these industry-standard formats, PyMongoArrow dramatically simplifies the data access layer for analytical applications built on top of MongoDB.
+PyMongoArrow is a PyMongo extension that serves as the essential bridge between MongoDB and the Arrow ecosystem. Its purpose is to load MongoDB query result-sets directly into high-performance analytical structures. It is, in fact, the "recommended way to materialize MongoDB query result-sets as contiguous-in-memory typed arrays suited for in-memory analytical processing applications." PyMongoArrow can materialize data into several key data structures favored by data scientists and analysts:
+
+-   Apache Arrow tables
+-   NumPy arrays
+-   Pandas DataFrames
+-   Polars DataFrames
+
+By providing a direct conversion path to these industry-standard formats, PyMongoArrow dramatically simplifies the data access layer for analytical applications built on top of MongoDB.
 
 The data flow begins with a query to a MongoDB database. This blueprint bypasses the costly, row-by-row object process common in traditional database drivers. Instead, PyMongoArrow materializes the entire result set directly into the Arrow columnar format in memory. The critical outcome of this process is the elimination of the data serialization and deserialization steps that plague traditional data transfer architectures. By creating Arrow-native structures directly from the database results, applications can fully leverage the format's support for zero-copy reads. This directly enables the "lightning-fast data access" that is Arrow's core promise, removing a significant performance bottleneck and creating a highly efficient pipeline for in-memory computation.
 
@@ -37,13 +44,12 @@ The data flow begins with a query to a MongoDB database. This blueprint bypasses
 Getting started with Loom is simple. Define your model, decorate it, and start interacting with the database.
 
 ```python
-from loom.info.persist import Persistable, declare_persist_db
 import loom as lm
 
 # 1. Define a Pydantic model and make it Persistable
 # The `_id`, `created_at`, and `updated_time` fields are handled automatically.
-@declare_persist_db(db_name="my_app", collection_name="users")
-class User(Persistable):
+@lm.declare_persist_db(db_name="my_app", collection_name="users")
+class User(lm.Persistable):
     name: str
     email: str
     age: int
@@ -74,19 +80,19 @@ User.persist_many([new_user, another_user])
 
 ### Core Concepts
 
--   **`Model` & `Persistable`**: Your data models inherit from `loom.info.model.Model` and mix in `loom.info.persist.Persistable`. This gives them database-aware capabilities.
+-   **`Persistable`**: Your data models inherit from `lm.Persistable` to gain database-aware capabilities.
 -   **`@declare_persist_db`**: A class decorator that links your model to a specific MongoDB database and collection. It keeps your persistence logic clean and co-located with your data definition.
 -   **Specialized Persistence Models**:
     -   **`LedgerModel`**: For append-only data. Every `persist()` call creates a new document, ensuring an immutable history.
     -   **`TimeSeriesLedgerModel`**: Extends `LedgerModel` for use with MongoDB's native time-series collections, configured with the `@declare_timeseries` decorator.
 -   **Fluent Query API**: Loom provides a fluent and chainable API for building queries, starting with `YourModel.filter()` or `YourModel.aggregation()`. This returns a `LoadDirective` object that you can use to build and execute your query.
--   **Expressive Filtering with `fld`**: The `fld` object allows you to create filter expressions in a more Pythonic way (e.g., `fld('age') < 40`).
+-   **Expressive Filtering with `fld`**: The `fld` object allows you to create filter expressions in a more Pythonic way (e.g., `lm.fld('age') < 40`).
 -   **Rich Querying and Loading**: The `LoadDirective` object provides a rich set of methods for loading data, including `load_one`, `load_many`, `load_latest`, `exists`, and methods for loading data into `pandas`, `polars`, and `pyarrow` data structures.
--   **Bulk Operations**: Use `persist_many` and `insert_dataframe` to efficiently save multiple model instances or a whole pandas DataFrame at once.
+-   **Bulk Operations**: Use `persist_many` and `insert_dataframe` to efficiently save multiple model instances or a whole DataFrame at once.
 
 ### The Query API
 
-Loom 2.0 introduces a new fluent API for building and executing queries. This API is designed to be more expressive, more Pythonic, and easier to use than the previous query API.
+Loom 2.0 introduces a new fluent API for building and executing queries. This API is designed to be more expressive, more Pythonic, and easier to use than the previous query API. It borrows familiarity from the Polars API to provide a consistent learning curve.  
 
 #### Getting Started
 
@@ -173,11 +179,10 @@ Loom provides a structured way to reason about time through `TimeFrame` objects,
 ### Quick Start
 
 ```python
-from loom.time.timeframing import DailyFrame, WeeklyFrame
-from loom.time.util import EASTERN_TIMEZONE
+import loom as lm
 
 # Get the current daily frame in US/Eastern time
-today_eastern = DailyFrame(tzone=EASTERN_TIMEZONE)
+today_eastern = lm.DailyFrame(tzone=lm.EASTERN_TIMEZONE)
 print(f"Today (ET): {today_eastern.get_pretty_value()}")
 print(f"Floor: {today_eastern.get_floor()}")
 print(f"Ceiling: {today_eastern.get_ceiling()}")
@@ -187,13 +192,11 @@ yesterday_eastern = today_eastern.get_previous_frame()
 print(f"Yesterday (ET): {yesterday_eastern.get_pretty_value()}")
 
 # Get the weekly frame for a specific moment
-weekly_frame = WeeklyFrame(moment=yesterday_eastern.floor)
+weekly_frame = lm.WeeklyFrame(moment=yesterday_eastern.floor)
 print(f"Weekly Frame: {weekly_frame.get_pretty_value()}")
 ```
 
-## Fabric: A Time-Aware Toolkit
-
-The Fabric layer provides higher-level components for building applications that reason about events over time.
+## A Time-Aware Toolkit
 
 -   **`Moment`**: A core `Persistable` model that represents a single, timestamped event or data point, identified by a `symbol`.
 -   **`MomentWindow`**: A container for a sequence of `Moment` objects, sorted by time. It provides powerful methods for analysis, such as:

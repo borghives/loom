@@ -1,34 +1,32 @@
-from typing import cast
 import unittest
+from datetime import datetime, timezone
+from typing import cast
 from unittest.mock import MagicMock, patch
-from bson import ObjectId
+
 import pandas as pd
 import polars as pl
-from datetime import datetime, timezone
-
+import rich
+from bson import ObjectId
 from pydantic import Field
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
-import rich
 
-from loom.info.atomic import IncrCounter
-from loom.info.persist import Persistable, declare_persist_db
-from loom.info.model import RefreshOnSet, CoalesceOnInsert
-from loom import fld
+import loom as lm
+from loom.info import CoalesceOnInsert, RefreshOnSet
 
 
-@declare_persist_db(db_name="test_db", collection_name="test_collection", version=1, test=True)
-class TestModel(Persistable):
+@lm.declare_persist_db(db_name="test_db", collection_name="test_collection", version=1, test=True)
+class TestModel(lm.Persistable):
     name: str
     value: int
     link_id: ObjectId | None = None
 
 
-@declare_persist_db(collection_name="test_inc_collection", db_name="test_db", test=True)
-class TestIncModel(Persistable):
+@lm.declare_persist_db(collection_name="test_inc_collection", db_name="test_db", test=True)
+class TestIncModel(lm.Persistable):
     test_field: str
-    counter: IncrCounter  = Field(description="An incrementing integer counter", default=0)
-    counter2: IncrCounter = Field(description="An incrementing integer counter", default=0)
+    counter: lm.IncrCounter  = Field(description="An incrementing integer counter", default=0)
+    counter2: lm.IncrCounter = Field(description="An incrementing integer counter", default=0)
 
 class PersistableTest(unittest.TestCase):
 
@@ -263,24 +261,24 @@ class TestLoadDirective(unittest.TestCase):
         self.collection.delete_many({})
 
     def test_load_one(self):
-        user = TestModel.filter(fld('name') == "Alice").load_one()
+        user = TestModel.filter(lm.fld('name') == "Alice").load_one()
         self.assertIsNotNone(user)
         self.assertIsInstance(user, TestModel)
         assert isinstance(user, TestModel)
         self.assertEqual(user.name, "Alice")
 
     def test_load_many(self):
-        users = TestModel.filter(fld('value') > 35).load_many()
+        users = TestModel.filter(lm.fld('value') > 35).load_many()
         self.assertEqual(len(users), 2)
 
     def test_load_latest(self):
-        latest_user = cast(TestModel, TestModel.filter(fld('name') == "Charlie").load_latest())
+        latest_user = cast(TestModel, TestModel.filter(lm.fld('name') == "Charlie").load_latest())
         self.assertIsNotNone(latest_user)
         self.assertEqual(latest_user.name, "Charlie")
 
     def test_exists(self):
-        self.assertTrue(TestModel.filter(fld('name') == "Alice").exists())
-        self.assertFalse(TestModel.filter(fld('name') == "David").exists())
+        self.assertTrue(TestModel.filter(lm.fld('name') == "Alice").exists())
+        self.assertFalse(TestModel.filter(lm.fld('name') == "David").exists())
 
     def test_load_dataframe(self):
         df = TestModel.filter().load_dataframe()
