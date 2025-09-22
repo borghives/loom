@@ -11,7 +11,10 @@ from loom.info import (
     TimeUpdated,
     declare_timeseries,
     TimeSeriesLedgerModel,
-    Aggregation
+    Aggregation,
+    SortAsc,
+    SortDesc,
+    SortOp,
 )
 
 from loom.info.universal import access_secret
@@ -78,4 +81,7 @@ __all__ = [
     "get_current_event_time",
     "align_to_human_timeframe",
 
+    "SortOp",
+    "SortAsc",
+    "SortDesc",
 ]

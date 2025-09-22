@@ -5,6 +5,8 @@ from loom.info.atomic import IncrCounter
 from loom.info.model import RefreshOnSet, CoalesceOnInsert, Collapsible, StrUpper, StrLower, Model, TimeUpdated, TimeInserted
 from loom.info.ledger import TimeSeriesLedgerModel, declare_timeseries
 from loom.info.aggregation import Aggregation
+from loom.info.load import SortAsc, SortDesc, SortOp
+
 
 
 __all__ = [
@@ -24,4 +26,7 @@ __all__ = [
     "Model",
     "TimeSeriesLedgerModel",
     "declare_timeseries",
+    "SortAsc",
+    "SortDesc",
+    "SortOp",
 ]
