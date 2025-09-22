@@ -301,6 +301,9 @@ class Aggregation:
         Returns:
             Aggregation: The `Aggregation` object for chaining.
         """
+        if (size == 0):
+            return self
+
         return Aggregation(self.stages.append(freeze({"$sample": {"size": size}})))
 
     def GraphLookup(self, fields: dict) -> "Aggregation":
