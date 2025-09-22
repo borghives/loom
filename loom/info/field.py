@@ -75,6 +75,12 @@ class fld:
             return Filter()
         return self.predicate(other.value)
     
+    def is_false(self) -> Filter:
+        return Filter({self.name: False})
+    
+    def is_true(self) -> Filter:
+        return Filter({self.name: True})
+    
     def is_exists(self) -> Filter:
         return self.predicate(Exists(True))
     
