@@ -2,7 +2,7 @@
 
 Loom provides a structured way to weave together ideas and concepts using information and time constructs.
 
-It offers a pragmatic approach for framing code to represent complex reality.
+It offers a pragmatic approach for framing complex reality model.
 
 ## Philosophy
 
