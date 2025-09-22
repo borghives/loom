@@ -16,6 +16,7 @@ from loom.info.query_op import (
     Time,
     QueryOpExpression,
 )
+from loom.time.timeframing import TimeFrame
 
 def suppress_warning(func):
     """suppress pylance error :-/ Not proud of myself! Picking on a dumb kid who you like"""
@@ -42,6 +43,9 @@ class fld:
 
     @suppress_warning
     def __eq__(self, other) -> Filter:
+        if isinstance(other, Enum):
+            return self.is_enum(other)
+
         return self.predicate(Eq(other)) 
 
     @suppress_warning
@@ -60,7 +64,10 @@ class fld:
     def is_not_all(self, other) -> Filter:
         return self.predicate(NotAll(other))
     
-    def is_within(self, other: Time):
+    def is_within(self, other: Time | TimeFrame):
+        if isinstance(other, TimeFrame):
+            return self.predicate(Time().in_frame(other))
+        
         return self.predicate(other)
     
     def is_enum(self, other: Enum) -> Filter:
