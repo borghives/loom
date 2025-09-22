@@ -11,6 +11,7 @@ from loom.info import (
     TimeUpdated,
     declare_timeseries,
     TimeSeriesLedgerModel,
+    Aggregation
 )
 
 from loom.info.universal import access_secret
@@ -40,6 +41,7 @@ from loom.time import (
 
 
 __all__ = [
+    "Aggregation",
     "fld",
     "Filter",
     "Persistable",
