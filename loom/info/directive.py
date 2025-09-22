@@ -382,9 +382,9 @@ class LoadDirective:
 
 def transform_filter_value(original_value, transformer):
     if isinstance(original_value, list):
-        return [transformer(v) for v in original_value]
+        return [transform_filter_value(v, transformer) for v in original_value]
     if isinstance(original_value, dict):
-        return {k: transformer(v) for k, v in original_value.items()}
+        return {k: transform_filter_value(v, transformer) for k, v in original_value.items()}
     else:
         return transformer(original_value)
     

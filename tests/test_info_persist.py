@@ -13,6 +13,7 @@ from pymongo.errors import BulkWriteError
 
 import loom as lm
 from loom.info import CoalesceOnInsert, RefreshOnSet, Persistable, IncrCounter, declare_persist_db
+from loom.info.model import StrLower, StrUpper
 
 
 
@@ -297,6 +298,51 @@ class TestLoadDirective(unittest.TestCase):
         table = TestModel.filter().load_table()
         self.assertEqual(len(table), 3)
         self.assertIn("name", table.column_names)
+
+
+@declare_persist_db(db_name="test_db", collection_name="test_norm_collection", test=True)
+class TestNormModel(Persistable):
+    name: str
+    description: StrUpper
+    notes: StrLower
+
+
+class TestNormalizeQueryInput(unittest.TestCase):
+    def setUp(self):
+        self.collection = TestNormModel.get_db_collection()
+        self.collection.delete_many({})
+        TestNormModel(name="test", description="UPPER", notes="lower").persist()
+
+    def tearDown(self):
+        self.collection.delete_many({})
+
+    def test_normalize_query_input_filter(self):
+        # Query with un-normalized value
+        item = TestNormModel.filter(lm.fld('description') == 'upper').load_one()
+        self.assertIsNotNone(item)
+        assert item is not None
+        assert isinstance(item, TestNormModel)
+        self.assertEqual(item.description, "UPPER")
+
+        item = TestNormModel.filter(lm.fld('notes') == 'LOWER').load_one()
+        self.assertIsNotNone(item)
+        assert item is not None
+        assert isinstance(item, TestNormModel)
+        self.assertEqual(item.notes, "lower")
+
+    def test_normalize_query_input_filter_in_op(self):
+        # Query with un-normalized value in a list
+        item = TestNormModel.filter(lm.fld('description').is_in(['upper', 'another'])).load_one()
+        self.assertIsNotNone(item)
+        assert item is not None
+        assert isinstance(item, TestNormModel)
+        self.assertEqual(item.description, "UPPER")
+
+        item = TestNormModel.filter(lm.fld('notes').is_in(['LOWER', 'ANOTHER'])).load_one()
+        self.assertIsNotNone(item)
+        assert item is not None
+        assert isinstance(item, TestNormModel)
+        self.assertEqual(item.notes, "lower")
 
 
 if __name__ == "__main__":

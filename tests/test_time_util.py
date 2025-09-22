@@ -5,7 +5,6 @@ from dateutil import tz
 import loom as lm
 
 
-
 # A naive datetime for testing
 NAIVE_DT = datetime(2023, 10, 26, 10, 0, 0)
 
