@@ -3,7 +3,7 @@ from typing import Optional
 from pymongo import InsertOne
 
 from loom.info.model import CoalesceOnInsert, RefreshOnSet
-from loom.info.persist import Persistable
+from loom.info.persistable import Persistable
 
 TIMESERIES_META_NAME = "_db_series_metadata"
 

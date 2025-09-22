@@ -12,21 +12,22 @@ from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 
 import loom as lm
-from loom.info import CoalesceOnInsert, RefreshOnSet
+from loom.info import CoalesceOnInsert, RefreshOnSet, Persistable, IncrCounter, declare_persist_db
 
 
-@lm.declare_persist_db(db_name="test_db", collection_name="test_collection", version=1, test=True)
-class TestModel(lm.Persistable):
+
+@declare_persist_db(db_name="test_db", collection_name="test_collection", version=1, test=True)
+class TestModel(Persistable):
     name: str
     value: int
     link_id: ObjectId | None = None
 
 
-@lm.declare_persist_db(collection_name="test_inc_collection", db_name="test_db", test=True)
-class TestIncModel(lm.Persistable):
+@declare_persist_db(collection_name="test_inc_collection", db_name="test_db", test=True)
+class TestIncModel(Persistable):
     test_field: str
-    counter: lm.IncrCounter  = Field(description="An incrementing integer counter", default=0)
-    counter2: lm.IncrCounter = Field(description="An incrementing integer counter", default=0)
+    counter: IncrCounter  = Field(description="An incrementing integer counter", default=0)
+    counter2: IncrCounter = Field(description="An incrementing integer counter", default=0)
 
 class PersistableTest(unittest.TestCase):
 

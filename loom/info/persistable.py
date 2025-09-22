@@ -28,7 +28,7 @@ class Persistable(Model):
     """
     A mixin for Pydantic models providing MongoDB persistence capabilities.
 
-    This class extends `loom.info.model.Model` to offer a suite of methods for
+    This class extends `Model` to offer a suite of methods for
     database interactions, including creating, reading, and querying documents.
     It requires a decorator like `@declare_persist_db` to be applied to the
     subclass to define the database and collection metadata.

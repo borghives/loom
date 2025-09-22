@@ -198,8 +198,6 @@ class Model(ABC, BaseModel):
             new_value = coalesce(value, transformers)
             data[field] = new_value
 
-        
-
         super().__init__(**data)
 
         for field, transformers in self.get_fields_with_metadata(NormalizeValue).items():

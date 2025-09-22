@@ -11,9 +11,9 @@ import polars as pl
 
 from loom.info.aggregation import Aggregation
 from loom.info.filter import Filter
-from loom.info.load import SortDesc, SortOp
+from loom.info.sort_op import SortDesc, SortOp
 from loom.info.model import NormalizeQueryInput
-from loom.info.persist import Persistable
+from loom.info.persistable import Persistable
 
 class LoadDirective:
     """
@@ -320,10 +320,7 @@ class LoadDirective:
             if key in retval:
                 for transformer in normalize_transformers:
                     original_value = retval[key]
-                    if isinstance(original_value, list):
-                        retval[key] = [transformer(v) for v in original_value]
-                    else:
-                        retval[key] = transformer(original_value)
+                    retval[key] = transform_filter_value(original_value, transformer)
 
         return retval
 
@@ -383,10 +380,13 @@ class LoadDirective:
 
         return self.parse_agg_pipe(aggregation)
 
-
-
-
-
+def transform_filter_value(original_value, transformer):
+    if isinstance(original_value, list):
+        return [transformer(v) for v in original_value]
+    if isinstance(original_value, dict):
+        return {k: transformer(v) for k, v in original_value.items()}
+    else:
+        return transformer(original_value)
     
 
 

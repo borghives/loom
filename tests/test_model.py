@@ -1,16 +1,14 @@
 import json
 from bson import ObjectId
-from loom.info import Collapsible
-
-import loom as lm
+from loom.info import Collapsible, TimeInserted, StrUpper, StrLower, Model
 
 # A concrete model for testing
-class MyTestModel(lm.Model):
+class MyTestModel(Model):
     name: str
     value: int
-    created_at: lm.TimeInserted = None
-    description: lm.StrUpper = ""
-    notes: lm.StrLower = ""
+    created_at: TimeInserted = None
+    description: StrUpper = ""
+    notes: StrLower = ""
 
 def test_model_creation():
     """Tests that a model is created with no id."""
