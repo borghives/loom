@@ -1,6 +1,6 @@
 [project]
 name = "loom"
-version = "2.2.11"
+version = "2.3.0"
 description = ""
 authors = [
     {name = "Ed Dao",email = "ed@intellogic.com"}
