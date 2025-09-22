@@ -1,5 +1,6 @@
 from enum import Enum
 from functools import wraps
+from loom.info.expression import Expression
 from loom.info.filter import Filter
 from loom.info.query_op import (
     All,
@@ -45,8 +46,11 @@ class fld:
     def __eq__(self, other) -> Filter:
         if isinstance(other, Enum):
             return self.is_enum(other)
-
-        return self.predicate(Eq(other)) 
+        
+        if isinstance(other, Expression):
+            return self.predicate(Eq(other)) 
+        
+        return Filter({self.name: other})
 
     @suppress_warning
     def __ne__(self, other) -> Filter:
@@ -73,7 +77,7 @@ class fld:
     def is_enum(self, other: Enum) -> Filter:
         if (other.value == "ANY"):
             return Filter()
-        return self.predicate(other.value)
+        return Filter({self.name: other.value})
     
     def is_false(self) -> Filter:
         return Filter({self.name: False})
