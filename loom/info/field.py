@@ -60,7 +60,7 @@ class fld:
     def is_not_all(self, other) -> Filter:
         return self.predicate(NotAll(other))
     
-    def within(self, other: Time):
+    def is_within(self, other: Time):
         return self.predicate(other)
     
     def is_enum(self, other: Enum) -> Filter:

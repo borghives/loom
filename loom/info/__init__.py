@@ -6,6 +6,7 @@ from loom.info.model import RefreshOnSet, CoalesceOnInsert, Collapsible, StrUppe
 from loom.info.ledger import TimeSeriesLedgerModel, declare_timeseries
 from loom.info.aggregation import Aggregation
 from loom.info.load import SortAsc, SortDesc, SortOp
+from loom.info.query_op import Time
 
 
 
@@ -29,4 +30,5 @@ __all__ = [
     "SortAsc",
     "SortDesc",
     "SortOp",
+    "Time",
 ]

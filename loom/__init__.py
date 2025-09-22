@@ -15,6 +15,7 @@ from loom.info import (
     SortAsc,
     SortDesc,
     SortOp,
+    Time,
 )
 
 from loom.info.universal import access_secret
@@ -58,6 +59,7 @@ __all__ = [
     "declare_timeseries",
     "TimeSeriesLedgerModel",
     "access_secret",
+    "Time",
 
 
     #Time
