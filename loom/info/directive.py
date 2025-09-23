@@ -36,7 +36,7 @@ class LoadDirective[T: Persistable]:
         Returns:
             LoadDirective: The `LoadDirective` object for chaining.
         """
-        self._aggregation_expr = self._aggregation_expr.Match(filter)
+        self._aggregation_expr = self._aggregation_expr.match(filter)
         return self
 
     def sort(self, sort: SortOp) -> "LoadDirective[T]":
@@ -49,7 +49,7 @@ class LoadDirective[T: Persistable]:
         Returns:
             LoadDirective: The `LoadDirective` object for chaining.
         """
-        self._aggregation_expr = self._aggregation_expr.Sort(sort)
+        self._aggregation_expr = self._aggregation_expr.sort(sort)
         return self
     
     def limit(self, limit: int) -> "LoadDirective[T]":
@@ -62,7 +62,7 @@ class LoadDirective[T: Persistable]:
         Returns:
             LoadDirective: The `LoadDirective` object for chaining.
         """
-        self._aggregation_expr = self._aggregation_expr.Limit(limit)
+        self._aggregation_expr = self._aggregation_expr.limit(limit)
         return self
     
     def sample(self, sample: int) -> "LoadDirective[T]":
@@ -75,7 +75,7 @@ class LoadDirective[T: Persistable]:
         Returns:
             LoadDirective: The `LoadDirective` object for chaining.
         """
-        self._aggregation_expr = self._aggregation_expr.Sample(sample)
+        self._aggregation_expr = self._aggregation_expr.sample(sample)
         return self
     
     def aggregation(self, aggregation: Aggregation) -> "LoadDirective[T]":
@@ -127,7 +127,7 @@ class LoadDirective[T: Persistable]:
         Returns:
             Optional[Persistable]: An instance of the model, or `None` if no document is found.
         """
-        docs = self.load_aggregate(Aggregation().Limit(1))
+        docs = self.load_aggregate(Aggregation().limit(1))
         return docs[0] if len(docs) > 0 else None
     
     def load_many(self):
@@ -149,7 +149,7 @@ class LoadDirective[T: Persistable]:
         Returns:
             Optional[Persistable]: An instance of the loaded document, or `None` if not found.
         """
-        docs = self.load_aggregate(Aggregation().Sort(sort).Limit(1))
+        docs = self.load_aggregate(Aggregation().sort(sort).limit(1))
         return docs[0] if len(docs) > 0 else None
     
     def exists(self) -> bool:
@@ -159,7 +159,7 @@ class LoadDirective[T: Persistable]:
         Returns:
             bool: `True` if a matching document exists, `False` otherwise.
         """
-        docs = self.load_aggregate(Aggregation().Limit(1))
+        docs = self.load_aggregate(Aggregation().limit(1))
         return len(docs) > 0
     
     def load_table(self, schema: Optional[Schema] = None) -> Table:
