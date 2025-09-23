@@ -105,14 +105,14 @@ class Moment(Persistable):
         return retval
 
 
-class MomentWindow:
+class MomentWindow[T : Moment]:
     """
     A window of moments in ascending time order.
 
     This class acts as a container for a sequence of `Moment` objects, providing
     utilities for slicing, iterating, and filtering them.
     """
-    moments: PVector[Moment]
+    moments: PVector[T]
     _symbol: Optional[str] = None
 
     @property
@@ -125,7 +125,7 @@ class MomentWindow:
         """
         return self._symbol.upper() if self._symbol else ""
 
-    def __init__(self, moments: Optional[list[Moment] | PVector[Moment]] = None, symbol: Optional[str] = None):
+    def __init__(self, moments: Optional[list[T] | PVector[T]] = None, symbol: Optional[str] = None):
         """
         Initialize a MomentWindow.
 
@@ -167,7 +167,7 @@ class MomentWindow:
         """
         return len(self.moments)
 
-    def __iter__(self) -> Iterator[Moment]:
+    def __iter__(self) -> Iterator[T]:
         """
         Return an iterator over the moments in the window.
 
@@ -176,7 +176,7 @@ class MomentWindow:
         """
         return iter(self.moments)
 
-    def __getitem__(self, key: Union[int, slice]) -> Union[Moment, 'MomentWindow']:
+    def __getitem__(self, key: Union[int, slice]) -> Union[T, 'MomentWindow[T]']:
         """
         Get an item or slice from the window.
 
@@ -191,7 +191,7 @@ class MomentWindow:
             TypeError: If the key is not an integer or slice.
         """
         if isinstance(key, slice):
-            return MomentWindow(moments=self.moments[key], symbol=self._symbol)
+            return MomentWindow[T](moments=self.moments[key], symbol=self._symbol)
         elif isinstance(key, int):
             return self.moments[key]
         else:
@@ -200,7 +200,7 @@ class MomentWindow:
                 f"not {type(key).__name__}"
             )
 
-    def sliding_window(self, window_size: int) -> Iterator['MomentWindow']:
+    def sliding_window(self, window_size: int) -> Iterator["MomentWindow[T]"]:
         """
         Generate sliding windows of a specified size.
 
@@ -208,12 +208,13 @@ class MomentWindow:
             window_size: The size of each sliding window.
 
         Yields:
+
             A `MomentWindow` for each sliding window.
         """
         for i in range(len(self) - window_size + 1):
-            yield MomentWindow(moments=self.moments[i:i + window_size], symbol=self.symbol)
+            yield MomentWindow[T](moments=self.moments[i:i + window_size], symbol=self.symbol)
 
-    def sliding_time_cone(self, past_size: int, future_size: int) -> Iterator[tuple['MomentWindow', 'MomentWindow']]:
+    def sliding_time_cone(self, past_size: int, future_size: int) -> Iterator[tuple['MomentWindow[T]', 'MomentWindow[T]']]:
         """
         Generate sliding time cones of past and future moments.
 
@@ -225,12 +226,12 @@ class MomentWindow:
             A tuple containing two `MomentWindow` objects: one for the past and one for the future.
         """
         for i in range(len(self) - past_size + 1):
-            yield MomentWindow(moments=self.moments[i:i + past_size], symbol=self.symbol), MomentWindow(
+            yield MomentWindow[T](moments=self.moments[i:i + past_size], symbol=self.symbol), MomentWindow[T](
                 moments=self.moments[i + past_size:min(i + past_size + future_size, len(self))],
                 symbol=self.symbol
             )
 
-    def get_moments(self, after: Optional[datetime] = None, before: Optional[datetime] = None):
+    def get_moments(self, after: Optional[datetime] = None, before: Optional[datetime] = None) -> list[T]:
         """
         Get moments within a specified time range.
 

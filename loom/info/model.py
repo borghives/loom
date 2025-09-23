@@ -1,7 +1,7 @@
 from abc import ABC
 from datetime import datetime
 from enum import Enum
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Type
 
 from bson import ObjectId
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PlainSerializer, PrivateAttr
@@ -327,7 +327,7 @@ class Model(ABC, BaseModel):
         """
         return self.model_dump_json(by_alias=True, exclude_none=True)
 
-    def init_private_fields_from_doc(self, doc):
+    def init_private_fields_from_doc(self, doc: dict) -> None:
         """
         A hook for initializing private fields from a database document.
 
@@ -354,7 +354,7 @@ class Model(ABC, BaseModel):
         return super().__setattr__(name, value)
 
     @classmethod
-    def from_db_doc(cls, doc: dict):
+    def from_db_doc[T: Model](cls: Type[T], doc: dict):
         """
         Creates a model instance from a MongoDB document.
 
@@ -370,4 +370,3 @@ class Model(ABC, BaseModel):
         retval = cls(**doc)
         retval.init_private_fields_from_doc(doc)
         return retval
-

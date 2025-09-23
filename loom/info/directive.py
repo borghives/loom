@@ -15,22 +15,22 @@ from loom.info.sort_op import SortDesc, SortOp
 from loom.info.model import NormalizeQueryInput
 from loom.info.persistable import Persistable
 
-class LoadDirective:
+class LoadDirective[T: Persistable]:
     """
     A directive for loading data from a `Persistable` model.
 
     This class provides a fluent API for building queries to load data from a MongoDB collection.
     It supports filtering, sorting, limiting, and aggregation.
     """
-    def __init__(self, persistable: Type[Persistable]) -> None:
+    def __init__(self, persistable: Type[T]) -> None:
         self.filter_expr        : Filter    = Filter()
         self.sort_expr          : SortOp    = SortOp()
         self.limit_expr         : int       = 0
         self.aggregation_expr   : Optional[Aggregation] = None
 
-        self.persist_cls        = persistable
+        self.persist_cls        : Type[T] = persistable
 
-    def filter(self, filter: Filter) -> "LoadDirective":
+    def filter(self, filter: Filter) -> "LoadDirective[T]":
         """
         Adds a filter to the query.
 
@@ -47,7 +47,7 @@ class LoadDirective:
         
         return self
 
-    def sort(self, sort: SortOp) -> "LoadDirective":
+    def sort(self, sort: SortOp) -> "LoadDirective[T]":
         """
         Adds a sort to the query.
 
@@ -64,7 +64,7 @@ class LoadDirective:
 
         return self
     
-    def limit(self, limit: int) -> "LoadDirective":
+    def limit(self, limit: int) -> "LoadDirective[T]":
         """
         Adds a limit to the query.
 
@@ -81,7 +81,7 @@ class LoadDirective:
 
         return self
     
-    def sample(self, sample: int) -> "LoadDirective":
+    def sample(self, sample: int) -> "LoadDirective[T]":
         """
         Adds a sample stage to the aggregation pipeline.
 
@@ -94,7 +94,7 @@ class LoadDirective:
         self.aggregation(Aggregation().Sample(sample))
         return self
     
-    def aggregation(self, aggregation: Aggregation) -> "LoadDirective":
+    def aggregation(self, aggregation: Aggregation) -> "LoadDirective[T]":
         """
         Adds an aggregation pipeline to the query.
 

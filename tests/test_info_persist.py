@@ -266,7 +266,7 @@ class TestLoadDirective(unittest.TestCase):
         user = TestModel.filter(lm.fld('name') == "Alice").load_one()
         self.assertIsNotNone(user)
         self.assertIsInstance(user, TestModel)
-        assert isinstance(user, TestModel)
+        assert user is not None
         self.assertEqual(user.name, "Alice")
 
     def test_load_many(self):
@@ -321,13 +321,12 @@ class TestNormalizeQueryInput(unittest.TestCase):
         item = TestNormModel.filter(lm.fld('description') == 'upper').load_one()
         self.assertIsNotNone(item)
         assert item is not None
-        assert isinstance(item, TestNormModel)
         self.assertEqual(item.description, "UPPER")
 
         item = TestNormModel.filter(lm.fld('notes') == 'LOWER').load_one()
         self.assertIsNotNone(item)
         assert item is not None
-        assert isinstance(item, TestNormModel)
+
         self.assertEqual(item.notes, "lower")
 
     def test_normalize_query_input_filter_in_op(self):
@@ -335,13 +334,13 @@ class TestNormalizeQueryInput(unittest.TestCase):
         item = TestNormModel.filter(lm.fld('description').is_in(['upper', 'another'])).load_one()
         self.assertIsNotNone(item)
         assert item is not None
-        assert isinstance(item, TestNormModel)
+
         self.assertEqual(item.description, "UPPER")
 
         item = TestNormModel.filter(lm.fld('notes').is_in(['LOWER', 'ANOTHER'])).load_one()
         self.assertIsNotNone(item)
         assert item is not None
-        assert isinstance(item, TestNormModel)
+
         self.assertEqual(item.notes, "lower")
 
 

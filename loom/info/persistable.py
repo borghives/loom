@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, Type
 
 from bson import ObjectId
 import pandas as pd
@@ -207,7 +207,7 @@ class Persistable(Model):
         return update_instr
 
     @classmethod
-    def from_db_doc(cls, doc):
+    def from_db_doc[T: Persistable](cls: Type[T], doc):
         retval = super().from_db_doc(doc)
         retval._has_update = False  # initial load from doc
         return retval
@@ -459,14 +459,14 @@ class Persistable(Model):
         return cls.filter(fld("_id") == id).load_one()
     
     @classmethod
-    def filter(cls, filter: Filter = Filter()):
+    def filter[T: Persistable](cls: Type[T], filter: Filter = Filter()):
         from loom.info.directive import LoadDirective
-        return LoadDirective(cls).filter(filter)
+        return LoadDirective[T](cls).filter(filter)
 
     @classmethod
-    def aggregation(cls, aggregation: Aggregation = Aggregation()):
+    def aggregation[T: Persistable](cls: Type[T], aggregation: Aggregation = Aggregation()):
         from loom.info.directive import LoadDirective
-        return LoadDirective(cls).aggregation(aggregation)
+        return LoadDirective[T](cls).aggregation(aggregation)
 
     # --- PyArrow ---
     @classmethod
