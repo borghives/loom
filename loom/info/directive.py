@@ -23,12 +23,12 @@ class LoadDirective[T: Persistable]:
     It supports filtering, sorting, limiting, and aggregation.
     """
     def __init__(self, persistable: Type[T]) -> None:
-        self.filter_expr        : Filter    = Filter()
-        self.sort_expr          : SortOp    = SortOp()
-        self.limit_expr         : int       = 0
-        self.aggregation_expr   : Optional[Aggregation] = None
+        self._filter_expr       : Filter    = Filter()
+        self._sort_expr         : SortOp    = SortOp()
+        self._limit_expr        : int       = 0
+        self._aggregation_expr   : Optional[Aggregation] = None
 
-        self.persist_cls        : Type[T] = persistable
+        self._persist_cls        : Type[T] = persistable
 
     def filter(self, filter: Filter) -> "LoadDirective[T]":
         """
@@ -40,10 +40,10 @@ class LoadDirective[T: Persistable]:
         Returns:
             LoadDirective: The `LoadDirective` object for chaining.
         """
-        if self.aggregation_expr is None:
-            self.filter_expr &= filter
+        if self._aggregation_expr is None:
+            self._filter_expr &= filter
         else:
-            self.aggregation_expr = self.aggregation_expr.Match(filter)
+            self._aggregation_expr = self._aggregation_expr.Match(filter)
         
         return self
 
@@ -57,10 +57,10 @@ class LoadDirective[T: Persistable]:
         Returns:
             LoadDirective: The `LoadDirective` object for chaining.
         """
-        if self.aggregation_expr is None:
-            self.sort_expr &= sort
+        if self._aggregation_expr is None:
+            self._sort_expr = sort
         else:
-            self.aggregation_expr = self.aggregation_expr.Sort(sort)
+            self._aggregation_expr = self._aggregation_expr.Sort(sort)
 
         return self
     
@@ -74,10 +74,10 @@ class LoadDirective[T: Persistable]:
         Returns:
             LoadDirective: The `LoadDirective` object for chaining.
         """
-        if self.aggregation_expr is None:
-            self.limit_expr = limit
+        if self._aggregation_expr is None:
+            self._limit_expr = limit
         else:
-            self.aggregation_expr = self.aggregation_expr.Limit(limit)
+            self._aggregation_expr = self._aggregation_expr.Limit(limit)
 
         return self
     
@@ -104,10 +104,10 @@ class LoadDirective[T: Persistable]:
         Returns:
             LoadDirective: The `LoadDirective` object for chaining.
         """
-        self.aggregation_expr = self.flatten_to_aggregation() | aggregation
-        self.filter_expr = Filter()
-        self.sort_expr = SortOp()
-        self.limit_expr = 0
+        self._aggregation_expr = self.flatten_to_aggregation() | aggregation
+        self._filter_expr = Filter()
+        self._sort_expr = SortOp()
+        self._limit_expr = 0
         
         return self
     
@@ -118,11 +118,11 @@ class LoadDirective[T: Persistable]:
         Returns:
             Aggregation: The flattened aggregation pipeline.
         """
-        aggregation = self.aggregation_expr
+        aggregation = self._aggregation_expr
         if (aggregation is None):
             aggregation = Aggregation()
             
-        aggregation = aggregation.Match(self.filter_expr).Sort(self.sort_expr).Limit(self.limit_expr)
+        aggregation = aggregation.Match(self._filter_expr).Sort(self._sort_expr).Limit(self._limit_expr)
         return aggregation
     
     def exec_aggregate(self, post_agg: Optional[Aggregation] = None):
@@ -136,7 +136,7 @@ class LoadDirective[T: Persistable]:
         Returns:
             CommandCursor: A `pymongo` cursor to the results of the aggregation.
         """
-        p_cls = self.persist_cls
+        p_cls = self._persist_cls
         return p_cls.get_db_collection().aggregate(self.get_pipeline_expr(post_agg))
 
     def load_aggregate(self, post_agg: Optional[Aggregation] = None):
@@ -150,7 +150,7 @@ class LoadDirective[T: Persistable]:
         Returns:
             list[Self]: A list of model instances.
         """
-        p_cls = self.persist_cls
+        p_cls = self._persist_cls
         with self.exec_aggregate(post_agg) as cursors:
             return [p_cls.from_db_doc(doc) for doc in cursors]
 
@@ -161,10 +161,10 @@ class LoadDirective[T: Persistable]:
         Returns:
             Optional[Persistable]: An instance of the model, or `None` if no document is found.
         """
-        p_cls = self.persist_cls
+        p_cls = self._persist_cls
         
-        if self.aggregation_expr is None:
-            doc = p_cls.get_db_collection().find_one(filter=self.get_filter_expr(), sort=self.sort_expr.get_tuples())
+        if self._aggregation_expr is None:
+            doc = p_cls.get_db_collection().find_one(filter=self.get_filter_expr(), sort=self._sort_expr.get_tuples())
             return p_cls.from_db_doc(doc) if doc else None
         
         docs = self.load_aggregate(Aggregation().Limit(1))
@@ -177,11 +177,11 @@ class LoadDirective[T: Persistable]:
         Returns:
             list[Persistable]: A list of loaded model instances.
         """
-        p_cls = self.persist_cls
+        p_cls = self._persist_cls
 
-        if self.aggregation_expr is None:
+        if self._aggregation_expr is None:
             with p_cls.get_db_collection().find(
-                filter=self.get_filter_expr(), sort=self.sort_expr.get_tuples(), limit=self.limit_expr
+                filter=self.get_filter_expr(), sort=self._sort_expr.get_tuples(), limit=self._limit_expr
             ) as cursor:
                 return [p_cls.from_db_doc(doc) for doc in cursor]
         
@@ -197,10 +197,10 @@ class LoadDirective[T: Persistable]:
         Returns:
             Optional[Persistable]: An instance of the loaded document, or `None` if not found.
         """
-        p_cls = self.persist_cls
+        p_cls = self._persist_cls
 
-        if self.aggregation_expr is None:
-            doc = p_cls.get_db_collection().find_one(filter=self.get_filter_expr(), sort=(sort & self.sort_expr).get_tuples())
+        if self._aggregation_expr is None:
+            doc = p_cls.get_db_collection().find_one(filter=self.get_filter_expr(), sort=(sort & self._sort_expr).get_tuples())
             return p_cls.from_db_doc(doc) if doc else None
         
         docs = self.load_aggregate(Aggregation().Sort(sort).Limit(1))
@@ -213,8 +213,8 @@ class LoadDirective[T: Persistable]:
         Returns:
             bool: `True` if a matching document exists, `False` otherwise.
         """
-        p_cls = self.persist_cls
-        if self.aggregation_expr is None:
+        p_cls = self._persist_cls
+        if self._aggregation_expr is None:
             doc = p_cls.get_db_collection().find_one(filter=self.get_filter_expr())
             return doc is not None
         
@@ -231,10 +231,10 @@ class LoadDirective[T: Persistable]:
         Returns:
             Table: A PyArrow Table containing the loaded data.
         """
-        p_cls = self.persist_cls
+        p_cls = self._persist_cls
         collection = p_cls.get_db_collection()
-        if self.aggregation_expr is None:
-            return find_arrow_all(collection, query=self.get_filter_expr(), schema=schema or p_cls.get_arrow_schema(), sort=self.sort_expr.get_tuples(), limit=self.limit_expr)
+        if self._aggregation_expr is None:
+            return find_arrow_all(collection, query=self.get_filter_expr(), schema=schema or p_cls.get_arrow_schema(), sort=self._sort_expr.get_tuples(), limit=self._limit_expr)
 
         return aggregate_arrow_all(collection, pipeline=self.get_pipeline_expr(), schema=schema or p_cls.get_arrow_schema())
     
@@ -248,10 +248,10 @@ class LoadDirective[T: Persistable]:
         Returns:
             pd.DataFrame: A pandas DataFrame containing the loaded data.
         """
-        p_cls = self.persist_cls
+        p_cls = self._persist_cls
         collection = p_cls.get_db_collection()
-        if self.aggregation_expr is None:
-            return find_pandas_all(collection, query=self.get_filter_expr(), schema=schema or p_cls.get_arrow_schema(), sort=self.sort_expr.get_tuples(), limit=self.limit_expr)
+        if self._aggregation_expr is None:
+            return find_pandas_all(collection, query=self.get_filter_expr(), schema=schema or p_cls.get_arrow_schema(), sort=self._sort_expr.get_tuples(), limit=self._limit_expr)
         
         return aggregate_pandas_all(collection, pipeline=self.get_pipeline_expr(), schema=schema or p_cls.get_arrow_schema())
     
@@ -286,10 +286,10 @@ class LoadDirective[T: Persistable]:
         Returns:
             pl.DataFrame | pl.Series: A polars DataFrame or Series containing the loaded data.
         """
-        p_cls = self.persist_cls
+        p_cls = self._persist_cls
         collection = p_cls.get_db_collection()
-        if self.aggregation_expr is None:
-            return find_polars_all(collection, query=self.get_filter_expr(), schema=schema or p_cls.get_arrow_schema(), sort=self.sort_expr.get_tuples(), limit=self.limit_expr)
+        if self._aggregation_expr is None:
+            return find_polars_all(collection, query=self.get_filter_expr(), schema=schema or p_cls.get_arrow_schema(), sort=self._sort_expr.get_tuples(), limit=self._limit_expr)
         
         return aggregate_polars_all(collection, pipeline=self.get_pipeline_expr(), schema=schema or p_cls.get_arrow_schema())
 
@@ -308,7 +308,7 @@ class LoadDirective[T: Persistable]:
         Returns:
             dict: A MongoDB-compatible query dictionary.
         """
-        p_cls = self.persist_cls
+        p_cls = self._persist_cls
 
         normalized_query_map = p_cls.get_fields_with_metadata(NormalizeQueryInput)
 
@@ -361,7 +361,7 @@ class LoadDirective[T: Persistable]:
         Returns:
             dict: The filter expression.
         """
-        return self.parse_filter(self.filter_expr)
+        return self.parse_filter(self._filter_expr)
     
     def get_pipeline_expr(self, post_agg: Optional[Aggregation] = None) -> list[dict]:
         """
