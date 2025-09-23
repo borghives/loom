@@ -118,7 +118,7 @@ class LoadDirective[T: Persistable]:
         """
         p_cls = self._persist_cls
         with self.exec_aggregate(post_agg) as cursors:
-            return [p_cls.from_db_doc(doc) for doc in cursors]
+            return [p_cls.from_doc(doc) for doc in cursors]
 
     def load_one(self):
         """
@@ -303,7 +303,7 @@ class LoadDirectiveSimple[T: Persistable]:
             filter=self.get_filter_expr(), 
             sort=self._sort_expr.get_tuples()
         )
-        return p_cls.from_db_doc(doc) if doc else None
+        return p_cls.from_doc(doc) if doc else None
         
     
     def load_many(self):
@@ -318,7 +318,7 @@ class LoadDirectiveSimple[T: Persistable]:
         with p_cls.get_db_collection().find(
             filter=self.get_filter_expr(), sort=self._sort_expr.get_tuples(), limit=self._limit_expr
         ) as cursor:
-            return [p_cls.from_db_doc(doc) for doc in cursor]
+            return [p_cls.from_doc(doc) for doc in cursor]
     
     def load_latest(self, sort: SortOp = SortDesc("updated_time")):
         """
@@ -337,7 +337,7 @@ class LoadDirectiveSimple[T: Persistable]:
             filter=self.get_filter_expr(), 
             sort=(sort & self._sort_expr).get_tuples()
         )
-        return p_cls.from_db_doc(doc) if doc else None
+        return p_cls.from_doc(doc) if doc else None
     
     def exists(self) -> bool:
         """

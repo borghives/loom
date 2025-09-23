@@ -32,15 +32,50 @@ class TestIncModel(Persistable):
 
 class PersistableTest(unittest.TestCase):
 
+    def test_has_update_logic(self):
+        # 1. Test new model
+        new_model = TestModel(name="new", value=1)
+        self.assertTrue(new_model.has_update)
+
+        # 2. Test model from DB
+        doc = {"_id": ObjectId(), "name": "from_db", "value": 2, "version": 1}
+        loaded_model = TestModel.from_doc(doc)
+        self.assertFalse(loaded_model.has_update)
+
+        # 3. Test attribute change
+        loaded_model.value = 3
+        self.assertTrue(loaded_model.has_update)
+
+        # 5. Test persist resets flag
+        loaded_model.value = 4
+        self.assertTrue(loaded_model.has_update)
+        
+        # # Mock persist to avoid db interaction, just check the flag
+        # with patch.object(TestModel, 'get_db_collection') as mock_get_collection:
+        #     mock_collection = MagicMock()
+        #     mock_get_collection.return_value = mock_collection
+        result_doc = loaded_model.dump_doc()
+        result_doc['_id'] = loaded_model.id
+        # mock_collection.find_one_and_update.return_value = result_doc
+            
+        loaded_model.persist()
+        self.assertFalse(loaded_model.has_update)
+
+        loaded_model.value = 4
+        self.assertFalse(loaded_model.has_update)
+
+        loaded_model.value = 5
+        self.assertTrue(loaded_model.has_update)
+
     def test_should_persist_property(self):
         """Test the should_persist property logic."""
         new_model = TestModel(name="new", value=1)
         self.assertTrue(new_model.should_persist)
 
-        loaded_model = TestModel.from_db_doc({"_id": ObjectId(), "name": "loaded", "value": 2})
+        loaded_model = TestModel.from_doc({"_id": ObjectId(), "name": "loaded", "value": 2})
         self.assertFalse(loaded_model.should_persist)
 
-        loaded_model.has_update = True
+        loaded_model.set_updated()
         self.assertTrue(loaded_model.should_persist)
 
     def test_get_set_instruction(self):
@@ -164,7 +199,7 @@ class PersistableTest(unittest.TestCase):
         mock_collection = MagicMock()
         mock_get_collection.return_value = mock_collection
 
-        loaded_model = TestModel.from_db_doc({"_id": ObjectId(), "name": "loaded", "value": 1})
+        loaded_model = TestModel.from_doc({"_id": ObjectId(), "name": "loaded", "value": 1})
         self.assertFalse(loaded_model.persist(lazy=True))
         mock_collection.find_one_and_update.assert_not_called()
 
@@ -182,11 +217,11 @@ class PersistableTest(unittest.TestCase):
 
         items = [
             TestModel(name="item1", value=1),
-            TestModel.from_db_doc({"_id": ObjectId(), "name": "item2", "value": 2}),
-            TestModel.from_db_doc({"_id": ObjectId(), "name": "item3", "value": 3}),
+            TestModel.from_doc({"_id": ObjectId(), "name": "item2", "value": 2}),
+            TestModel.from_doc({"_id": ObjectId(), "name": "item3", "value": 3}),
         ]
         items[2].value = 33
-        items[2].has_update = True
+        items[2].set_updated()
 
         TestModel.persist_many(items, lazy=True)
 

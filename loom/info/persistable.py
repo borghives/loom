@@ -2,7 +2,7 @@ from typing import Any, Optional, Tuple, Type
 
 from bson import ObjectId
 import pandas as pd
-from pydantic import Field, PrivateAttr
+from pydantic import Field
 from pymongo import MongoClient, ReturnDocument, UpdateOne
 from pymongo.collection import Collection
 from pymongo.database import Database
@@ -41,9 +41,6 @@ class Persistable(Model):
             when the model is persisted to database.
         created_at (TimeInserted): A timestamp that is set once when the model
             is first inserted into the database.
-        _has_update (bool): A private flag indicating if the model has pending
-            changes to be persisted.  It is the responsibility of the logic to
-            update this flag.  Defaults to `True` on creation.
     """
 
     updated_time: TimeUpdated = Field(
@@ -55,31 +52,7 @@ class Persistable(Model):
         default=None,
     )
 
-    # newly constructed model needs persisting.  model from store should go through from_db_doc() which set _has_update to False
-    _has_update: bool = PrivateAttr(default=True)
-
     # --- Instance State and Helpers ---
-    @property
-    def has_update(self) -> bool:
-        """
-        Checks if the model has been updated since it was last persisted.
-
-        Returns:
-            bool: `True` if the model has pending changes, `False` otherwise.
-        """
-
-        return self._has_update
-
-    @has_update.setter
-    def has_update(self, value: bool):
-        """
-        Sets the update status of the model.
-
-        Args:
-            value (bool): The new update status.
-        """
-        self._has_update = value
-
     @property
     def should_persist(self) -> bool:
         """
@@ -100,10 +73,13 @@ class Persistable(Model):
         return {"_id": self.collapse_id()}
 
     def on_after_persist(self, result_doc: Optional[Any] = None):
-        self.has_update = False
+        self._has_update = False
         if result_doc:
             # Update the current object with the values from the database
-            self.__dict__.update(self.from_db_doc(result_doc).__dict__)
+            self.__dict__.update(self.from_doc(result_doc).__dict__)
+        
+        self._original_hash_from_doc = self.hash_model()
+
 
     # --- Update Instruction Builders ---
     def get_set_on_insert_instruction(self) -> Tuple[dict, list]:
@@ -310,13 +286,6 @@ class Persistable(Model):
                 raise
                 
         return dataframe
-
-    # --- Querying and Loading ---
-    @classmethod
-    def from_db_doc[T: Persistable](cls: Type[T], doc):
-        retval = super().from_db_doc(doc)
-        retval._has_update = False  # initial load from doc
-        return retval
 
     @classmethod
     def from_id(cls, id: ObjectId | str):

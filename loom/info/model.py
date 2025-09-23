@@ -1,6 +1,8 @@
 from abc import ABC
 from datetime import datetime
 from enum import Enum
+import hashlib
+import json
 from typing import Annotated, Optional, Type
 
 from bson import ObjectId
@@ -184,6 +186,8 @@ class Model(ABC, BaseModel):
     )
 
     _has_initialized: bool = PrivateAttr(False)
+    _has_update: bool = PrivateAttr(default=True)
+    _original_hash_from_doc: Optional[str] = PrivateAttr(default=None)
 
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
@@ -202,9 +206,32 @@ class Model(ABC, BaseModel):
 
         for field, transformers in self.get_fields_with_metadata(NormalizeValue).items():
             self.coalesce_field(field, transformers)
-        
+
         self._has_initialized = True
 
+    @property
+    def has_update(self) -> bool:
+        """
+        Checks if the model has been updated since it was last persisted.
+
+        Returns:
+            bool: `True` if the model has pending changes, `False` otherwise.
+        """
+
+        if (self._has_update) :
+            return True # _has_update variable will override hash comparison
+        
+        if self._original_hash_from_doc and self.hash_model() != self._original_hash_from_doc:
+            return True
+        
+        return False
+
+    def set_updated(self):
+        """
+        Sets the model has been updated. (Forced to true)
+
+        """
+        self._has_update = True
 
     def coalesce_field(self, field_name: str, transformers: list):
         """
@@ -305,6 +332,24 @@ class Model(ABC, BaseModel):
 
         return [item for item in metadata if isinstance(item, hint_type)]
 
+    @classmethod
+    def from_doc[T: Model](cls: Type[T], doc: dict):
+        """
+        Creates a model instance from a MongoDB document.
+
+        After creating the instance, it calls the `init_private_fields_from_doc`
+        hook to allow for post-initialization logic.
+
+        Args:
+            doc (dict): The MongoDB document.
+
+        Returns:
+            An instance of the model populated with the document data.
+        """
+        retval = cls(**doc)
+        retval.init_private_fields_from_doc(doc)
+        return retval
+    
     def dump_doc(self) -> dict:
         """
         Serializes the model to a MongoDB-compatible dictionary.
@@ -326,6 +371,16 @@ class Model(ABC, BaseModel):
             str: The model as a JSON string.
         """
         return self.model_dump_json(by_alias=True, exclude_none=True)
+    
+    def hash_model(self) -> str:
+        model_json = self.dump_json()
+        sorted_json = json.dumps(json.loads(model_json), sort_keys=True)
+        model_bytes = sorted_json.encode('utf-8')
+
+        hasher = hashlib.sha256()
+        hasher.update(model_bytes)
+        
+        return hasher.hexdigest()
 
     def init_private_fields_from_doc(self, doc: dict) -> None:
         """
@@ -338,7 +393,8 @@ class Model(ABC, BaseModel):
         Args:
             doc (dict): The document retrieved from the database.
         """
-        pass
+        self._has_update = False
+        self._original_hash_from_doc = self.hash_model()
 
     def __setattr__(self, name: str, value) -> None:
         """
@@ -351,22 +407,4 @@ class Model(ABC, BaseModel):
             transformers = self.get_field_metadata(name, NormalizeValue)
             value = coalesce(value, transformers)
         
-        return super().__setattr__(name, value)
-
-    @classmethod
-    def from_db_doc[T: Model](cls: Type[T], doc: dict):
-        """
-        Creates a model instance from a MongoDB document.
-
-        After creating the instance, it calls the `init_private_fields_from_doc`
-        hook to allow for post-initialization logic.
-
-        Args:
-            doc (dict): The MongoDB document.
-
-        Returns:
-            An instance of the model populated with the document data.
-        """
-        retval = cls(**doc)
-        retval.init_private_fields_from_doc(doc)
-        return retval
+        super().__setattr__(name, value)
