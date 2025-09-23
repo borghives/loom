@@ -378,8 +378,8 @@ class Model(ABC, BaseModel):
         """
 
         # Purposefully sacrificing performance for consistency by using dump_doc. 
-        # pydantic model_dump_json, although more performance, has its set of issues
-        # custom_json_encoder would give the child Model class more control
+        # pydantic's model_dump_json, although more performance, has its set of issues
+        # Also custom_json_encoder would give the child Model class more control
 
         model_doc = self.dump_doc()
         model_json = json.dumps(model_doc, sort_keys=True, default=self.custom_json_encoder)
