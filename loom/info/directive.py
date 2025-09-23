@@ -230,6 +230,8 @@ class LoadDirective[T: Persistable]:
             self._aggregation_expr | post_agg, self._persist_cls.get_fields_with_metadata(NormalizeQueryInput))
 
 
+# just in case there's something wrong with mongodb aggregate
+# thinking about removing for clean code
 class LoadDirectiveSimple[T: Persistable]:
     """
     A directive for loading data from a `Persistable` model.
