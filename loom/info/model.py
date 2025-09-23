@@ -193,10 +193,6 @@ class Model(ABC, BaseModel):
         arbitrary_types_allowed=True,
         populate_by_name=True,
         protected_namespaces=(),
-        json_encoders={
-            ObjectId: str,
-            set: lambda x: list(x),
-        },
     )
 
     def __init__(self, **data):
@@ -367,6 +363,12 @@ class Model(ABC, BaseModel):
         retval = self.model_dump(by_alias=True, exclude_none=True)
         return retval
 
+    def custom_json_encoder(self, obj):
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        
+        return str(obj)
+
     def dump_json(self) -> str:
         """
         Serializes the model to a JSON string.
@@ -374,12 +376,18 @@ class Model(ABC, BaseModel):
         Returns:
             str: The model as a JSON string.
         """
-        return self.model_dump_json(by_alias=True, exclude_none=True)
+
+        # Purposefully sacrificing performance for consistency by using dump_doc. 
+        # pydantic model_dump_json, although more performance, has its set of issues
+        # custom_json_encoder would give the child Model class more control
+
+        model_doc = self.dump_doc()
+        model_json = json.dumps(model_doc, sort_keys=True, default=self.custom_json_encoder)
+        return model_json
     
     def hash_model(self) -> str:
         model_json = self.dump_json()
-        sorted_json = json.dumps(json.loads(model_json), sort_keys=True)
-        model_bytes = sorted_json.encode('utf-8')
+        model_bytes = model_json.encode('utf-8')
 
         hasher = hashlib.sha256()
         hasher.update(model_bytes)

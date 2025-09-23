@@ -67,6 +67,41 @@ class PersistableTest(unittest.TestCase):
         loaded_model.value = 5
         self.assertTrue(loaded_model.has_update)
 
+    def test_persist_object_id(self):
+        # 1. Test new model
+        new_model = TestModel(name="new", value=1, link_id=ObjectId())
+        self.assertTrue(new_model.has_update)
+
+        # 2. Test model from DB
+        doc = {"_id": ObjectId(), "name": "from_db", "value": 2, "version": 1, "link_id": ObjectId()}
+        loaded_model = TestModel.from_doc(doc)
+        self.assertFalse(loaded_model.has_update)
+
+        # 3. Test attribute change
+        loaded_model.value = 3
+        self.assertTrue(loaded_model.has_update)
+
+        # 5. Test persist resets flag
+        loaded_model.value = 4
+        self.assertTrue(loaded_model.has_update)
+        
+        # # Mock persist to avoid db interaction, just check the flag
+        # with patch.object(TestModel, 'get_db_collection') as mock_get_collection:
+        #     mock_collection = MagicMock()
+        #     mock_get_collection.return_value = mock_collection
+        result_doc = loaded_model.dump_doc()
+        result_doc['_id'] = loaded_model.id
+        # mock_collection.find_one_and_update.return_value = result_doc
+            
+        loaded_model.persist()
+        self.assertFalse(loaded_model.has_update)
+
+        loaded_model.value = 4
+        self.assertFalse(loaded_model.has_update)
+
+        loaded_model.value = 5
+        self.assertTrue(loaded_model.has_update)
+
     def test_should_persist_property(self):
         """Test the should_persist property logic."""
         new_model = TestModel(name="new", value=1)
@@ -75,7 +110,7 @@ class PersistableTest(unittest.TestCase):
         loaded_model = TestModel.from_doc({"_id": ObjectId(), "name": "loaded", "value": 2})
         self.assertFalse(loaded_model.should_persist)
 
-        loaded_model.set_updated()
+        loaded_model.mark_updated()
         self.assertTrue(loaded_model.should_persist)
 
     def test_get_set_instruction(self):
@@ -221,7 +256,7 @@ class PersistableTest(unittest.TestCase):
             TestModel.from_doc({"_id": ObjectId(), "name": "item3", "value": 3}),
         ]
         items[2].value = 33
-        items[2].set_updated()
+        items[2].mark_updated()
 
         TestModel.persist_many(items, lazy=True)
 
