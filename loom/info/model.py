@@ -226,7 +226,7 @@ class Model(ABC, BaseModel):
         
         return False
 
-    def set_updated(self):
+    def mark_updated(self):
         """
         Sets the model has been updated. (Forced to true)
 
