@@ -390,35 +390,85 @@ class LoadDirectiveSimple[T: Persistable]:
             sort=self._sort_expr.get_tuples(), 
             limit=self._limit_expr)
 
+    
+
     def load_polars(self, schema: Optional[Schema] = None) -> pl.DataFrame | pl.Series:
+
         """
+
         Loads data from a query into a polars DataFrame.
 
+
+
         Args:
+
             schema (Schema, optional): The PyArrow schema to use.
 
-        Returns:
-            pl.DataFrame | pl.Series: A polars DataFrame or Series containing the loaded data.
-        """
-        p_cls = self._persist_cls
-        collection = p_cls.get_db_collection()
-        return find_polars_all(
-            collection, 
-            query=self.get_filter_expr(), 
-            schema=schema or p_cls.get_arrow_schema(), 
-            sort=self._sort_expr.get_tuples(), 
-            limit=self._limit_expr)
-    
-    def get_filter_expr(self) -> dict:
-        """
-        Gets the filter expression for the query.
+
 
         Returns:
-            dict: The filter expression.
+
+            pl.DataFrame | pl.Series: A polars DataFrame or Series containing the loaded data.
+
         """
+
+        p_cls = self._persist_cls
+
+        collection = p_cls.get_db_collection()
+
+        return find_polars_all(
+
+            collection, 
+
+            query=self.get_filter_expr(), 
+
+            schema=schema or p_cls.get_arrow_schema(), 
+
+            sort=self._sort_expr.get_tuples(), 
+
+            limit=self._limit_expr)
+
+    
+
+    def count(self) -> int:
+
+        """
+
+        Counts the number of documents matching the filter.
+
+
+
+        Returns:
+
+            int: The number of documents matching the filter.
+
+        """
+
+        p_cls = self._persist_cls
+
+        collection = p_cls.get_db_collection()
+
+        return collection.count_documents(self.get_filter_expr())
+
+
+
+    def get_filter_expr(self) -> dict:
+
+        """
+
+        Gets the filter expression for the query.
+
+
+
+        Returns:
+
+            dict: The filter expression.
+
+        """
+
         return parse_filter(self._filter_expr, self._persist_cls.get_fields_with_metadata(NormalizeQueryInput))
-   
-# --- parsing field from persistence ---
+
+   # --- parsing field from persistence ---
 def parse_filter(filter: Filter | dict, normalized_query_map: dict[str, list]) -> dict:
 
     retval: dict = filter.express() if isinstance(filter, Filter) else filter

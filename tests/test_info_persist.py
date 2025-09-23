@@ -344,5 +344,35 @@ class TestNormalizeQueryInput(unittest.TestCase):
         self.assertEqual(item.notes, "lower")
 
 
+        self.assertEqual(item.notes, "lower")
+
+
+class TestFindSimple(unittest.TestCase):
+    def setUp(self):
+        self.collection = TestModel.get_db_collection()
+        self.collection.delete_many({})
+        TestModel(name="Alice", value=30).persist()
+        TestModel(name="Bob", value=40).persist()
+        TestModel(name="Charlie", value=50).persist()
+
+    def tearDown(self):
+        self.collection.delete_many({})
+
+    def test_find_simple_load_many(self):
+        users = TestModel.find_simple(lm.fld('value') > 35).load_many()
+        self.assertEqual(len(users), 2)
+        self.assertCountEqual([user.name for user in users], ["Bob", "Charlie"])
+
+    def test_find_simple_load_one(self):
+        user = TestModel.find_simple(lm.fld('name') == "Alice").load_one()
+        self.assertIsNotNone(user)
+        assert user is not None
+        self.assertEqual(user.name, "Alice")
+
+    def test_find_simple_count(self):
+        count = TestModel.find_simple(lm.fld('value') > 35).count()
+        self.assertEqual(count, 2)
+
+
 if __name__ == "__main__":
     unittest.main()
