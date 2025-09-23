@@ -193,6 +193,10 @@ class Model(ABC, BaseModel):
         arbitrary_types_allowed=True,
         populate_by_name=True,
         protected_namespaces=(),
+        json_encoders={
+            ObjectId: str,
+            set: lambda x: list(x),
+        },
     )
 
     def __init__(self, **data):
