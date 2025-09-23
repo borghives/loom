@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from loom.info import Persistable, declare_persist_db
 
@@ -7,5 +8,5 @@ class PerformanceTestModel(Persistable):
     name: str
     value: float
     value2: float
-    date: datetime
+    date: Optional[datetime] = None
     notes: str

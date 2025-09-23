@@ -1,5 +1,6 @@
 import timeit
-# from tests.performance_test_model import PerformanceTestModel
+import pytest
+from tests.performance_test_model import PerformanceTestModel
 
 def test_benchmark(capsys):
     # Time the legacy method

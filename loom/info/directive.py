@@ -23,12 +23,8 @@ class LoadDirective[T: Persistable]:
     It supports filtering, sorting, limiting, and aggregation.
     """
     def __init__(self, persistable: Type[T]) -> None:
-        self._filter_expr       : Filter    = Filter()
-        self._sort_expr         : SortOp    = SortOp()
-        self._limit_expr        : int       = 0
-        self._aggregation_expr   : Optional[Aggregation] = None
-
-        self._persist_cls        : Type[T] = persistable
+        self._aggregation_expr: Aggregation = Aggregation()
+        self._persist_cls: Type[T] = persistable
 
     def filter(self, filter: Filter) -> "LoadDirective[T]":
         """
@@ -40,11 +36,7 @@ class LoadDirective[T: Persistable]:
         Returns:
             LoadDirective: The `LoadDirective` object for chaining.
         """
-        if self._aggregation_expr is None:
-            self._filter_expr &= filter
-        else:
-            self._aggregation_expr = self._aggregation_expr.Match(filter)
-        
+        self._aggregation_expr = self._aggregation_expr.Match(filter)
         return self
 
     def sort(self, sort: SortOp) -> "LoadDirective[T]":
@@ -57,11 +49,7 @@ class LoadDirective[T: Persistable]:
         Returns:
             LoadDirective: The `LoadDirective` object for chaining.
         """
-        if self._aggregation_expr is None:
-            self._sort_expr = sort
-        else:
-            self._aggregation_expr = self._aggregation_expr.Sort(sort)
-
+        self._aggregation_expr = self._aggregation_expr.Sort(sort)
         return self
     
     def limit(self, limit: int) -> "LoadDirective[T]":
@@ -74,11 +62,7 @@ class LoadDirective[T: Persistable]:
         Returns:
             LoadDirective: The `LoadDirective` object for chaining.
         """
-        if self._aggregation_expr is None:
-            self._limit_expr = limit
-        else:
-            self._aggregation_expr = self._aggregation_expr.Limit(limit)
-
+        self._aggregation_expr = self._aggregation_expr.Limit(limit)
         return self
     
     def sample(self, sample: int) -> "LoadDirective[T]":
@@ -91,7 +75,7 @@ class LoadDirective[T: Persistable]:
         Returns:
             LoadDirective: The `LoadDirective` object for chaining.
         """
-        self.aggregation(Aggregation().Sample(sample))
+        self._aggregation_expr = self._aggregation_expr.Sample(sample)
         return self
     
     def aggregation(self, aggregation: Aggregation) -> "LoadDirective[T]":
@@ -104,26 +88,8 @@ class LoadDirective[T: Persistable]:
         Returns:
             LoadDirective: The `LoadDirective` object for chaining.
         """
-        self._aggregation_expr = self.flatten_to_aggregation() | aggregation
-        self._filter_expr = Filter()
-        self._sort_expr = SortOp()
-        self._limit_expr = 0
-        
+        self._aggregation_expr |= aggregation
         return self
-    
-    def flatten_to_aggregation(self) -> Aggregation:
-        """
-        Flattens the filter, sort, and limit into an aggregation pipeline.
-
-        Returns:
-            Aggregation: The flattened aggregation pipeline.
-        """
-        aggregation = self._aggregation_expr
-        if (aggregation is None):
-            aggregation = Aggregation()
-            
-        aggregation = aggregation.Match(self._filter_expr).Sort(self._sort_expr).Limit(self._limit_expr)
-        return aggregation
     
     def exec_aggregate(self, post_agg: Optional[Aggregation] = None):
         """
@@ -161,12 +127,6 @@ class LoadDirective[T: Persistable]:
         Returns:
             Optional[Persistable]: An instance of the model, or `None` if no document is found.
         """
-        p_cls = self._persist_cls
-        
-        if self._aggregation_expr is None:
-            doc = p_cls.get_db_collection().find_one(filter=self.get_filter_expr(), sort=self._sort_expr.get_tuples())
-            return p_cls.from_db_doc(doc) if doc else None
-        
         docs = self.load_aggregate(Aggregation().Limit(1))
         return docs[0] if len(docs) > 0 else None
     
@@ -177,14 +137,6 @@ class LoadDirective[T: Persistable]:
         Returns:
             list[Persistable]: A list of loaded model instances.
         """
-        p_cls = self._persist_cls
-
-        if self._aggregation_expr is None:
-            with p_cls.get_db_collection().find(
-                filter=self.get_filter_expr(), sort=self._sort_expr.get_tuples(), limit=self._limit_expr
-            ) as cursor:
-                return [p_cls.from_db_doc(doc) for doc in cursor]
-        
         return self.load_aggregate()
     
     def load_latest(self, sort: SortOp = SortDesc("updated_time")):
@@ -197,12 +149,6 @@ class LoadDirective[T: Persistable]:
         Returns:
             Optional[Persistable]: An instance of the loaded document, or `None` if not found.
         """
-        p_cls = self._persist_cls
-
-        if self._aggregation_expr is None:
-            doc = p_cls.get_db_collection().find_one(filter=self.get_filter_expr(), sort=(sort & self._sort_expr).get_tuples())
-            return p_cls.from_db_doc(doc) if doc else None
-        
         docs = self.load_aggregate(Aggregation().Sort(sort).Limit(1))
         return docs[0] if len(docs) > 0 else None
     
@@ -213,11 +159,6 @@ class LoadDirective[T: Persistable]:
         Returns:
             bool: `True` if a matching document exists, `False` otherwise.
         """
-        p_cls = self._persist_cls
-        if self._aggregation_expr is None:
-            doc = p_cls.get_db_collection().find_one(filter=self.get_filter_expr())
-            return doc is not None
-        
         docs = self.load_aggregate(Aggregation().Limit(1))
         return len(docs) > 0
     
@@ -233,9 +174,6 @@ class LoadDirective[T: Persistable]:
         """
         p_cls = self._persist_cls
         collection = p_cls.get_db_collection()
-        if self._aggregation_expr is None:
-            return find_arrow_all(collection, query=self.get_filter_expr(), schema=schema or p_cls.get_arrow_schema(), sort=self._sort_expr.get_tuples(), limit=self._limit_expr)
-
         return aggregate_arrow_all(collection, pipeline=self.get_pipeline_expr(), schema=schema or p_cls.get_arrow_schema())
     
     def load_dataframe(self, schema: Optional[Schema] = None) -> pd.DataFrame:
@@ -250,9 +188,6 @@ class LoadDirective[T: Persistable]:
         """
         p_cls = self._persist_cls
         collection = p_cls.get_db_collection()
-        if self._aggregation_expr is None:
-            return find_pandas_all(collection, query=self.get_filter_expr(), schema=schema or p_cls.get_arrow_schema(), sort=self._sort_expr.get_tuples(), limit=self._limit_expr)
-        
         return aggregate_pandas_all(collection, pipeline=self.get_pipeline_expr(), schema=schema or p_cls.get_arrow_schema())
     
     def _load_dataframe_legacy(
@@ -288,71 +223,189 @@ class LoadDirective[T: Persistable]:
         """
         p_cls = self._persist_cls
         collection = p_cls.get_db_collection()
-        if self._aggregation_expr is None:
-            return find_polars_all(collection, query=self.get_filter_expr(), schema=schema or p_cls.get_arrow_schema(), sort=self._sort_expr.get_tuples(), limit=self._limit_expr)
-        
         return aggregate_polars_all(collection, pipeline=self.get_pipeline_expr(), schema=schema or p_cls.get_arrow_schema())
 
-    
-    # --- parsing field from persistence ---
-    def parse_filter(self, filter: Filter | dict) -> dict:
-        """
-        Parses a `Filter` object or dict into a MongoDB query dictionary.
+    def get_pipeline_expr(self, post_agg: Optional[Aggregation] = None) -> list[dict]:
+        return parse_agg_pipe(
+            self._aggregation_expr | post_agg, self._persist_cls.get_fields_with_metadata(NormalizeQueryInput))
 
-        This method also applies any `NormalizeQueryInput` annotations on the
-        model's fields to transform corresponding values in the filter.
+
+class LoadDirectiveSimple[T: Persistable]:
+    """
+    A directive for loading data from a `Persistable` model.
+
+    This class provides a fluent API for building queries to load data from a MongoDB collection.
+    It supports filtering, sorting, and limiting.
+    """
+    def __init__(self, persistable: Type[T]) -> None:
+        self._filter_expr       : Filter    = Filter()
+        self._sort_expr         : SortOp    = SortOp()
+        self._limit_expr        : int       = 0
+
+        self._persist_cls        : Type[T] = persistable
+
+    def filter(self, filter: Filter) -> "LoadDirectiveSimple[T]":
+        """
+        Adds a filter to the query.
 
         Args:
-            filter (Filter | dict): The filter expression to parse.
+            filter (Filter): The filter to add.
 
         Returns:
-            dict: A MongoDB-compatible query dictionary.
+            LoadDirective: The `LoadDirective` object for chaining.
+        """
+
+        self._filter_expr &= filter
+        
+        return self
+
+    def sort(self, sort: SortOp) -> "LoadDirectiveSimple[T]":
+        """
+        Adds a sort to the query.
+
+        Args:
+            sort (SortOp): The sort to add.
+
+        Returns:
+            LoadDirective: The `LoadDirective` object for chaining.
+        """
+
+        self._sort_expr = sort
+
+        return self
+    
+    def limit(self, limit: int) -> "LoadDirectiveSimple[T]":
+        """
+        Adds a limit to the query.
+
+        Args:
+            limit (int): The limit to add.
+
+        Returns:
+            LoadDirective: The `LoadDirective` object for chaining.
+        """
+        self._limit_expr = limit
+
+        return self
+
+    def load_one(self):
+        """
+        Loads a single document from the database.
+
+        Returns:
+            Optional[Persistable]: An instance of the model, or `None` if no document is found.
+        """
+        p_cls = self._persist_cls
+        
+        doc = p_cls.get_db_collection().find_one(
+            filter=self.get_filter_expr(), 
+            sort=self._sort_expr.get_tuples()
+        )
+        return p_cls.from_db_doc(doc) if doc else None
+        
+    
+    def load_many(self):
+        """
+        Loads multiple documents from the database.
+
+        Returns:
+            list[Persistable]: A list of loaded model instances.
         """
         p_cls = self._persist_cls
 
-        normalized_query_map = p_cls.get_fields_with_metadata(NormalizeQueryInput)
-
-        retval: dict = filter.express() if isinstance(filter, Filter) else filter
-        if not normalized_query_map:
-            return retval
-
-        for key, normalize_transformers in normalized_query_map.items():
-            if key in retval:
-                for transformer in normalize_transformers:
-                    original_value = retval[key]
-                    retval[key] = transform_filter_value(original_value, transformer)
-
-        return retval
-
-    def parse_agg_stage(self, stage: str, expr) -> dict:
+        with p_cls.get_db_collection().find(
+            filter=self.get_filter_expr(), sort=self._sort_expr.get_tuples(), limit=self._limit_expr
+        ) as cursor:
+            return [p_cls.from_db_doc(doc) for doc in cursor]
+    
+    def load_latest(self, sort: SortOp = SortDesc("updated_time")):
         """
-        Parses a single stage of an aggregation pipeline.
-
-        If the stage is `$match`, it uses `parse_filter` to process the expression.
+        Loads the most recently updated document from the database.
 
         Args:
-            stage (str): The aggregation stage (e.g., `'$match'`).
-            expr: The expression for the stage.
+            sort (SortOp, optional): Sort order. Defaults to `updated_time` descending.
 
         Returns:
-            dict: A dictionary representing the aggregation stage.
+            Optional[Persistable]: An instance of the loaded document, or `None` if not found.
         """
-        if stage == "$match":
-            return {"$match": self.parse_filter(expr)}
+        p_cls = self._persist_cls
 
-        return {stage: expr}
 
-    def parse_agg_pipe(self, aggregation: Aggregation) -> list[dict]:
+        doc = p_cls.get_db_collection().find_one(
+            filter=self.get_filter_expr(), 
+            sort=(sort & self._sort_expr).get_tuples()
+        )
+        return p_cls.from_db_doc(doc) if doc else None
+    
+    def exists(self) -> bool:
         """
-        Parses an `Aggregation` object into a MongoDB aggregation pipeline.
+        Checks if at least one document matching the filter exists.
+
+        Returns:
+            bool: `True` if a matching document exists, `False` otherwise.
+        """
+        p_cls = self._persist_cls
+
+        doc = p_cls.get_db_collection().find_one(filter=self.get_filter_expr())
+        return doc is not None
+
+    
+    def load_table(self, schema: Optional[Schema] = None) -> Table:
+        """
+        Loads data from a query into a PyArrow Table.
 
         Args:
-            aggregation (Aggregation): The `Aggregation` object to parse.
+            schema (Schema, optional): The PyArrow schema to use.
 
         Returns:
-            list[dict]: A list of dictionaries representing the pipeline.
+            Table: A PyArrow Table containing the loaded data.
         """
-        return [self.parse_agg_stage(stage, expr) for stage, expr in aggregation]    
+        p_cls = self._persist_cls
+        collection = p_cls.get_db_collection()
+        return find_arrow_all(
+            collection, 
+            query=self.get_filter_expr(), 
+            schema=schema or p_cls.get_arrow_schema(), 
+            sort=self._sort_expr.get_tuples(), 
+            limit=self._limit_expr)
+
+    def load_dataframe(self, schema: Optional[Schema] = None) -> pd.DataFrame:
+        """
+        Loads data from a query into a pandas DataFrame.
+
+        Args:
+            schema (Schema, optional): The PyArrow schema to use.
+
+        Returns:
+            pd.DataFrame: A pandas DataFrame containing the loaded data.
+        """
+        p_cls = self._persist_cls
+        collection = p_cls.get_db_collection()
+        return find_pandas_all(
+            collection, 
+            query=self.get_filter_expr(), 
+            schema=schema or p_cls.get_arrow_schema(), 
+            sort=self._sort_expr.get_tuples(), 
+            limit=self._limit_expr)
+
+    def load_polars(self, schema: Optional[Schema] = None) -> pl.DataFrame | pl.Series:
+        """
+        Loads data from a query into a polars DataFrame.
+
+        Args:
+            schema (Schema, optional): The PyArrow schema to use.
+
+        Returns:
+            pl.DataFrame | pl.Series: A polars DataFrame or Series containing the loaded data.
+        """
+        p_cls = self._persist_cls
+        collection = p_cls.get_db_collection()
+        return find_polars_all(
+            collection, 
+            query=self.get_filter_expr(), 
+            schema=schema or p_cls.get_arrow_schema(), 
+            sort=self._sort_expr.get_tuples(), 
+            limit=self._limit_expr)
     
     def get_filter_expr(self) -> dict:
         """
@@ -361,24 +414,31 @@ class LoadDirective[T: Persistable]:
         Returns:
             dict: The filter expression.
         """
-        return self.parse_filter(self._filter_expr)
-    
-    def get_pipeline_expr(self, post_agg: Optional[Aggregation] = None) -> list[dict]:
-        """
-        Gets the aggregation pipeline for the query.
+        return parse_filter(self._filter_expr, self._persist_cls.get_fields_with_metadata(NormalizeQueryInput))
+   
+# --- parsing field from persistence ---
+def parse_filter(filter: Filter | dict, normalized_query_map: dict[str, list]) -> dict:
 
-        Args:
-            post_agg (Aggregation, optional): The aggregation pipeline to
-                append to the end just for this execution
+    retval: dict = filter.express() if isinstance(filter, Filter) else filter
+    if not normalized_query_map:
+        return retval
 
-        Returns:
-            list[dict]: The aggregation pipeline.
-        """
-        aggregation = self.flatten_to_aggregation()
-        if post_agg is not None:
-            aggregation |=  post_agg
+    for key, normalize_transformers in normalized_query_map.items():
+        if key in retval:
+            for transformer in normalize_transformers:
+                original_value = retval[key]
+                retval[key] = transform_filter_value(original_value, transformer)
 
-        return self.parse_agg_pipe(aggregation)
+    return retval
+
+def parse_agg_stage(stage: str, expr, normalized_query_map: dict[str, list]) -> dict:
+    if stage == "$match":
+        return {"$match": parse_filter(expr, normalized_query_map)}
+
+    return {stage: expr}
+
+def parse_agg_pipe(aggregation: Aggregation, normalized_query_map: dict[str, list]) -> list[dict]:
+    return [parse_agg_stage(stage, expr, normalized_query_map) for stage, expr in aggregation]    
 
 def transform_filter_value(original_value, transformer):
     if isinstance(original_value, list):
@@ -390,4 +450,4 @@ def transform_filter_value(original_value, transformer):
     
 
 
-    
+

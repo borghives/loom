@@ -17,7 +17,7 @@ Example:
     
     mongo_pipeline = pipeline.Pipeline()
 """
-from typing import List
+from typing import List, Optional
 from loom.info.sort_op import SortOp
 from loom.info.filter import Filter
 from pyrsistent import pvector, PVector, PMap, freeze, thaw
@@ -322,7 +322,7 @@ class Aggregation:
         """
         return Aggregation(self.stages.append(freeze({"$graphLookup": fields})))
 
-    def __or__(self, agg: "Aggregation") -> "Aggregation":
+    def __or__(self, agg: Optional["Aggregation"]) -> "Aggregation":
         """
         Merges this aggregation pipeline with another one.
 
@@ -340,6 +340,8 @@ class Aggregation:
             agg2 = Aggregation().Limit(10)
             combined_agg = agg1 | agg2
         """
+        if agg is None:
+            return self
         return Aggregation(self.stages + agg.stages)
 
     def Pipeline(self) -> List:
