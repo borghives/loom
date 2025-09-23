@@ -58,6 +58,7 @@ class Persistable(Model):
     # newly constructed model needs persisting.  model from store should go through from_db_doc() which set _has_update to False
     _has_update: bool = PrivateAttr(default=True)
 
+    # --- Instance State and Helpers ---
     @property
     def has_update(self) -> bool:
         """
@@ -98,6 +99,13 @@ class Persistable(Model):
         """
         return {"_id": self.collapse_id()}
 
+    def on_after_persist(self, result_doc: Optional[Any] = None):
+        self.has_update = False
+        if result_doc:
+            # Update the current object with the values from the database
+            self.__dict__.update(self.from_db_doc(result_doc).__dict__)
+
+    # --- Update Instruction Builders ---
     def get_set_on_insert_instruction(self) -> Tuple[dict, list]:
         """
         Constructs the `$setOnInsert` part of a MongoDB update operation.
@@ -206,141 +214,7 @@ class Persistable(Model):
 
         return update_instr
 
-    @classmethod
-    def from_db_doc[T: Persistable](cls: Type[T], doc):
-        retval = super().from_db_doc(doc)
-        retval._has_update = False  # initial load from doc
-        return retval
-
-    # --- Information on how to persist the model ---
-    @classmethod
-    def get_db_info(cls) -> dict:
-        """
-        Gets the database metadata dictionary for the model.
-
-        This metadata is expected to be set by a `@declare_persist_db` decorator
-        on the model class.
-
-        Returns:
-            dict: The database information for the model.
-
-        Raises:
-            Exception: If the class is not decorated with `@declare_persist_db`.
-        """
-        if not hasattr(cls, "_db_metadata"):
-            raise Exception(
-                f"Class {cls.__name__} is not decorated with @declare_persist_db"
-            )
-
-        return getattr(cls, "_db_metadata")
-
-    @classmethod
-    def get_db_collection_name(cls) -> str:
-        """
-        Gets the name of the MongoDB collection for the model.
-
-        Returns:
-            str: The name of the MongoDB collection.
-
-        Raises:
-            ValueError: If `collection_name` is not defined in the metadata.
-        """
-        db_info = cls.get_db_info()
-        name = db_info.get("collection_name")
-        if not name:
-            raise ValueError(
-                f"Class {cls.__name__} does not have collection_name defined in @declare_persist_db"
-            )
-        return name
-
-    @classmethod
-    def get_db_name(cls) -> str:
-        """
-        Gets the name of the MongoDB database for the model.
-
-        Returns:
-            str: The name of the MongoDB database.
-
-        Raises:
-            ValueError: If `db_name` is not defined in the metadata.
-        """
-        db_info = cls.get_db_info()
-        name = db_info.get("db_name")
-        if not name:
-            raise ValueError(
-                f"Class {cls.__name__} does not have db_name defined in @declare_persist_db"
-            )
-        return name
-
-    @classmethod
-    def get_db_client(cls) -> MongoClient:
-        """
-        Gets the appropriate MongoDB client for the model (local or remote).
-
-        Returns:
-            MongoClient: The MongoDB client instance.
-        """
-        if cls.is_remote_db():
-            return get_remote_db_client()
-        else:
-            return get_local_db_client()
-
-    @classmethod
-    def is_remote_db(cls) -> bool:
-        """
-        Checks if the model is configured to use a remote database.
-
-        Returns:
-            bool: `True` if the model uses a remote database, `False` otherwise.
-        """
-        db_info = cls.get_db_info()
-        return db_info.get("remote_db", False)
-
-    @classmethod
-    def get_db(cls) -> Database:
-        """
-        Gets the MongoDB database object for the model.
-
-        Returns:
-            Database: The `pymongo.database.Database` instance.
-        """
-        client = cls.get_db_client()
-        db_name = cls.get_db_name()
-        return client[db_name]
-
-    @classmethod
-    def get_db_collection(cls) -> Collection:
-        """
-        Gets the MongoDB collection object for the model.
-
-        Returns:
-            Collection: The `pymongo.collection.Collection` instance.
-        """
-        client = cls.get_db_client()
-        db_name = cls.get_db_name()
-        collection_name = cls.get_db_collection_name()
-        return client[db_name][collection_name]
-
-    @classmethod
-    def get_model_code_version(cls) -> Optional[int]:
-        """
-        Gets the version of the model schema, if defined in the metadata.
-
-        Returns:
-            Optional[int]: The version number of the model.
-        """
-        db_info = cls.get_db_info()
-        return db_info.get("version")
-
-    # ---END: Information on how to persist the model ---
-
-    # --- Save to persistence storage ---
-    def on_after_persist(self, result_doc: Optional[Any] = None):
-        self.has_update = False
-        if result_doc:
-            # Update the current object with the values from the database
-            self.__dict__.update(self.from_db_doc(result_doc).__dict__)
-
+    # --- Persistence Methods ---
     def persist(self, lazy: bool = False) -> bool:
         """
         Saves the model to the database.
@@ -437,7 +311,12 @@ class Persistable(Model):
                 
         return dataframe
 
-    # ---END: Save to persistence storage ---
+    # --- Querying and Loading ---
+    @classmethod
+    def from_db_doc[T: Persistable](cls: Type[T], doc):
+        retval = super().from_db_doc(doc)
+        retval._has_update = False  # initial load from doc
+        return retval
 
     @classmethod
     def from_id(cls, id: ObjectId | str):
@@ -478,14 +357,125 @@ class Persistable(Model):
         from loom.info.directive import LoadDirectiveSimple
         return LoadDirectiveSimple[T](cls).filter(filter)
 
-    # --- PyArrow ---
+    # --- Database and Collection Configuration ---
     @classmethod
-    def get_arrow_schema(cls) -> Optional[Schema]:
+    def get_db_info(cls) -> dict:
         """
-        return class specific arrow schema.  default None which let mongodb automatically assign
+        Gets the database metadata dictionary for the model.
+
+        This metadata is expected to be set by a `@declare_persist_db` decorator
+        on the model class.
+
+        Returns:
+            dict: The database information for the model.
+
+        Raises:
+            Exception: If the class is not decorated with `@declare_persist_db`.
         """
-        return None
-    # --- END: PyArrow ---
+        if not hasattr(cls, "_db_metadata"):
+            raise Exception(
+                f"Class {cls.__name__} is not decorated with @declare_persist_db"
+            )
+
+        return getattr(cls, "_db_metadata")
+
+    @classmethod
+    def get_db_name(cls) -> str:
+        """
+        Gets the name of the MongoDB database for the model.
+
+        Returns:
+            str: The name of the MongoDB database.
+
+        Raises:
+            ValueError: If `db_name` is not defined in the metadata.
+        """
+        db_info = cls.get_db_info()
+        name = db_info.get("db_name")
+        if not name:
+            raise ValueError(
+                f"Class {cls.__name__} does not have db_name defined in @declare_persist_db"
+            )
+        return name
+
+    @classmethod
+    def get_db_collection_name(cls) -> str:
+        """
+        Gets the name of the MongoDB collection for the model.
+
+        Returns:
+            str: The name of the MongoDB collection.
+
+        Raises:
+            ValueError: If `collection_name` is not defined in the metadata.
+        """
+        db_info = cls.get_db_info()
+        name = db_info.get("collection_name")
+        if not name:
+            raise ValueError(
+                f"Class {cls.__name__} does not have collection_name defined in @declare_persist_db"
+            )
+        return name
+
+    @classmethod
+    def get_db_client(cls) -> MongoClient:
+        """
+        Gets the appropriate MongoDB client for the model (local or remote).
+
+        Returns:
+            MongoClient: The MongoDB client instance.
+        """
+        if cls.is_remote_db():
+            return get_remote_db_client()
+        else:
+            return get_local_db_client()
+
+    @classmethod
+    def get_db(cls) -> Database:
+        """
+        Gets the MongoDB database object for the model.
+
+        Returns:
+            Database: The `pymongo.database.Database` instance.
+        """
+        client = cls.get_db_client()
+        db_name = cls.get_db_name()
+        return client[db_name]
+
+    @classmethod
+    def get_db_collection(cls) -> Collection:
+        """
+        Gets the MongoDB collection object for the model.
+
+        Returns:
+            Collection: The `pymongo.collection.Collection` instance.
+        """
+        client = cls.get_db_client()
+        db_name = cls.get_db_name()
+        collection_name = cls.get_db_collection_name()
+        return client[db_name][collection_name]
+
+    @classmethod
+    def is_remote_db(cls) -> bool:
+        """
+        Checks if the model is configured to use a remote database.
+
+        Returns:
+            bool: `True` if the model uses a remote database, `False` otherwise.
+        """
+        db_info = cls.get_db_info()
+        return db_info.get("remote_db", False)
+
+    @classmethod
+    def get_model_code_version(cls) -> Optional[int]:
+        """
+        Gets the version of the model schema, if defined in the metadata.
+
+        Returns:
+            Optional[int]: The version number of the model.
+        """
+        db_info = cls.get_db_info()
+        return db_info.get("version")
 
     @classmethod
     def create_collection(cls):
@@ -500,6 +490,14 @@ class Persistable(Model):
             db.create_collection(
                 name,
             )
+
+    # --- PyArrow ---
+    @classmethod
+    def get_arrow_schema(cls) -> Optional[Schema]:
+        """
+        return class specific arrow schema.  default None which let mongodb automatically assign
+        """
+        return None
 
 
 def declare_persist_db(
