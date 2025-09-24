@@ -1,6 +1,6 @@
 # Proposal: Model-Centric Query Fields
 
-TL;DR: DO NOT DO.  Static checker like pylance does not was unable to discover Model's fields. Implementation unsuccessful Due to Pydantic conflict? to make pylance works. The code became more complex then necessary.
+TL;DR: DO NOT DO.  Static checker like pylance was not able to discover Model's fields. Implementation unsuccessful Due to Pydantic conflict?  The code became more complex then necessary.
 
 ## 1. Analysis
 
