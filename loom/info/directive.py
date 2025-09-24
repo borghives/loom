@@ -230,19 +230,54 @@ class LoadDirective[T: Persistable]:
             self._aggregation_expr | post_agg, self._persist_cls.get_fields_with_metadata(NormalizeQueryInput))
 
    # --- parsing field from persistence ---
-def parse_filter(filter: Filter | dict, normalized_query_map: dict[str, list]):
+def transform_query_value(value, transformer):
+    """Recursively applies a transformer to the values within a query operator, leaving operators untouched."""
+    if isinstance(value, dict):
+        # e.g., {"$gt": 30} -> {"$gt": transformer(30)}
+        return {op: transform_query_value(op_val, transformer) for op, op_val in value.items()}
+    if isinstance(value, list):
+        # e.g., {"$in": [1, 2]} -> {"$in": [transformer(1), transformer(2)]}
+        return [transform_query_value(item, transformer) for item in value]
+    else:
+        # It's a literal value, apply the transformer
+        return transformer(value)
 
-    retval  = filter.express() if isinstance(filter, Filter) else filter
-    if not normalized_query_map or not isinstance(retval, dict):
-        return retval
+def parse_filter_recursive(expression, normalized_query_map):
+    """Recursively traverses a filter expression to apply value normalizations."""
+    if not isinstance(expression, dict):
+        return expression
 
-    for key, normalize_transformers in normalized_query_map.items():
-        if key in retval:
-            for transformer in normalize_transformers:
-                original_value = retval[key]
-                retval[key] = transform_filter_value(original_value, transformer)
+    # Handle logical operators ($and, $or, etc.)
+    for logical_op in ("$and", "$or", "$nor"):
+        if logical_op in expression:
+            expression[logical_op] = [parse_filter_recursive(sub, normalized_query_map) for sub in expression[logical_op]]
+            return expression
+    if "$not" in expression:
+        expression["$not"] = parse_filter_recursive(expression["$not"], normalized_query_map)
+        return expression
 
-    return retval
+    # Handle field-level expressions
+    output_expression = {}
+    for field, value in expression.items():
+        if field in normalized_query_map:
+            transformers = normalized_query_map[field]
+            new_value = value
+            for t in transformers:
+                new_value = transform_query_value(new_value, t)
+            output_expression[field] = new_value
+        else:
+            output_expression[field] = value
+    return output_expression
+
+def parse_filter(filter_obj: Filter | dict, normalized_query_map: dict[str, list]):
+    """
+    Parses a Filter object, recursively applying query normalization transformations.
+    """
+    expression = filter_obj.express() if isinstance(filter_obj, Filter) else filter_obj
+    if not normalized_query_map:
+        return expression
+    return parse_filter_recursive(expression, normalized_query_map)
+
 
 def parse_agg_stage(stage: str, expr, normalized_query_map: dict[str, list]) -> dict:
     if stage == "$match":
@@ -251,15 +286,7 @@ def parse_agg_stage(stage: str, expr, normalized_query_map: dict[str, list]) -> 
     return {stage: expr}
 
 def parse_agg_pipe(aggregation: Aggregation, normalized_query_map: dict[str, list]) -> list[dict]:
-    return [parse_agg_stage(stage, expr, normalized_query_map) for stage, expr in aggregation]    
-
-def transform_filter_value(original_value, transformer):
-    if isinstance(original_value, list):
-        return [transform_filter_value(v, transformer) for v in original_value]
-    if isinstance(original_value, dict):
-        return {k: transform_filter_value(v, transformer) for k, v in original_value.items()}
-    else:
-        return transformer(original_value)
+    return [parse_agg_stage(stage, expr, normalized_query_map) for stage, expr in aggregation]
     
 
 
