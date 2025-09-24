@@ -316,16 +316,6 @@ class Persistable(Model):
         from loom.info.directive import LoadDirective
         return LoadDirective[T](cls).aggregation(aggregation)
     
-    @classmethod
-    def find_simple[T: Persistable](cls: Type[T], filter: Filter = Filter()):
-        """
-        Loads a document from the database using the find(...) method instead of aggregation.
-        This is extraneous code for the off chance that there's some performance implication with mongodb aggregation.
-
-        """
-        from loom.info.directive import LoadDirectiveSimple
-        return LoadDirectiveSimple[T](cls).filter(filter)
-
     # --- Database and Collection Configuration ---
     @classmethod
     def get_db_info(cls) -> dict:
