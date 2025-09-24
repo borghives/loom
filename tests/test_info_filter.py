@@ -96,3 +96,13 @@ def test_empty_filter_or():
     f2 = fld("a") == 1
     assert (f1 | f2).express() == {"a": 1}
     assert (f2 | f1).express() == {"a": 1}
+
+def test_or_with_none():
+    f1 = fld("a") == 1
+    combined = f1 | None
+    assert combined.express() == {"a": 1}
+
+def test_and_with_none():
+    f1 = fld("a") == 1
+    combined = f1 & None
+    assert combined.express() == {"a": 1}

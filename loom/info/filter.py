@@ -28,6 +28,9 @@ class Filter(Expression):
         """
         Combines this filter with another using a logical AND.
         """
+        if other is None:
+            return self
+
         if not isinstance(other, Filter):
             other = Filter.wrap(other)
 
@@ -46,6 +49,9 @@ class Filter(Expression):
         """
         Combines this filter with another using a logical OR.
         """
+        if other is None:
+            return self
+
         if not isinstance(other, Filter):
             other = Filter.wrap(other)
 
