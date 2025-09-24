@@ -1,20 +1,18 @@
 
-from typing import Optional
-from loom.info.expression import Expression
+from typing import Optional, Union
+
+from loom.info.expression import Expression, marshal_expression
+from loom.info.query_op import And, Or, QueryOpExpression
 
 
 class Filter(Expression):
     """Filter is MongoDb Query Predicate Expression"""
-    def __init__(self, query: Optional[dict] = None) -> None:
+    def __init__(self, query: Optional[Union[dict, QueryOpExpression]] = None) -> None:
         self._value = query if query is not None else {}
 
     def express(self):
         """Convert query operator expression"""
-
-        return {
-            key: marshal_expression(value)
-            for key, value in self._value.items()
-        }
+        return marshal_expression(self._value)
     
     @classmethod
     def wrap(cls, value) -> "Filter":
@@ -26,17 +24,37 @@ class Filter(Expression):
         
         raise ValueError(f"unsupported type {type(value)} to wrap filter")
 
-def marshal_expression(value):
-    """
-    Parses a match directive.
+    def __and__(self, other):
+        """
+        Combines this filter with another using a logical AND.
+        """
+        if not isinstance(other, Filter):
+            other = Filter.wrap(other)
 
-    Args:
-        value: The value to parse.
+        if self.is_empty():
+            return other
+        if other.is_empty():
+            return self
 
-    Returns:
-        The parsed value.
-    """
-    if isinstance(value, Expression):
-        return value.express()
+        self_clauses = self._value.data if isinstance(self._value, And) else [self]
+        other_clauses = other._value.data if isinstance(other._value, And) else [other]
+            
+        return Filter(And(self_clauses + other_clauses))
 
-    return value
+
+    def __or__(self, other):
+        """
+        Combines this filter with another using a logical OR.
+        """
+        if not isinstance(other, Filter):
+            other = Filter.wrap(other)
+
+        if self.is_empty():
+            return other
+        if other.is_empty():
+            return self
+
+        self_clauses = self._value.data if isinstance(self._value, Or) else [self]
+        other_clauses = other._value.data if isinstance(other._value, Or) else [other]
+                
+        return Filter(Or(self_clauses + other_clauses))

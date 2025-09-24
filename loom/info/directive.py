@@ -230,10 +230,10 @@ class LoadDirective[T: Persistable]:
             self._aggregation_expr | post_agg, self._persist_cls.get_fields_with_metadata(NormalizeQueryInput))
 
    # --- parsing field from persistence ---
-def parse_filter(filter: Filter | dict, normalized_query_map: dict[str, list]) -> dict:
+def parse_filter(filter: Filter | dict, normalized_query_map: dict[str, list]):
 
-    retval: dict = filter.express() if isinstance(filter, Filter) else filter
-    if not normalized_query_map:
+    retval  = filter.express() if isinstance(filter, Filter) else filter
+    if not normalized_query_map or not isinstance(retval, dict):
         return retval
 
     for key, normalize_transformers in normalized_query_map.items():

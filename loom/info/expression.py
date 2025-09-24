@@ -15,21 +15,21 @@ class Expression(ABC):
     def is_empty(self):
         value = self.express()
         return value is None or len(value) == 0
-    
-    def __and__(self, other):
-        if (other is None):
-            return self
-        
-        value = self.wrap(other)
-        assert(isinstance(value, Expression))
 
-        if (value.is_empty()):
-            return self
+def marshal_expression(value):
+    """
+    Parses a match directive.
 
-        if (self.is_empty()):
-            return other
+    Args:
+        value: The value to parse.
 
-        retval = self.wrap(self.express() | value.express())
-
-        assert(retval is not None)
-        return retval
+    Returns:
+        The parsed value.
+    """
+    if isinstance(value, Expression):
+        return value.express()
+    if isinstance(value, dict):
+        return {k: marshal_expression(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [marshal_expression(v) for v in value]
+    return value

@@ -3,7 +3,7 @@ from collections import UserList
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
-from loom.info.expression import Expression
+from loom.info.expression import Expression, marshal_expression
 from loom.time.timeframing import TimeFrame
 from loom.time.util import to_utc_aware
 
@@ -207,3 +207,19 @@ class Time(QueryOpExpression):
     
     def in_frame(self, frame: TimeFrame) -> "Time":
         return self.period(frame.floor, frame.ceiling)
+
+class And(UserList, QueryOpExpression):
+    """
+    A match directive that creates an `$and` operator.
+    It takes a list of filter expressions.
+    """
+    def express(self) -> dict:
+        return {"$and": [marshal_expression(item) for item in self.data]}
+
+class Or(UserList, QueryOpExpression):
+    """
+    A match directive that creates an `$or` operator.
+    It takes a list of filter expressions.
+    """
+    def express(self) -> dict:
+        return {"$or": [marshal_expression(item) for item in self.data]}
