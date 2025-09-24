@@ -1,167 +1,12 @@
 from abc import ABC
-from datetime import datetime
-from enum import Enum
 import hashlib
 import json
-from typing import Annotated, Optional, Type
+from typing import Optional, Type
 
 from bson import ObjectId
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PlainSerializer, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
-from loom.time.util import get_current_time, to_utc_aware
-
-class UpdateType(Enum):
-    """
-    Specifies the type of MongoDB update operation for a field.
-    """
-
-    SET_ON_INSERT = "$setOnInsert"
-    SET = "$set"
-    INC = "$inc"
-
-
-class Collapsible:
-    """
-    Abstract base for annotations that generate a value on demand.
-
-    This pattern is used for fields that get a final form of their value when they are
-    explicitly "collapsed".  The __call__ function should be idempotent as in f(f(x)) == f(x).
-    """
-
-    def __call__(self, v):
-        raise NotImplementedError()
-
-
-class CoalesceOnInsert(Collapsible):
-    """
-    A Collapsible that finalize a value on document creation for database insertion (not update).
-    """
-
-    def __init__(self, collapse):
-        self.collapse = collapse
-
-    def __call__(self, v):
-        if v is None:
-            return self.collapse()
-        return v
-
-
-class CoalesceOnIncr(Collapsible):
-    """
-    A Collapsible that provides an increment value on update.
-
-    If the field's value is `None`, it calls the `collapse` function to generate
-    a new value. This is intended for use with `$inc` operations.
-    """
-
-    def __init__(self, collapse):
-        self.collapse = collapse
-
-    def __call__(self, v):
-        if v is None:
-            return self.collapse()
-        return v
-
-class Refreshable:
-    """
-    Abstract base for annotations that refresh a value on demand.
-
-    This pattern is used for fields that get a final form of their value when they are
-    explicitly "refreshed".  The __call__ function should be idempotent as in f(f(x)) == f(x).
-    """
-    def __init__(self, refresh):
-        self.refresh = refresh
-
-    def __call__(self, v):
-        return self.refresh(v)
-
-class RefreshOnSet(Refreshable):
-    """
-    A Refreshable that provides a value on any database update (not insertion).
-    This is intended when a value needs to be refreshed on every save.
-    """
-
-
-class RefreshOnDataframeInsert(Refreshable):
-    """
-    A Refreshable that provides a value on database dataframe insertion.
-    This is intended when a value needs to be refreshed on dataframe insertion.
-    """
-
-class NormalizeValue(Refreshable):
-    """
-    A Refreshable that provides a normalize value for query input.
-
-    This is intended for use with query input where a value needs to be
-    normalized based the field attribute.
-    """
-
-class NormalizeQueryInput(Refreshable):
-    """
-    A Refreshable that provides a normalize value for query input.
-
-    This is intended for use with query input where a value needs to be
-    normalized based the field attribute.
-    """
-
-class BeforeSetAttr(Refreshable):
-    """
-    An annotation to transform a value before it is set on a model field.
-    This only applies when the model has been fully initialized.
-
-    This is used within the model's `__setattr__` to apply a function to the
-    value before it is assigned to the attribute.
-    """
-
-class InitializeValue(Refreshable):
-    """
-    An annotation to transform a value before it is initialized.
-
-    This is used within the model's `__init__` to apply a function to the value
-    """
-
-def coalesce(value, transformers: list):
-    """Applies a list of transformers sequentially to a value."""
-    for transformer in transformers:
-        value = transformer(value)
-    return value
-
-#: An annotated string type that automatically converts the value to uppercase.
-StrUpper = Annotated[
-    str,
-    NormalizeValue(str.upper),
-    NormalizeQueryInput(str.upper),
-]
-
-#: An annotated string type that automatically converts the value to lowercase.
-StrLower = Annotated[
-    str,
-    NormalizeValue(str.lower),
-    NormalizeQueryInput(str.lower),
-]
-
-#: A datetime field that defaults to the current UTC time on document creation.
-TimeInserted = Annotated[
-    datetime | None,
-    AfterValidator(lambda x: to_utc_aware(x) if x is not None else None),
-    CoalesceOnInsert(get_current_time),
-    Field(default=None),
-]
-
-#: A datetime field that defaults to the current UTC time on document update.
-TimeUpdated = Annotated[
-    datetime | None,
-    AfterValidator(lambda x: to_utc_aware(x) if x is not None else None),
-    RefreshOnSet(lambda x: get_current_time()),
-    Field(default=None),
-]
-
-JsObjectId = Annotated[
-    ObjectId, PlainSerializer(str, when_used="json")
-]  # A serializer for ObjectId to convert it to a string in JSON output.
-JsSet = Annotated[
-    set, PlainSerializer(list, when_used="json")
-]  # A serializer for set to convert it to a list in JSON output.
+from loom.info.field import InitializeValue, NormalizeValue, BeforeSetAttr, coalesce
 
 
 class Model(ABC, BaseModel):
@@ -179,7 +24,7 @@ class Model(ABC, BaseModel):
             on first access if one is not already present.
     """
 
-    id: JsObjectId | None = Field(
+    id: ObjectId | None = Field(
         description="A universal id that this model entity can be linked with.",
         alias="_id",
         default=None,

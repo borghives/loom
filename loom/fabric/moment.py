@@ -4,7 +4,7 @@ from datetime import datetime
 from functools import total_ordering
 from pydantic import ConfigDict
 from pyrsistent import PVector, pvector
-from loom.info.model import StrUpper
+from loom.info.field import StrUpper
 from loom.info.persistable import Persistable
 from loom.time.timeframing import DailyFrame, TimeFrame
 from loom.time.util import EASTERN_TIMEZONE, to_utc_aware

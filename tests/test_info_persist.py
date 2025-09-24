@@ -12,8 +12,8 @@ from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 
 import loom as lm
-from loom.info import CoalesceOnInsert, RefreshOnSet, Persistable, IncrCounter, declare_persist_db
-from loom.info.model import StrLower, StrUpper
+from loom.info import Persistable, IncrCounter, declare_persist_db
+from loom.info.field import StrLower, StrUpper, CoalesceOnInsert, RefreshOnSet
 
 
 

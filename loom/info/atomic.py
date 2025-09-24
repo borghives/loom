@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pydantic import AfterValidator
 
-from loom.info.model import BeforeSetAttr, CoalesceOnIncr, InitializeValue
+from loom.info.field import BeforeSetAttr, CoalesceOnIncr, InitializeValue
 
 
 class IntCounter(int):

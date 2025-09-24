@@ -1,7 +1,6 @@
 from typing import Annotated
-from loom.info.model import Model, NormalizeQueryInput
-from loom.info.filter import Filter
-from loom.info.field import fld
+from loom.info.model import Model
+from loom.info.field import fld, NormalizeQueryInput
 from loom.info.directive import parse_filter
 
 # Define a simple model with a field that uses NormalizeQueryInput for uppercasing.
@@ -56,14 +55,15 @@ def test_parse_filter_nested():
     normalized_query_map = MyTestModel.get_fields_with_metadata(NormalizeQueryInput)
     
     f = (fld("age") < 20) & ((fld("name") == "john") | (fld("name") == "jane"))
-    parsed = parse_filter(f, normalized_query_map)
-    
+    parsed_f = parse_filter(f, normalized_query_map)
+    assert isinstance(parsed_f, dict)
+
     # Note: The exact order of the outer $and clauses may vary based on evaluation order,
     # so we check the components.
-    assert "$and" in parsed
-    assert len(parsed["$and"]) == 2
-    assert {"age": {"$lt": 20}} in parsed["$and"]
-    assert {"$or": [{"name": "JOHN"}, {"name": "JANE"}]} in parsed["$and"]
+    assert "$and" in parsed_f
+    assert len(parsed_f["$and"]) == 2
+    assert {"age": {"$lt": 20}} in parsed_f["$and"]
+    assert {"$or": [{"name": "JOHN"}, {"name": "JANE"}]} in parsed_f["$and"]
 
 def test_parse_filter_with_operator():
     """Tests normalization on a field with an operator like $in."""

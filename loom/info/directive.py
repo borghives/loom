@@ -12,7 +12,7 @@ import polars as pl
 from loom.info.aggregation import Aggregation
 from loom.info.filter import Filter
 from loom.info.sort_op import SortDesc, SortOp
-from loom.info.model import NormalizeQueryInput
+from loom.info.field import NormalizeQueryInput
 from loom.info.persistable import Persistable
 
 class LoadDirective[T: Persistable]:

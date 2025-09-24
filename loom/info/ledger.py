@@ -2,7 +2,7 @@ from typing import Optional
 
 from pymongo import InsertOne
 
-from loom.info.model import CoalesceOnInsert, RefreshOnSet
+from loom.info.field import CoalesceOnInsert, RefreshOnSet
 from loom.info.persistable import Persistable
 
 TIMESERIES_META_NAME = "_db_series_metadata"
@@ -43,7 +43,7 @@ class LedgerModel(Persistable):
         if result:
             self._id = result.inserted_id
 
-        self.has_update = False
+        self._has_update = False
         return True
 
     @classmethod

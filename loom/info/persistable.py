@@ -9,17 +9,19 @@ from pymongo.database import Database
 from pymongo.errors import BulkWriteError
 
 from pymongoarrow.api import Schema #type: ignore
-from loom.info.field import fld
-from loom.info.filter import Filter
-from loom.info.aggregation import Aggregation
-from loom.info.model import (
+from loom.info.field import (
+    fld,
     CoalesceOnIncr,
     CoalesceOnInsert,
-    Model,
     RefreshOnDataframeInsert,
     RefreshOnSet,
     TimeInserted,
     TimeUpdated,
+)
+from loom.info.filter import Filter
+from loom.info.aggregation import Aggregation
+from loom.info.model import (
+    Model,
     coalesce,
 )
 from loom.info.universal import get_local_db_client, get_remote_db_client
