@@ -160,7 +160,7 @@ def get_local_db_client(
 
     local_db_client = getattr(thread_data, "local_db_client", None)
     if local_db_client is None:
-        local_db_client = pymongo.MongoClient(full_mongodb_uri)
+        local_db_client = pymongo.MongoClient(full_mongodb_uri, tz_aware=True)
         setattr(thread_data, "local_db_client", local_db_client)
     return local_db_client
 
@@ -210,7 +210,7 @@ def get_remote_db_client(
     remote_db_client = getattr(thread_data, f"remote_db_client_{client_name}", None)
     if remote_db_client is None:
         full_url = mongodb_uri % access_secret(secret_id)
-        remote_db_client = pymongo.MongoClient(full_url)
+        remote_db_client = pymongo.MongoClient(full_url, tz_aware=True)
         setattr(thread_data, f"remote_db_client_{client_name}", remote_db_client)
 
     return remote_db_client

@@ -1,6 +1,6 @@
 [project]
 name = "loom"
-version = "2.6.0"
+version = "2.6.1"
 description = "A Python library for data analysis and persistence."
 authors = [
     {name = "Ed Dao",email = "ed@intellogic.com"}
