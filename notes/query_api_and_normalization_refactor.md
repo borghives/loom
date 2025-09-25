@@ -7,7 +7,7 @@ This document provides a detailed analysis of the changes staged for version 2.6
 The staged changes introduce two major, interconnected improvements:
 
 1.  **New Model-Centric Query API**: The generic `fld("field_name")` helper function has been deprecated and replaced by a new, model-centric API accessed via a `Model.fields()` class method.
-2.  **Refactored Normalization Logic**: The responsibility for normalizing query values (e.g., uppercasing a string) has been moved from a centralized, brittle parsing mechanism into the new query-building objects themselves, making the process more robust and cohesive.
+2.  **Refactored Normalization Logic**: The responsibility for normalizing query values (e.g., upper-casing a string) has been moved from a centralized, brittle parsing mechanism into the new query-building objects themselves, making the process more robust and cohesive.
 
 These changes correspond to a version bump from `2.5.2` to `2.6.0`, indicating the introduction of new features.
 
