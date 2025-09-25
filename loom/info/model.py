@@ -6,7 +6,7 @@ from typing import Optional, Type
 from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
-from loom.info.field import InitializeValue, NormalizeValue, BeforeSetAttr, coalesce
+from loom.info.field import InitializeValue, ModelFields, NormalizeValue, BeforeSetAttr, coalesce
 
 
 class Model(ABC, BaseModel):
@@ -53,6 +53,11 @@ class Model(ABC, BaseModel):
             self.coalesce_field(field, transformers)
 
         self._has_initialized = True
+
+    @classmethod
+    def fields(cls):
+        return ModelFields(cls.model_fields)
+
 
     @property
     def has_update(self) -> bool:
@@ -167,11 +172,11 @@ class Model(ABC, BaseModel):
         Returns:
             A list of metadata items found on the field.
         """
-        annotation_info = cls.model_fields.get(field_name)
-        if annotation_info is None:
+        field_info = cls.model_fields.get(field_name)
+        if field_info is None:
             return []
 
-        metadata = getattr(annotation_info, "metadata", [])
+        metadata = field_info.metadata
         if hint_type is None:
             return metadata
 

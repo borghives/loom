@@ -1,9 +1,10 @@
 from datetime import datetime
 from enum import Enum
 from functools import wraps
-from typing import Annotated
+from typing import Annotated, Optional
 
 from pydantic import AfterValidator, Field
+from pydantic.fields import FieldInfo
 from loom.info.expression import Expression
 from loom.info.filter import Filter
 from loom.info.query_op import (
@@ -32,19 +33,61 @@ def suppress_warning(func):
     return wrapper
 
 class QueryableField:
-    def __init__(self, name: str):
+    def __init__(self, name: str, field_info: FieldInfo):
         self.name = name
+        self.field_info = field_info
+
+    def get_query_name(self) -> str:
+        return self.field_info.alias or self.name
+
+    def get_field_metadata(
+        self, hint_type: Optional[type] = None
+    ) -> list:
+        """
+        Gets the metadata for a specific field, optionally filtered by type.
+
+        Args:
+            field_name: The name of the field to inspect.
+            hint_type (type, optional): If provided, only metadata items of this type are
+                returned. Defaults to None.
+
+        Returns:
+            A list of metadata items found on the field.
+        """
+
+        metadata = self.field_info.metadata
+        if hint_type is None:
+            return metadata
+
+        return [item for item in metadata if isinstance(item, hint_type)]
+    
+    def normalize_query_input(self, value):
+        transformers = self.get_field_metadata(NormalizeQueryInput)
+        if (transformers is None or len(transformers) == 0):
+            return value
+        
+        if isinstance(value, dict):
+            return {k: self.normalize_query_input(v) for k, v in value.items()}
+        
+        if isinstance(value, list):
+            return [self.normalize_query_input(v) for v in value]
+        
+        return coalesce(value, transformers)
 
     def __gt__(self, other) -> Filter:
+        other=self.normalize_query_input(other)
         return self.predicate(Gt(other))
 
     def __lt__(self, other) -> Filter:
+        other=self.normalize_query_input(other)
         return self.predicate(Lt(other))
 
     def __ge__(self, other) -> Filter:
+        other=self.normalize_query_input(other)
         return self.predicate(Gte(other)) 
 
     def __le__(self, other) -> Filter:
+        other=self.normalize_query_input(other)
         return self.predicate(Lte(other)) 
 
     @suppress_warning
@@ -53,24 +96,30 @@ class QueryableField:
             return self.is_enum(other)
         
         if isinstance(other, Expression):
-            return self.predicate(Eq(other)) 
+            return self.predicate(Eq(other))
         
-        return Filter({self.name: other})
+        other=self.normalize_query_input(other)
+        return Filter({self.get_query_name(): other})
 
     @suppress_warning
     def __ne__(self, other) -> Filter:
+        other=self.normalize_query_input(other)
         return self.predicate(Ne(other)) 
 
     def is_in(self, other) -> Filter:
+        other=self.normalize_query_input(other)
         return self.predicate(In(other)) 
     
     def is_not_in(self, other) -> Filter:
+        other=self.normalize_query_input(other)
         return self.predicate(NotIn(other))
     
     def is_all(self, other) -> Filter:
+        other=self.normalize_query_input(other)
         return self.predicate(All(other))
     
     def is_not_all(self, other) -> Filter:
+        other=self.normalize_query_input(other)
         return self.predicate(NotAll(other))
     
     def is_within(self, other: Time | TimeFrame):
@@ -82,13 +131,13 @@ class QueryableField:
     def is_enum(self, other: Enum) -> Filter:
         if (other.value == "ANY"):
             return Filter()
-        return Filter({self.name: other.value})
+        return Filter({self.get_query_name(): other.value})
     
     def is_false(self) -> Filter:
-        return Filter({self.name: False})
+        return Filter({self.get_query_name(): False})
     
     def is_true(self) -> Filter:
-        return Filter({self.name: True})
+        return Filter({self.get_query_name(): True})
     
     def is_exists(self) -> Filter:
         return self.predicate(Exists(True))
@@ -97,10 +146,10 @@ class QueryableField:
         return self.predicate(Exists(False))
     
     def is_none_or_missing(self) -> Filter:
-        return Filter({self.name: None})
+        return Filter({self.get_query_name(): None})
     
     def predicate(self, query_op: QueryOpExpression) -> Filter:
-        return Filter({self.name: query_op})
+        return Filter({self.get_query_name(): query_op})
 
 
 class Collapsible:
@@ -238,5 +287,16 @@ TimeUpdated = Annotated[
     RefreshOnSet(lambda x: get_current_time()),
     Field(default=None),
 ]
+
+class ModelFields:
+    def __init__(self, fields: dict[str, FieldInfo]):
+        self.fields = fields
     
-fld = QueryableField
+    def __getitem__(self, key) -> QueryableField:
+        return QueryableField(key, self.fields[key])
+    
+    def __len__(self):
+        return len(self.fields)
+    
+    def __contains__(self, key):
+        return key in self.fields

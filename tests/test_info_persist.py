@@ -11,7 +11,6 @@ from pydantic import Field
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 
-import loom as lm
 from loom.info import Persistable, IncrCounter, declare_persist_db
 from loom.info.field import StrLower, StrUpper, CoalesceOnInsert, RefreshOnSet
 
@@ -23,6 +22,7 @@ class TestModel(Persistable):
     value: int
     link_id: ObjectId | None = None
 
+test_fld = TestModel.fields()
 
 @declare_persist_db(collection_name="test_inc_collection", db_name="test_db", test=True)
 class TestIncModel(Persistable):
@@ -194,6 +194,11 @@ class PersistableTest(unittest.TestCase):
 
         # 3. Load from DB, increment again, and persist
         assert model.id is not None
+        
+        field = TestIncModel.fields()["counter"]
+        assert field is not None
+
+
         loaded_model = cast(TestIncModel, TestIncModel.from_id(model.id))
         assert loaded_model is not None
         assert loaded_model.counter == 2
@@ -202,6 +207,7 @@ class PersistableTest(unittest.TestCase):
         loaded_model.persist()
 
         # 4. Check the database for the updated state
+        rich.print(model.self_filter())
         db_data_updated = collection.find_one(model.self_filter())
         assert db_data_updated is not None
         # 2 + 3 = 5
@@ -333,24 +339,25 @@ class TestLoadDirective(unittest.TestCase):
         self.collection.delete_many({})
 
     def test_load_one(self):
-        user = TestModel.filter(lm.fld('name') == "Alice").load_one()
+        
+        user = TestModel.filter(test_fld['name'] == "Alice").load_one()
         self.assertIsNotNone(user)
         self.assertIsInstance(user, TestModel)
         assert user is not None
         self.assertEqual(user.name, "Alice")
 
     def test_load_many(self):
-        users = TestModel.filter(lm.fld('value') > 35).load_many()
+        users = TestModel.filter(test_fld['value'] > 35).load_many()
         self.assertEqual(len(users), 2)
 
     def test_load_latest(self):
-        latest_user = cast(TestModel, TestModel.filter(lm.fld('name') == "Charlie").load_latest())
+        latest_user = cast(TestModel, TestModel.filter(test_fld['name'] == "Charlie").load_latest())
         self.assertIsNotNone(latest_user)
         self.assertEqual(latest_user.name, "Charlie")
 
     def test_exists(self):
-        self.assertTrue(TestModel.filter(lm.fld('name') == "Alice").exists())
-        self.assertFalse(TestModel.filter(lm.fld('name') == "David").exists())
+        self.assertTrue(TestModel.filter(test_fld['name'] == "Alice").exists())
+        self.assertFalse(TestModel.filter(test_fld['name'] == "David").exists())
 
     def test_load_dataframe(self):
         df = TestModel.filter().load_dataframe()
@@ -376,6 +383,7 @@ class TestNormModel(Persistable):
     description: StrUpper
     notes: StrLower
 
+test_norm_fld = TestNormModel.fields()
 
 class TestNormalizeQueryInput(unittest.TestCase):
     def setUp(self):
@@ -388,12 +396,12 @@ class TestNormalizeQueryInput(unittest.TestCase):
 
     def test_normalize_query_input_filter(self):
         # Query with un-normalized value
-        item = TestNormModel.filter(lm.fld('description') == 'upper').load_one()
+        item = TestNormModel.filter(test_norm_fld['description'] == 'upper').load_one()
         self.assertIsNotNone(item)
         assert item is not None
         self.assertEqual(item.description, "UPPER")
 
-        item = TestNormModel.filter(lm.fld('notes') == 'LOWER').load_one()
+        item = TestNormModel.filter(test_norm_fld['notes'] == 'LOWER').load_one()
         self.assertIsNotNone(item)
         assert item is not None
 
@@ -401,13 +409,13 @@ class TestNormalizeQueryInput(unittest.TestCase):
 
     def test_normalize_query_input_filter_in_op(self):
         # Query with un-normalized value in a list
-        item = TestNormModel.filter(lm.fld('description').is_in(['upper', 'another'])).load_one()
+        item = TestNormModel.filter(test_norm_fld['description'].is_in(['upper', 'another'])).load_one()
         self.assertIsNotNone(item)
         assert item is not None
 
         self.assertEqual(item.description, "UPPER")
 
-        item = TestNormModel.filter(lm.fld('notes').is_in(['LOWER', 'ANOTHER'])).load_one()
+        item = TestNormModel.filter(test_norm_fld['notes'].is_in(['LOWER', 'ANOTHER'])).load_one()
         self.assertIsNotNone(item)
         assert item is not None
 

@@ -1,4 +1,3 @@
-from loom.info.field import fld
 from loom.info.filter import Filter
 from loom.info.persistable import Persistable, declare_persist_db
 from loom.info.atomic import IncrCounter
@@ -13,7 +12,6 @@ from loom.info.query_op import Time
 
 __all__ = [
     "Aggregation",
-    "fld",
     "Filter",
     "Persistable",
     "declare_persist_db",

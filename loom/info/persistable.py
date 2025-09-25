@@ -10,7 +10,6 @@ from pymongo.errors import BulkWriteError
 
 from pymongoarrow.api import Schema #type: ignore
 from loom.info.field import (
-    fld,
     CoalesceOnIncr,
     CoalesceOnInsert,
     RefreshOnDataframeInsert,
@@ -306,7 +305,9 @@ class Persistable(Model):
             if not ObjectId.is_valid(id):
                 return None
             id = ObjectId(id)
-        return cls.filter(fld("_id") == id).load_one()
+
+        filter = cls.fields()["id"] == id
+        return cls.filter(filter).load_one()
     
     @classmethod
     def filter[T: Persistable](cls: Type[T], filter: Filter = Filter()):

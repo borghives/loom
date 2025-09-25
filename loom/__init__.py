@@ -1,5 +1,4 @@
 from loom.info import (
-    fld, 
     Filter, 
     Aggregation,
     SortAsc,
@@ -36,7 +35,6 @@ from loom.time import (
 
 __all__ = [
     "Aggregation",
-    "fld",
     "Filter",
     "access_secret",
     "Time",

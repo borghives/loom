@@ -12,7 +12,6 @@ import polars as pl
 from loom.info.aggregation import Aggregation
 from loom.info.filter import Filter
 from loom.info.sort_op import SortDesc, SortOp
-from loom.info.field import NormalizeQueryInput
 from loom.info.persistable import Persistable
 
 class LoadDirective[T: Persistable]:
@@ -226,8 +225,8 @@ class LoadDirective[T: Persistable]:
         return aggregate_polars_all(collection, pipeline=self.get_pipeline_expr(), schema=schema or p_cls.get_arrow_schema())
 
     def get_pipeline_expr(self, post_agg: Optional[Aggregation] = None) -> list[dict]:
-        return parse_agg_pipe(
-            self._aggregation_expr | post_agg, self._persist_cls.get_fields_with_metadata(NormalizeQueryInput))
+        return (self._aggregation_expr | post_agg).pipeline()
+
 
    # --- parsing field from persistence ---
 def transform_query_value(value, transformer):
@@ -268,26 +267,3 @@ def parse_filter_recursive(expression, normalized_query_map):
         else:
             output_expression[field] = value
     return output_expression
-
-def parse_filter(filter_obj: Filter | dict, normalized_query_map: dict[str, list]):
-    """
-    Parses a Filter object, recursively applying query normalization transformations.
-    """
-    expression = filter_obj.express() if isinstance(filter_obj, Filter) else filter_obj
-    if not normalized_query_map:
-        return expression
-    return parse_filter_recursive(expression, normalized_query_map)
-
-
-def parse_agg_stage(stage: str, expr, normalized_query_map: dict[str, list]) -> dict:
-    if stage == "$match":
-        return {"$match": parse_filter(expr, normalized_query_map)}
-
-    return {stage: expr}
-
-def parse_agg_pipe(aggregation: Aggregation, normalized_query_map: dict[str, list]) -> list[dict]:
-    return [parse_agg_stage(stage, expr, normalized_query_map) for stage, expr in aggregation]
-    
-
-
-

@@ -1,5 +1,7 @@
 # Proposal: Refactor Query Value Normalization
 
+DECISION [FINAL]: DO NOT DO. while pushing the normalization closer to the operator wrapper class might make sense in other cases, for a well define Mongo query language it makes the logic fragmented for little "Robustness" benefit.  Since the normalization logic is federated to multiple operators class, I disagree on the cohesion argument.  However, this inspires a separated change which brings the normalization closer to the ModelFields and its QueryableField (major api breaking revision 2.6).  Read query_api_and_normalization_refactor.md for more info.
+
 ## 1. Analysis
 
 The `loom/info/directive.py` module contains a mechanism for normalizing query values before they are sent to the database. This is driven by `NormalizeQueryInput` metadata on a `Model` and is implemented by a set of functions: `parse_agg_pipe`, `parse_filter_recursive`, and `transform_query_value`.
