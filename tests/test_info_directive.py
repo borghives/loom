@@ -1,11 +1,17 @@
 from loom.info.model import Model
 from loom.info.field import StrUpper
+from loom.info.persistable import Persistable
 
 class MyTestModel(Model):
     name: StrUpper
     age: int
 
 fld = MyTestModel.fields()
+
+class MyPersistence(Persistable):
+    name: str
+    age: int
+
 
 
 def test_parse_filter_simple():
@@ -66,3 +72,12 @@ def test_parse_filter_no_match():
     parsed = f.express()
     
     assert parsed == {"age": 30}
+
+
+def test_load_directive_skip():
+    """Tests the skip method of the LoadDirective."""
+
+    directive = MyPersistence.filter()
+    directive.skip(10)
+    pipeline = directive.get_pipeline_expr()
+    assert pipeline == [{"$skip": 10}]

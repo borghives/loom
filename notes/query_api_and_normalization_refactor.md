@@ -1,6 +1,6 @@
 # Analysis of Query API and Normalization Refactoring (v2.6.0)
 
-This document provides a detailed analysis of the changes staged for version 2.6.0. The changes introduce a significant refactoring of the query-building API and the query value normalization mechanism.
+This document provides a detailed analysis of the changes in version 2.6.0. The changes introduce a significant refactoring of the query-building API and the query value normalization mechanism.
 
 ## 1. Summary of Changes
 
@@ -20,7 +20,6 @@ The primary user-facing change is the removal of the `fld` helper in favor of a 
 ```python
 from loom.info import fld
 
-# Prone to typos, no autocompletion
 my_filter = fld("age") > 30
 ```
 
@@ -29,7 +28,7 @@ my_filter = fld("age") > 30
 ```python
 from my_app.models import User
 
-# Explicit, discoverable, and supports static analysis
+# Explicit, discoverable
 fields = User.fields()
 my_filter = fields['age'] > 30
 ```
@@ -43,10 +42,7 @@ my_filter = fields['age'] > 30
 ### Benefits
 
 -   **Discoverability**: The query mechanism is now an explicit part of the `Model` API (`User.fields()`), making it easier for developers to find and use.
--   **Type Safety & Autocompletion**: By accessing fields through the model, IDEs and static analysis tools can provide autocompletion and detect errors from typos in field names, preventing common runtime bugs.
 -   **Readability**: Queries are more self-documenting as they are clearly associated with the model they apply to.
-
-This change was inspired by the proposal in `notes/query_field_enhancement.md`, but uses a dictionary-style access `fields['name']` instead of attribute access `fields.name` to likely simplify the implementation.
 
 ## 3. Refactoring of Query Value Normalization
 

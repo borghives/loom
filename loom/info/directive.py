@@ -51,6 +51,19 @@ class LoadDirective[T: Persistable]:
         self._aggregation_expr = self._aggregation_expr.sort(sort)
         return self
     
+    def skip(self, skip: int) -> "LoadDirective[T]":
+        """
+        Adds a skip to the query.
+
+        Args:
+            skip (int): The number of documents to skip.
+
+        Returns:
+            LoadDirective: The `LoadDirective` object for chaining.
+        """
+        self._aggregation_expr = self._aggregation_expr.skip(skip)
+        return self
+    
     def limit(self, limit: int) -> "LoadDirective[T]":
         """
         Adds a limit to the query.
