@@ -33,11 +33,14 @@ def suppress_warning(func):
     return wrapper
 
 class QueryableField:
-    def __init__(self, name: str, field_info: FieldInfo):
+    def __init__(self, name: str, field_info: Optional[FieldInfo] = None):
         self.name = name
         self.field_info = field_info
 
     def get_query_name(self) -> str:
+        if self.field_info is None:
+            return self.name
+        
         return self.field_info.alias or self.name
 
     def get_field_metadata(
@@ -54,6 +57,8 @@ class QueryableField:
         Returns:
             A list of metadata items found on the field.
         """
+        if self.field_info is None:
+            return []
 
         metadata = self.field_info.metadata
         if hint_type is None:

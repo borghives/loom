@@ -1,10 +1,16 @@
+from typing import Optional
+
+import rich
 from loom.info.model import Model
 from loom.info.field import StrUpper
 from loom.info.persistable import Persistable
+from pydantic import Field
 
 class MyTestModel(Model):
     name: StrUpper
-    age: int
+    age: int = Field(default=0)
+    description: Optional[str] = None
+
 
 fld = MyTestModel.fields()
 
@@ -81,3 +87,10 @@ def test_load_directive_skip():
     directive.skip(10)
     pipeline = directive.get_pipeline_expr()
     assert pipeline == [{"$skip": 10}]
+
+def test_optional():
+    f = MyTestModel.fields()
+    q = f["description"]
+    n = f["name"]
+    rich.print(q)
+    rich.print(n)
