@@ -186,7 +186,7 @@ class LoadDirective[T: Persistable]:
         """
         p_cls = self._persist_cls
         collection = p_cls.get_db_collection()
-        return aggregate_arrow_all(collection, pipeline=self.get_pipeline_expr(), schema=schema or p_cls.get_arrow_schema())
+        return aggregate_arrow_all(collection, pipeline=self.get_pipeline_expr(), schema=schema)
     
     def load_dataframe(self, schema: Optional[Schema] = None) -> pd.DataFrame:
         """
@@ -200,7 +200,7 @@ class LoadDirective[T: Persistable]:
         """
         p_cls = self._persist_cls
         collection = p_cls.get_db_collection()
-        return aggregate_pandas_all(collection, pipeline=self.get_pipeline_expr(), schema=schema or p_cls.get_arrow_schema())
+        return aggregate_pandas_all(collection, pipeline=self.get_pipeline_expr(), schema=schema)
     
     def _load_dataframe_legacy(
         self,
@@ -235,7 +235,7 @@ class LoadDirective[T: Persistable]:
         """
         p_cls = self._persist_cls
         collection = p_cls.get_db_collection()
-        return aggregate_polars_all(collection, pipeline=self.get_pipeline_expr(), schema=schema or p_cls.get_arrow_schema())
+        return aggregate_polars_all(collection, pipeline=self.get_pipeline_expr(), schema=schema)
 
     def get_pipeline_expr(self, post_agg: Optional[Aggregation] = None) -> list[dict]:
         return (self._aggregation_expr | post_agg).pipeline()

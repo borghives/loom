@@ -8,22 +8,18 @@ from pymongo.collection import Collection
 from pymongo.database import Database
 from pymongo.errors import BulkWriteError
 
-from pymongoarrow.api import Schema #type: ignore
 from loom.info.field import (
     CoalesceOnIncr,
     CoalesceOnInsert,
-    RefreshOnDataframeInsert,
     RefreshOnSet,
     TimeInserted,
     TimeUpdated,
 )
 from loom.info.filter import Filter
 from loom.info.aggregation import Aggregation
-from loom.info.model import (
-    Model,
-    coalesce,
-)
+from loom.info.model import Model
 from loom.info.universal import get_local_db_client, get_remote_db_client
+
 
 class Persistable(Model):
     """
@@ -252,7 +248,7 @@ class Persistable(Model):
     @classmethod
     def insert_dataframe(
         cls, dataframe: pd.DataFrame
-    ) -> pd.DataFrame:
+    ):
         """
         Inserts a pandas DataFrame into the database.
 
@@ -263,18 +259,9 @@ class Persistable(Model):
             dataframe (pd.DataFrame): The DataFrame to insert.
         """
         if dataframe.empty:
-            return dataframe
+            return
 
         collection = cls.get_db_collection()
-
-        transformer_map = cls.get_fields_with_metadata(RefreshOnDataframeInsert)
-        for key, transformers in transformer_map.items():
-            if key in dataframe.columns:
-                dataframe[key] = dataframe[key].apply(lambda x: coalesce(x, transformers))
-
-        model_version = cls.get_model_code_version()
-        if model_version is not None:
-            dataframe["version"] = model_version
 
         try:
             collection.insert_many(
@@ -286,7 +273,7 @@ class Persistable(Model):
             if any(error['code'] != 11000 for error in bwe.details['writeErrors']):
                 raise
                 
-        return dataframe
+        return
 
     @classmethod
     def from_id(cls, id: ObjectId | str):
@@ -452,15 +439,6 @@ class Persistable(Model):
             db.create_collection(
                 name,
             )
-
-    # --- PyArrow ---
-    @classmethod
-    def get_arrow_schema(cls) -> Optional[Schema]:
-        """
-        return class specific arrow schema.  default None which let mongodb automatically assign
-        """
-        return None
-
 
 def declare_persist_db(
     collection_name: str,

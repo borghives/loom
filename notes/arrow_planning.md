@@ -102,17 +102,7 @@ class Persistable(Model):
             if "_id" in df.columns:
                 df.set_index("_id", inplace=True)
             return df
-            
-    # --- PyArrow ---
 
-    @classmethod
-    def get_arrow_schema(cls) -> Optional[Schema]:
-        """
-        None mean let PyMongoArrow infers one from the data
-        To be implemented by the inherit model return None here for default behavior
-        """
-        
-        return None
 
     @classmethod
     def aggregate_arrow(cls, aggregation: Aggregation, schema: Optional[Schema]) -> pa.Table:

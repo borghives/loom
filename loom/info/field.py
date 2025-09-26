@@ -219,12 +219,6 @@ class RefreshOnSet(Refreshable):
     """
 
 
-class RefreshOnDataframeInsert(Refreshable):
-    """
-    A Refreshable that provides a value on database dataframe insertion.
-    This is intended when a value needs to be refreshed on dataframe insertion.
-    """
-
 class NormalizeValue(Refreshable):
     """
     A Refreshable that provides a normalize value for query input.
