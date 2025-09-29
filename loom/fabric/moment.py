@@ -258,7 +258,7 @@ class MomentWindow[T : Moment]:
         frame = DailyFrame.create(moment=latest.time, tzone=EASTERN_TIMEZONE)
         return frame
 
-    def get_latest(self):
+    def get_latest(self) -> T:
         """
         Get the latest moment in the window.
 
@@ -266,3 +266,12 @@ class MomentWindow[T : Moment]:
             The latest `Moment` object.
         """
         return self.get_moments()[-1]
+    
+    def get_earliest(self) -> T:
+        """
+        Get the earliest moment in the window.
+
+        Returns:
+            The earliest `Moment` object.
+        """
+        return self.get_moments()[0]
