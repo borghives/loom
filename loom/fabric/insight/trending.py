@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 import numpy as np
 import pandas as pd
+import polars as pl
 from pydantic import BaseModel, ConfigDict, Field
 
 from loom.fabric.insight.pdf_value import PdfValue
@@ -42,19 +43,16 @@ class TrendingFrame(BaseModel):
     
 
     @classmethod
-    def consume_data(cls, option_chain_df: pd.DataFrame, target_fields: list[str], time_field: str = 'time_distance_hr') -> Optional["TrendingFrame"]:
+    def consume_data(cls, df: pl.DataFrame | pd.DataFrame, target_fields: list[str], time_field: str = 'time_distance_hr') -> Optional["TrendingFrame"]:
         """
         Factory method to create a FutureMarketFrame from a DataFrame of option chain data.
         """
-        if time_field not in option_chain_df.columns:
+        if time_field not in df.columns:
             ValueError(f"DataFrame must contain a '{time_field}' column representing time distances.")
         
-        df = option_chain_df.replace([np.inf, -np.inf], np.nan).dropna()
         data_count = len(df)
-        if data_count <= 1:
+        if len(df) <= 1:
             return None
-        
-        
         
         time_data = df[time_field].to_numpy() # time distance from a context moment
 
@@ -63,9 +61,15 @@ class TrendingFrame(BaseModel):
 
             trending_value[field] = Trending.calculate(time_data, df[field].to_numpy())
         
+        max_time = df['updated_time'].max()
+        min_time = df['updated_time'].min()
+
+        assert isinstance(max_time, datetime)
+        assert isinstance(min_time, datetime)   
+
         return cls(
-            ceiling_time    = df['updated_time'].max(),
-            floor_time      = df['updated_time'].min(),
+            ceiling_time    = max_time,
+            floor_time      = min_time,
             data_count      = data_count,
             **trending_value
         )
