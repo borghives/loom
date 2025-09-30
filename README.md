@@ -54,6 +54,8 @@ class User(lm.Persistable):
     email: str
     age: int
 
+u_fld = User.fields()
+
 # 2. Create and save a new user
 new_user = User(name="Alice", email="alice@example.com", age=30)
 new_user.persist()
@@ -70,7 +72,7 @@ retrieved_user.persist()
 print(f"User's updated time: {retrieved_user.updated_time}")
 
 # 5. Load multiple users with a filter
-active_users = User.filter(lm.fld('age') < 40).load_many()
+active_users = User.filter(u_fld['age'] < 40).load_many()
 print(f"Found {len(active_users)} active users.")
 
 # 6. Create another user to persist multiple documents at once
@@ -86,7 +88,7 @@ User.persist_many([new_user, another_user])
     -   **`LedgerModel`**: For append-only data. Every `persist()` call creates a new document, ensuring an immutable history.
     -   **`TimeSeriesLedgerModel`**: Extends `LedgerModel` for use with MongoDB's native time-series collections, configured with the `@declare_timeseries` decorator.
 -   **Fluent Query API**: Loom provides a fluent and chainable API for building queries, starting with `YourModel.filter()` or `YourModel.aggregation()`. This returns a `LoadDirective` object that you can use to build and execute your query.
--   **Expressive Filtering with `fld`**: The `fld` object allows you to create filter expressions in a more Pythonic way (e.g., `lm.fld('age') < 40`).
+-   **Expressive Filtering with `Model.fields()`**: The `YourModel.fields()` class method returns a dictionary-like object that allows you to create filter expressions in a more Pythonic way (e.g., `User.fields()['age'] < 40`).
 -   **Rich Querying and Loading**: The `LoadDirective` object provides a rich set of methods for loading data, including `load_one`, `load_many`, `load_latest`, `exists`, and methods for loading data into `pandas`, `polars`, and `pyarrow` data structures.
 -   **Bulk Operations**: Use `persist_many` and `insert_dataframe` to efficiently save multiple model instances or a whole DataFrame at once.
 
@@ -99,11 +101,14 @@ Loom 2.0 introduces a new fluent API for building and executing queries. This AP
 To start building a query, use the `filter()` or `aggregation()` class methods on your `Persistable` model. These methods return a `LoadDirective` object, which you can use to build and execute your query.
 
 ```python
+
+u_fld = User.fields()
+
 # Start a query with a filter
-directive = User.filter(lm.fld('age') > 30)
+directive = User.filter(u_fld['age'] > 30)
 
 # Start a query with an aggregation
-directive = User.aggregation(Aggregation().group({"_id": "$name", "sum_age": {"$sum": "$age"}}))
+directive = User.aggregation(lm.Aggregation().group({"_id": "$name", "sum_age": {"$sum": "$age"}}))
 ```
 
 #### Building Queries
@@ -123,9 +128,9 @@ u_fld = User.fields()
 users = User.filter(u_fld['age'] > 30).sort('age', descending=True).limit(10).load_many()
 ```
 
-#### Expressive Filtering with `fld`
+#### Expressive Filtering with `Model.fields()`
 
-The `fld` object provides a more Pythonic way to create filter expressions. You can use standard Python comparison operators to create filters.
+The `Model.fields()` method provides a more Pythonic way to create filter expressions. You can use standard Python comparison operators to create filters.
 
 ```python
 u_fld = User.fields()
