@@ -118,8 +118,9 @@ The `LoadDirective` object provides a number of methods for building queries, in
 These methods are chainable, so you can build complex queries in a single expression.
 
 ```python
+u_fld = User.fields()
 # Build a query with a filter, sort, and limit
-users = User.filter(lm.fld('age') > 30).sort(SortDesc('age')).limit(10).load_many()
+users = User.filter(u_fld['age'] > 30).sort('age', descending=True).limit(10).load_many()
 ```
 
 #### Expressive Filtering with `fld`
@@ -127,11 +128,12 @@ users = User.filter(lm.fld('age') > 30).sort(SortDesc('age')).limit(10).load_man
 The `fld` object provides a more Pythonic way to create filter expressions. You can use standard Python comparison operators to create filters.
 
 ```python
+u_fld = User.fields()
 # Find users with age between 30 and 40
-users = User.filter((lm.fld('age') >= 30) & (lm.fld('age') <= 40)).load_many()
+users = User.filter((u_fld['age'] >= 30) & (u_fld['age'] <= 40)).load_many()
 
 # Find users with name 'Alice' or 'Bob'
-users = User.filter(lm.fld('name').is_in(['Alice', 'Bob'])).load_many()
+users = User.filter(u_fld['name'].is_in(['Alice', 'Bob'])).load_many()
 ```
 
 #### Loading Data
@@ -147,8 +149,9 @@ Once you have built your query, you can use one of the `load_*` methods to execu
 - `load_table()`: Load the results into a pyarrow Table.
 
 ```python
+u_fld = User.fields()
 # Load a single user
-user = User.filter(lm.fld('name') == 'Alice').load_one()
+user = User.filter(u_fld['name'] == 'Alice').load_one()
 
 # Load all users into a pandas DataFrame
 df = User.filter().load_dataframe()
