@@ -19,6 +19,7 @@ from loom.time.util import (
     to_est_aware,
     get_current_time,
     get_current_event_time,
+    pl_col_utc,
 )
 
 __all__ = [
@@ -41,4 +42,5 @@ __all__ = [
     "get_current_time",
     "get_current_event_time",
     "align_to_human_timeframe",
+    "pl_col_utc",
 ]
