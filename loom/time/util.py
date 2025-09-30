@@ -101,7 +101,7 @@ def get_current_time() -> datetime:
     """
     return arrow.utcnow().datetime
 
-def pl_col_utc(name: str):
+def pl_col_utc(name, *more_names):
     """
     Convert a pandas column name to a Polars column name by replacing spaces with underscores.
 
@@ -111,4 +111,4 @@ def pl_col_utc(name: str):
     Returns:
         The Polars column name.
     """
-    return pl.col(name).dt.cast_time_unit('us').dt.replace_time_zone("UTC")
+    return pl.col(name, *more_names).dt.cast_time_unit('us').dt.replace_time_zone("UTC")
