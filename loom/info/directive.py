@@ -11,7 +11,7 @@ import polars as pl
 
 from loom.info.aggregation import Aggregation
 from loom.info.filter import Filter
-from loom.info.sort_op import SortDesc, SortOp
+from loom.info.sort_op import SortDesc, SortOp, SortAsc
 from loom.info.persistable import Persistable
 
 class LoadDirective[T: Persistable]:
@@ -38,17 +38,23 @@ class LoadDirective[T: Persistable]:
         self._aggregation_expr = self._aggregation_expr.match(filter)
         return self
 
-    def sort(self, sort: SortOp) -> "LoadDirective[T]":
+    def sort(self, sort: SortOp | str, descending: bool = False) -> "LoadDirective[T]":
         """
         Adds a sort to the query.
 
         Args:
-            sort (SortOp): The sort to add.
+            sort (SortOp | str): The sort to add.
+            descending (bool): Whether to sort in descending order.  Only significant is sort is a string. Defaults to `False`.
 
         Returns:
             LoadDirective: The `LoadDirective` object for chaining.
         """
-        self._aggregation_expr = self._aggregation_expr.sort(sort)
+        if isinstance(sort, SortOp):
+            sort_op = sort
+        else:
+            sort_op = SortDesc(sort) if descending else SortAsc(sort)
+
+        self._aggregation_expr = self._aggregation_expr.sort(sort_op)
         return self
     
     def skip(self, skip: int) -> "LoadDirective[T]":
