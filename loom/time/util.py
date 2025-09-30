@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
-
+import polars as pl
 import arrow
 
 # Using ZoneInfo to properly handle Daylight Saving Time for the Eastern timezone.
@@ -100,3 +100,15 @@ def get_current_time() -> datetime:
         datetime: The current time in UTC.
     """
     return arrow.utcnow().datetime
+
+def pl_col_utc(name: str):
+    """
+    Convert a pandas column name to a Polars column name by replacing spaces with underscores.
+
+    Args:
+        col: The pandas column name.
+
+    Returns:
+        The Polars column name.
+    """
+    return pl.col(name).dt.cast_time_unit('us').dt.replace_time_zone("UTC")
