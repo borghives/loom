@@ -275,3 +275,12 @@ class MomentWindow[T : Moment]:
             The earliest `Moment` object.
         """
         return self.get_moments()[0]
+    
+    def has_moments(self) -> bool:
+        """
+        Check if the window contains any moments.
+
+        Returns:
+            True if the window has moments, False otherwise.
+        """
+        return len(self.moments) > 0
