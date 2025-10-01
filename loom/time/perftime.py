@@ -73,13 +73,13 @@ class PerfTimer:
 
         return f"{name_str} -> {self.count} times in {duration_str}"
 
-def sub_timed(instance: Optional[PerfTimer], name: str, verbose: Optional[bool] = None) -> PerfTimer | nullcontext:
+def sub_timed(instance: Optional[PerfTimer | nullcontext], name: str, verbose: Optional[bool] = None) -> PerfTimer | nullcontext:
     """
     Create a sub-timer context from an existing PerfTimer instance.
     
     If the instance is None, returns a nullcontext.
     """
-    if instance is None:
+    if instance is None or isinstance(instance, nullcontext):
         return nullcontext()
     return instance.sub_timer(name=name, verbose=verbose)
 
