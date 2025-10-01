@@ -76,9 +76,10 @@ print(f"User's updated time: {retrieved_user.updated_time}")
 active_users = User.filter(u_fld['age'] < 40).load_many()
 print(f"Found {len(active_users)} active users.")
 
-# 6. Create another user to persist multiple documents at once
-another_user = User(name="Bob", email="bob@example.com", age=25)
-User.persist_many([new_user, another_user])
+# 6. Create other users to persist multiple documents at once
+user_bob = User(name="Bob", email="bob@example.com", age=25)
+user_charlie = User(name="Charlie", email="charlie@example.com", age=35)
+User.persist_many([user_bob, user_charlie])
 
 # 7. Load one user with a filter
 bob_user = User.filter(u_fld['email'] == "BOB@example.COM").load_one()
@@ -108,9 +109,6 @@ Loom 2.0 introduces a new fluent API for building and executing queries. This AP
 To start building a query, use the `filter()` or `aggregation()` class methods on your `Persistable` model. These methods return a `LoadDirective` object, which you can use to build and execute your query.
 
 ```python
-
-u_fld = User.fields()
-
 # Start a query with a filter
 directive = User.filter(u_fld['age'] > 30)
 
@@ -130,7 +128,6 @@ The `LoadDirective` object provides a number of methods for building queries, in
 These methods are chainable, so you can build complex queries in a single expression.
 
 ```python
-u_fld = User.fields()
 # Build a query with a filter, sort, and limit
 users = User.filter(u_fld['age'] > 30).sort('age', descending=True).limit(10).load_many()
 ```
@@ -140,7 +137,6 @@ users = User.filter(u_fld['age'] > 30).sort('age', descending=True).limit(10).lo
 The `Model.fields()` method provides a more Pythonic way to create filter expressions. You can use standard Python comparison operators to create filters.
 
 ```python
-u_fld = User.fields()
 # Find users with age between 30 and 40
 users = User.filter((u_fld['age'] >= 30) & (u_fld['age'] <= 40)).load_many()
 
@@ -161,12 +157,17 @@ Once you have built your query, you can use one of the `load_*` methods to execu
 - `load_table()`: Load the results into a pyarrow Table.
 
 ```python
-u_fld = User.fields()
 # Load a single user
 user = User.filter(u_fld['name'] == 'Alice').load_one()
 
 # Load all users into a pandas DataFrame
 df = User.filter().load_dataframe()
+
+# Load all users into a polars DataFrame
+polars_df = User.filter().load_polars()
+
+# Load all users into a pyarrow Table
+table = User.filter().load_table()
 ```
 
 ### Automatic Field Behaviors
@@ -197,7 +198,7 @@ Loom provides a structured way to reason about time through `TimeFrame` objects,
 import loom as lm
 
 # Get the current daily frame in US/Eastern time
-today_eastern = lm.DailyFrame(tzone=lm.EASTERN_TIMEZONE)
+today_eastern = lm.DailyFrame.create(tzone=lm.EASTERN_TIMEZONE)
 print(f"Today (ET): {today_eastern.get_pretty_value()}")
 print(f"Floor: {today_eastern.get_floor()}")
 print(f"Ceiling: {today_eastern.get_ceiling()}")
@@ -207,7 +208,7 @@ yesterday_eastern = today_eastern.get_previous_frame()
 print(f"Yesterday (ET): {yesterday_eastern.get_pretty_value()}")
 
 # Get the weekly frame for a specific moment
-weekly_frame = lm.WeeklyFrame(moment=yesterday_eastern.floor)
+weekly_frame = lm.WeeklyFrame.create(moment=yesterday_eastern.floor)
 print(f"Weekly Frame: {weekly_frame.get_pretty_value()}")
 ```
 
