@@ -242,10 +242,12 @@ class MomentWindow(Generic[T]):
         Returns:
             A list of `Moment` objects within the specified range.
         """
-        return [moment for moment in self.moments
-                if moment.time and (after is None or moment.time >= to_utc_aware(after))
+        return [
+            moment for moment in self.moments
+            if moment.time 
+                and (after is None or moment.time >= to_utc_aware(after))
                 and (before is None or moment.time <= to_utc_aware(before))
-                ]
+        ]
 
     def get_day_frame(self) -> TimeFrame:
         """
@@ -254,11 +256,11 @@ class MomentWindow(Generic[T]):
         Returns:
             A `DailyFrame` object.
         """
-        latest = self.get_latest()
-        frame = DailyFrame.create(moment=latest.time, tzone=EASTERN_TIMEZONE)
+        frame = DailyFrame.create(moment=self.latest.time, tzone=EASTERN_TIMEZONE)
         return frame
 
-    def get_latest(self) -> T:
+    @property
+    def latest(self) -> T:
         """
         Get the latest moment in the window.
 
@@ -267,7 +269,8 @@ class MomentWindow(Generic[T]):
         """
         return self.get_moments()[-1]
     
-    def get_earliest(self) -> T:
+    @property
+    def earliest(self) -> T:
         """
         Get the earliest moment in the window.
 
