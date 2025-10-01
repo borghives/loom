@@ -67,7 +67,7 @@ class PerfTimer:
             if (self.count > 1):
                 duration_str += f" ({(self.total_time / self.count):.4f} s avg)"
 
-        retval = f"{indent} - {name_str} -> {self.count} times in {duration_str}"
+        retval = f"\n{indent} - {name_str} -> {self.count} times in {duration_str}"
 
         if len(self.child_timers):
             for child in self.child_timers.values():
