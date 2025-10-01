@@ -52,7 +52,7 @@ from loom.info import Persistable, declare_persist_db, StrLower
 @declare_persist_db(db_name="my_app", collection_name="users")
 class User(Persistable):
     name: str
-    email: StrLower #StrLower is an annotated str type will normalized to lower case (querying and filtering will also lower case the search input)
+    email: StrLower #StrLower is an annotated str type that will normalized to lower case (querying and filtering will also lowercase the search input)
     age: int
 
 u_fld = User.fields()
