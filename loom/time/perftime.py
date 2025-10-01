@@ -28,9 +28,9 @@ class PerfTimer:
             if self.verbose:
                 print(self)
 
-    def sub_timer(self, name: str) -> 'PerfTimer':
+    def sub_timer(self, name: str, verbose: Optional[bool] = None) -> 'PerfTimer':
         if name not in self.child_timers:
-            self.child_timers[name] = PerfTimer(name=name, verbose=self.verbose)
+            self.child_timers[name] = PerfTimer(name=name, verbose=verbose if verbose is not None else self.verbose)
         return self.child_timers[name]
 
     def __enter__(self):
