@@ -45,13 +45,14 @@ Getting started with Loom is simple. Define your model, decorate it, and start i
 
 ```python
 import loom as lm
+from loom.info import Persistable, declare_persist_db, StrLower
 
 # 1. Define a Pydantic model and make it Persistable
 # The `_id`, `created_at`, and `updated_time` fields are handled automatically.
-@lm.declare_persist_db(db_name="my_app", collection_name="users")
-class User(lm.Persistable):
+@declare_persist_db(db_name="my_app", collection_name="users")
+class User(Persistable):
     name: str
-    email: str
+    email: StrLower #StrLower is an annotated str type will normalized to lower case (querying and filtering will also lower case the search input)
     age: int
 
 u_fld = User.fields()
@@ -78,6 +79,12 @@ print(f"Found {len(active_users)} active users.")
 # 6. Create another user to persist multiple documents at once
 another_user = User(name="Bob", email="bob@example.com", age=25)
 User.persist_many([new_user, another_user])
+
+# 7. Load one user with a filter
+bob_user = User.filter(u_fld['email'] == "BOB@example.COM").load_one()
+if bob_user:
+    print(f"Found Bob: {bob_user.name} with email: {bob_user.email}")
+
 ```
 
 ### Core Concepts
