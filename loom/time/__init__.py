@@ -22,6 +22,8 @@ from loom.time.util import (
     pl_col_utc,
 )
 
+from loom.time.perftime import PerfTimer, timed
+
 __all__ = [
     "TimeFrameResolution",
     "TimeFrame",
@@ -32,6 +34,9 @@ __all__ = [
     "QuarterlyFrame",
     "YearlyFrame",
 
+    "PerfTimer",
+    "timed",
+    
     #util
     "EASTERN_TIMEZONE",
     "EST_TIMEZONE",
@@ -43,4 +48,5 @@ __all__ = [
     "get_current_event_time",
     "align_to_human_timeframe",
     "pl_col_utc",
+    
 ]
