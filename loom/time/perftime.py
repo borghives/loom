@@ -1,6 +1,7 @@
 import time
 import functools
 from typing import Callable, Optional, Any
+from contextlib import nullcontext
 
 class PerfTimer:
     def __init__(self, name: Optional[str] = None, verbose: bool = True):
@@ -72,6 +73,15 @@ class PerfTimer:
 
         return f"{name_str} -> {self.count} times in {duration_str}"
 
+def sub_timed_context(instance: Optional[PerfTimer], name: str, verbose: Optional[bool] = None) -> PerfTimer | nullcontext:
+    """
+    Create a sub-timer context from an existing PerfTimer instance.
+    
+    If the instance is None, returns a nullcontext.
+    """
+    if instance is None:
+        return nullcontext()
+    return instance.sub_timer(name=name, verbose=verbose)
 
 def timed(func: Optional[Callable] = None, *, name: Optional[str] = None, verbose: bool = True) -> Callable:
     """
