@@ -50,6 +50,12 @@ class PerfTimer:
 
     def __str__(self):
         name_str = f"{self.name}" if self.name else "PerfTimer"
+
+        print ("---{name_str}---")
+        for child in self.child_timers.values():
+            print(child)
+        print ("----------------")
+
         if self.total_time < 1e-3:
             duration_str = f"{self.total_time * 1e6:.2f} us"
             if (self.count > 1):
