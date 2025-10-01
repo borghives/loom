@@ -1,4 +1,4 @@
-from typing import Iterator, Optional, Union
+from typing import Generic, Iterator, Optional, TypeVar, Union
 from pydantic import Field
 from datetime import datetime
 from functools import total_ordering
@@ -104,8 +104,8 @@ class Moment(Persistable):
         retval = cls(updated_time=time, **kwargs)
         return retval
 
-
-class MomentWindow[T : Moment]:
+T = TypeVar('T', bound=Moment, default=Moment)
+class MomentWindow(Generic[T]):
     """
     A window of moments in ascending time order.
 
