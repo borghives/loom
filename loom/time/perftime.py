@@ -51,7 +51,7 @@ class PerfTimer:
     def __str__(self):
         name_str = f"{self.name}" if self.name else "PerfTimer"
 
-        print ("---{name_str}---")
+        print (f"---{name_str}---")
         for child in self.child_timers.values():
             print(child)
         print ("----------------")
