@@ -19,10 +19,10 @@ class PerfTimer:
             print(self)
 
     @property
-    def duration(self) -> Optional[float]:
+    def duration(self) -> float:
         """Duration in seconds, or None if the timer hasn't finished."""
         if self._start_time is None or self._end_time is None:
-            return None
+            return 0.0
         return self._end_time - self._start_time
 
     @property
