@@ -35,16 +35,16 @@ class PerfTimer:
         return self.duration or 0.0
 
     def __str__(self):
-        name_str = f"'{self.name}'" if self.name else "PerfTimer"
+        name_str = f"{self.name}" if self.name else "PerfTimer"
         duration = self.duration
         if duration is None:
             duration = self.elapsed
 
         if duration < 1e-3:
-            return f"[{name_str}] elapsed: {duration * 1e6:.2f} us"
+            return f"{name_str} elapsed: {duration * 1e6:.2f} us"
         if duration < 1:
-            return f"[{name_str}] elapsed: {duration * 1e3:.2f} ms"
-        return f"[{name_str}] elapsed: {duration:.4f} s"
+            return f"{name_str} elapsed: {duration * 1e3:.2f} ms"
+        return f"{name_str} elapsed: {duration:.4f} s"
 
 
 def timed(func: Optional[Callable] = None, *, name: Optional[str] = None, verbose: bool = True) -> Callable:
