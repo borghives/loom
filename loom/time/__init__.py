@@ -22,7 +22,7 @@ from loom.time.util import (
     pl_col_utc,
 )
 
-from loom.time.perftime import PerfTimer, timed
+from loom.time.perftime import PerfTimer, timed, sub_timed
 
 __all__ = [
     "TimeFrameResolution",
@@ -36,6 +36,7 @@ __all__ = [
 
     "PerfTimer",
     "timed",
+    "sub_timed",
     
     #util
     "EASTERN_TIMEZONE",
