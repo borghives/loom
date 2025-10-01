@@ -4,13 +4,13 @@ from typing import Callable, Optional, Any
 from contextlib import nullcontext
 
 class PerfTimer:
-    def __init__(self, name: Optional[str] = None, verbose: bool = True):
+    def __init__(self, name: Optional[str] = None, depth: int = 0, verbose: bool = True):
         self.name = name
         self.verbose = verbose
         self.child_timers: dict[str, PerfTimer] = {}
         self.total_time: float = 0.0
         self.count: int = 0
-        self.previous_time: float = 0.0
+        self.depth: int = depth
         self._start_time: Optional[float] = None
     
     def start(self):
@@ -18,8 +18,7 @@ class PerfTimer:
 
     def stop(self):
         if self._start_time is not None:
-            self.previous_time = time.perf_counter() - self._start_time
-            self.total_time += self.previous_time
+            self.total_time += (time.perf_counter() - self._start_time)
             self._start_time = None
             self.count += 1
 
@@ -31,7 +30,7 @@ class PerfTimer:
 
     def sub_timer(self, name: str, verbose: Optional[bool] = None) -> 'PerfTimer':
         if name not in self.child_timers:
-            self.child_timers[name] = PerfTimer(name=name, verbose=verbose if verbose is not None else self.verbose)
+            self.child_timers[name] = PerfTimer(name=name, depth=self.depth + 1, verbose=verbose if verbose is not None else self.verbose)
         return self.child_timers[name]
 
     def __enter__(self):
@@ -51,12 +50,9 @@ class PerfTimer:
 
     def __str__(self):
         name_str = f"{self.name}" if self.name else "PerfTimer"
-
-        if len(self.child_timers):
-            print (f"----{name_str}----")
-            for child in self.child_timers.values():
-                print(child)
-            print ("-" * (len(name_str) + 8))
+        retval = ""
+        indent = "  " * self.depth
+        
 
         if self.total_time < 1e-3:
             duration_str = f"{self.total_time * 1e6:.2f} us"
@@ -71,7 +67,13 @@ class PerfTimer:
             if (self.count > 1):
                 duration_str += f" ({(self.total_time / self.count):.4f} s avg)"
 
-        return f"{name_str} -> {self.count} times in {duration_str}"
+        retval = f"{indent} - {name_str} -> {self.count} times in {duration_str}"
+
+        if len(self.child_timers):
+            for child in self.child_timers.values():
+                retval += f"{child}"
+        
+        return retval
 
 def sub_timed(instance: Optional[PerfTimer | nullcontext], name: str, verbose: Optional[bool] = None) -> PerfTimer | nullcontext:
     """
