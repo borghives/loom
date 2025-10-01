@@ -1,7 +1,10 @@
 from typing import Any, Optional, Tuple, Type
 
-from bson import ObjectId
 import pandas as pd
+import polars as pl
+
+from bson import ObjectId
+import pyarrow
 from pydantic import Field
 from pymongo import MongoClient, ReturnDocument, UpdateOne
 from pymongo.collection import Collection
@@ -247,7 +250,7 @@ class Persistable(Model):
 
     @classmethod
     def insert_dataframe(
-        cls, dataframe: pd.DataFrame
+        cls, dataframe: pd.DataFrame | pl.DataFrame | pyarrow.Table
     ):
         """
         Inserts a pandas DataFrame into the database.
@@ -258,15 +261,23 @@ class Persistable(Model):
         Args:
             dataframe (pd.DataFrame): The DataFrame to insert.
         """
-        if dataframe.empty:
-            return
 
         collection = cls.get_db_collection()
 
+        records : Optional[list] = None
+
+        if isinstance(dataframe, pd.DataFrame) and not dataframe.empty:
+            records = dataframe.to_dict("records")
+        elif isinstance(dataframe, pl.DataFrame) and not dataframe.is_empty():
+            records = dataframe.to_dicts()
+        elif isinstance(dataframe, pyarrow.Table) and dataframe.num_rows > 0:
+            records = dataframe.to_pylist()
+
+        if records is None or len(records) == 0:
+            return
+
         try:
-            collection.insert_many(
-                dataframe.to_dict("records"), ordered=False
-            )  # ordered false so that a duplicate key error won't stop the insert of many
+            collection.insert_many(records, ordered=False)  # ordered false so that a duplicate key error won't stop the insert of many
         except BulkWriteError as bwe:
             # If there are errors other than duplicate key (11000), re-raise the original exception.
             # This preserves the full error context for the caller to handle.
