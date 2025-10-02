@@ -4,7 +4,7 @@ from typing import Callable, Optional, Any
 from contextlib import nullcontext
 
 class PerfTimer:
-    def __init__(self, name: Optional[str] = None, depth: int = 0, verbose: bool = True):
+    def __init__(self, name: Optional[str] = None, depth: int = 0, verbose: bool = False):
         self.name = name
         self.verbose = verbose
         self.child_timers: dict[str, PerfTimer] = {}
@@ -85,7 +85,7 @@ def sub_timed(instance: Optional[PerfTimer | nullcontext], name: str, verbose: O
         return nullcontext()
     return instance.sub_timer(name=name, verbose=verbose)
 
-def timed(func: Optional[Callable] = None, *, name: Optional[str] = None, verbose: bool = True) -> Callable:
+def timed(func: Optional[Callable] = None, *, name: Optional[str] = None, verbose: bool = False) -> Callable:
     """
     A decorator to time a function.
     
