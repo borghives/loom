@@ -81,7 +81,7 @@ def sub_timed(instance: Optional[PerfTimer | nullcontext], name: str, verbose: O
     
     If the instance is None, returns a nullcontext.
     """
-    if instance is None or isinstance(instance, nullcontext):
+    if instance is None or not isinstance(instance, PerfTimer):
         return nullcontext()
     return instance.sub_timer(name=name, verbose=verbose)
 
@@ -90,6 +90,19 @@ def timed(func: Optional[Callable] = None, *, name: Optional[str] = None, verbos
     A decorator to time a function.
     
     Can be used as `@timed` or with arguments: `@timed(name='My Function')`.
+
+    This decorator also supports nested timing. If the decorated function is
+    called with a keyword argument `ptimer` that is a `PerfTimer` instance,
+    the function will be timed as a sub-timer within that parent timer.
+
+    Args:
+        func: The function to decorate.
+        name: An optional name for the timer. Defaults to the function name.
+        verbose: Whether to print the timing results.
+
+    Keyword Args (for decorated function):
+        ptimer (PerfTimer, optional): An existing PerfTimer instance to attach
+            this timing to as a sub-timer.
     """
     if func is None:
         return functools.partial(timed, name=name, verbose=verbose)
@@ -97,6 +110,14 @@ def timed(func: Optional[Callable] = None, *, name: Optional[str] = None, verbos
     @functools.wraps(func)
     def wrapper(*args, **kwargs) -> Any:
         timer_name = name or func.__name__
-        with PerfTimer(name=timer_name, verbose=verbose):
+        ptimer = kwargs.get('ptimer')
+        if ptimer is not None and isinstance(ptimer, PerfTimer):
+            perf_timer = sub_timed(ptimer, name=timer_name, verbose=verbose)
+        else:
+            perf_timer = PerfTimer(name=timer_name, verbose=verbose)
+
+        with perf_timer:
+            if ('ptimer' in kwargs):
+                kwargs['ptimer'] = perf_timer
             return func(*args, **kwargs)
     return wrapper
