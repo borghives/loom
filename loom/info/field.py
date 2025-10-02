@@ -287,6 +287,12 @@ TimeUpdated = Annotated[
     Field(default=None),
 ]
 
+TimeNorm = Annotated[
+    datetime,
+    NormalizeValue(to_utc_aware),
+    NormalizeQueryInput(to_utc_aware),
+]
+
 class ModelFields:
     def __init__(self, fields: dict[str, FieldInfo]):
         self.fields = fields
