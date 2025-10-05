@@ -91,9 +91,8 @@ def timed(func: Optional[Callable] = None, *, name: Optional[str] = None, verbos
     
     Can be used as `@timed` or with arguments: `@timed(name='My Function')`.
 
-    This decorator also supports nested timing. If the decorated function is
-    called with a keyword argument `ptimer` that is a `PerfTimer` instance,
-    the function will be timed as a sub-timer within that parent timer.
+    This decorator also supports nested timing. add `ptimer: Optional[PerfTimer] = None` to function
+    signature to allow passing an existing PerfTimer instance to attach this timing as a sub-timer
 
     Args:
         func: The function to decorate.
