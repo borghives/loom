@@ -51,7 +51,6 @@ class PerfTimer:
 
     def output_str(self, parent_total: Optional[float] = None):
         name_str = f"{self.name}" if self.name else "PerfTimer"
-        indent = "  " * self.depth
         prefix = "└── " if self.depth > 0 else ""
         if self.depth > 1:
             prefix = f"{'|  ' * (self.depth - 1)}└── "
@@ -75,7 +74,7 @@ class PerfTimer:
             percentage = (self.total_time / parent_total) * 100
             percentage_str = f" ({percentage:.1f}%)"
 
-        retval = f"\n{indent}{prefix}{name_str} -> {self.count} times in {duration_str}{percentage_str}"
+        retval = f"\n{prefix}{name_str} -> {self.count} times in {duration_str}{percentage_str}"
 
         if len(self.child_timers):
             # Sort children by total_time descending to show heaviest hitters first
