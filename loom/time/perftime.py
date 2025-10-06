@@ -137,7 +137,8 @@ def timed(func: Optional[Callable] = None, *, name: Optional[str] = None, verbos
                 perf_timer = PerfTimer(name=timer_name, verbose=verbose)
 
             with perf_timer:
-                if 'ptimer' in func.__annotations__:
+                sig = inspect.signature(func)
+                if 'ptimer' in sig.parameters:
                     kwargs['ptimer'] = perf_timer
                 return await func(*args, **kwargs)
         return async_wrapper
@@ -151,7 +152,8 @@ def timed(func: Optional[Callable] = None, *, name: Optional[str] = None, verbos
                 perf_timer = PerfTimer(name=timer_name, verbose=verbose)
 
             with perf_timer:
-                if ('ptimer' in func.__annotations__):
+                sig = inspect.signature(func)
+                if 'ptimer' in sig.parameters:
                     kwargs['ptimer'] = perf_timer
                 return func(*args, **kwargs)
         return sync_wrapper
