@@ -85,7 +85,7 @@ def sub_timed(instance: Optional[PerfTimer | nullcontext], name: str, verbose: O
         return nullcontext()
     return instance.sub_timer(name=name, verbose=verbose)
 
-def timed(func: Optional[Callable] = None, *, name: Optional[str] = None, verbose: Optional[bool] = None) -> Callable:
+def timed(func: Optional[Callable] = None, *, name: Optional[str] = None, verbose: bool = False) -> Callable:
     """
     A decorator to time a function.
     
@@ -113,7 +113,7 @@ def timed(func: Optional[Callable] = None, *, name: Optional[str] = None, verbos
         if ptimer is not None and isinstance(ptimer, PerfTimer):
             perf_timer = sub_timed(ptimer, name=timer_name, verbose=verbose)
         else:
-            perf_timer = PerfTimer(name=timer_name, verbose=verbose if verbose is not None else False)
+            perf_timer = PerfTimer(name=timer_name, verbose=verbose)
 
         with perf_timer:
             if ('ptimer' in func.__annotations__):
