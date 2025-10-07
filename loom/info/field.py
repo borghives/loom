@@ -306,4 +306,3 @@ class ModelFields:
     def __contains__(self, key):
         return key in self.fields
     
-fld = QueryableField

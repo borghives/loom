@@ -5,6 +5,7 @@ from loom.info import (
     SortDesc,
     SortOp,
     Time,
+    QueryableField
 )
 
 from loom.info.universal import access_secret
@@ -31,7 +32,7 @@ from loom.time import (
     align_to_human_timeframe,
 )
 
-
+fld = QueryableField
 
 __all__ = [
     "Aggregation",
@@ -61,6 +62,7 @@ __all__ = [
     "get_current_event_time",
     "align_to_human_timeframe",
 
+    "fld",
     "SortOp",
     "SortAsc",
     "SortDesc",
