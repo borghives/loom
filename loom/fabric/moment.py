@@ -104,7 +104,7 @@ class Moment(Persistable):
         retval = cls(updated_time=time, **kwargs)
         return retval
 
-T = TypeVar('T', bound=Moment, default=Moment)
+T = TypeVar('T', bound=Moment)
 class MomentWindow(Generic[T]):
     """
     A window of moments in ascending time order.

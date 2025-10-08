@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple, Type
+from typing import Any, Optional, Tuple, Type, TypeVar
 
 import pandas as pd
 import polars as pl
@@ -23,6 +23,7 @@ from loom.info.aggregation import Aggregation
 from loom.info.model import Model
 from loom.info.universal import get_local_db_client, get_remote_db_client
 
+PersistableType = TypeVar("PersistableType", bound="Persistable")
 
 class Persistable(Model):
     """
@@ -308,14 +309,14 @@ class Persistable(Model):
         return cls.filter(filter).load_one()
     
     @classmethod
-    def filter[T: Persistable](cls: Type[T], filter: Filter = Filter()):
+    def filter(cls: Type[PersistableType], filter: Filter = Filter()):
         from loom.info.directive import LoadDirective
-        return LoadDirective[T](cls).filter(filter)
+        return LoadDirective[PersistableType](cls).filter(filter)
 
     @classmethod
-    def aggregation[T: Persistable](cls: Type[T], aggregation: Aggregation = Aggregation()):
+    def aggregation(cls: Type[PersistableType], aggregation: Aggregation = Aggregation()):
         from loom.info.directive import LoadDirective
-        return LoadDirective[T](cls).aggregation(aggregation)
+        return LoadDirective[PersistableType](cls).aggregation(aggregation)
     
     # --- Database and Collection Configuration ---
     @classmethod

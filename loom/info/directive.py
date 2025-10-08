@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import Generic, Optional, Type, TypeVar
 from pymongoarrow.api import ( #type: ignore
     Schema,  Table,
     aggregate_arrow_all,
@@ -14,7 +14,9 @@ from loom.info.filter import Filter
 from loom.info.sort_op import SortDesc, SortOp, SortAsc
 from loom.info.persistable import Persistable
 
-class LoadDirective[T: Persistable]:
+T = TypeVar("T", bound=Persistable)
+
+class LoadDirective(Generic[T]):
     """
     A directive for loading data from a `Persistable` model.
 

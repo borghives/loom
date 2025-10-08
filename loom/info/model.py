@@ -1,12 +1,15 @@
 from abc import ABC
 import hashlib
 import json
-from typing import Optional, Type
+from typing import Optional, Type, TypeVar
 
 from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
 from loom.info.field import InitializeValue, ModelFields, NormalizeValue, BeforeSetAttr, coalesce
+
+
+ModelGen = TypeVar("ModelGen", bound="Model")
 
 
 class Model(ABC, BaseModel):
@@ -183,7 +186,7 @@ class Model(ABC, BaseModel):
         return [item for item in metadata if isinstance(item, hint_type)]
 
     @classmethod
-    def from_doc[T: Model](cls: Type[T], doc: dict):
+    def from_doc(cls: Type[ModelGen], doc: dict):
         """
         Creates a model instance from a MongoDB document.
 

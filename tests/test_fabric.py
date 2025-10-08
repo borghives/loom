@@ -149,7 +149,7 @@ def test_get_latest_and_day_frame(moments):
     """Tests getting the latest moment and its daily frame."""
     window = MomentWindow(moments=moments)
     
-    latest_moment = window.get_latest()
+    latest_moment = window.latest
     assert latest_moment == moments[-1]
     
     day_frame = window.get_day_frame()
