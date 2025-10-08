@@ -1,6 +1,6 @@
 [project]
 name = "loom"
-version = "2.8.1"
+version = "2.8.2"
 description = "A Python library for data analysis and persistence."
 authors = [
     {name = "Ed Dao",email = "ed@intellogic.com"}
@@ -14,18 +14,18 @@ repository = "https://github.com/borghives/loom"
 dependencies = [
     "pydantic (>=2.11.7,<3.0.0)",
     "pyrsistent (>=0.20.0,<0.21.0)",
-    "rich (>=14.1.0,<15.0.0)",
+    "rich (>=12.4.4,<14.0.0)",
     "google-cloud-secret-manager (>=2.24.0,<3.0.0)",
     "pymongo (>=4.14.1,<5.0.0)",
     "keyring (>=25.6.0,<26.0.0)",
-    "pandas (>=2.3.2,<3.0.0)",
+    "pandas (>=2.2.2,<3.0.0)",
     "scipy (>=1.16.1,<2.0.0)",
     "scipy-stubs (>=1.16.1.1,<2.0.0.0)",
     "arrow (>=1.3.0,<2.0.0)",
     "pymongoarrow (>=1.10.0,<2.0.0)",
-    "pyarrow-stubs (>=20.0.0.20250825,<21.0.0.0)",
-    "pyarrow (>=21.0.0,<22.0.0)",
-    "polars (>=1.33.1,<2.0.0)",
+    "pyarrow-stubs (>=18.1.0,<21.0.0.0)",
+    "pyarrow (>=18.0.0,<22.0.0)",
+    "polars (>=1.25.0,<2.0.0)",
     "python-dotenv (>=1.1.1,<2.0.0)"
 ]
 
