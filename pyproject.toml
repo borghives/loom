@@ -1,6 +1,6 @@
 [project]
 name = "loom"
-version = "2.8.0"
+version = "2.8.1"
 description = "A Python library for data analysis and persistence."
 authors = [
     {name = "Ed Dao",email = "ed@intellogic.com"}
@@ -25,7 +25,8 @@ dependencies = [
     "pymongoarrow (>=1.10.0,<2.0.0)",
     "pyarrow-stubs (>=20.0.0.20250825,<21.0.0.0)",
     "pyarrow (>=21.0.0,<22.0.0)",
-    "polars (>=1.33.1,<2.0.0)"
+    "polars (>=1.33.1,<2.0.0)",
+    "python-dotenv (>=1.1.1,<2.0.0)"
 ]
 
 [build-system]
