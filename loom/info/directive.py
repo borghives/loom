@@ -98,6 +98,21 @@ class LoadDirective(Generic[T]):
         self._aggregation_expr = self._aggregation_expr.sample(sample)
         return self
     
+    def count(self) -> int:
+        """
+        Executes a count query on the model's collection.
+
+        Returns:
+            int: The number of documents matching the filter.
+        """
+        self._aggregation_expr = self._aggregation_expr.count("count")
+        with self.exec_aggregate() as cursors:
+            for result in cursors:
+                return result.get("count", 0)
+        return 0
+        
+
+    
     def aggregation(self, aggregation: Aggregation) -> "LoadDirective[T]":
         """
         Adds an aggregation pipeline to the query.

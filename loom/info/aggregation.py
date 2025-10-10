@@ -305,6 +305,11 @@ class Aggregation:
             return self
 
         return Aggregation(self.stages.append(freeze({"$sample": {"size": size}})))
+    
+    def count(self, field: str) -> "Aggregation":
+        return Aggregation(self.stages.append(freeze({"$count": field})))
+
+
 
     def graph_lookup(self, fields: dict) -> "Aggregation":
         """
