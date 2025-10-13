@@ -81,18 +81,28 @@ class QueryableField:
 
     def __gt__(self, other) -> Filter:
         other=self.normalize_query_input(other)
+        if other is None:
+            return Filter()
+
         return self.predicate(Gt(other))
 
     def __lt__(self, other) -> Filter:
         other=self.normalize_query_input(other)
+        if other is None:
+            return Filter()
+        
         return self.predicate(Lt(other))
 
     def __ge__(self, other) -> Filter:
         other=self.normalize_query_input(other)
+        if other is None:
+            return Filter()
         return self.predicate(Gte(other)) 
 
     def __le__(self, other) -> Filter:
         other=self.normalize_query_input(other)
+        if other is None:
+            return Filter()
         return self.predicate(Lte(other)) 
 
     @suppress_warning
@@ -104,27 +114,40 @@ class QueryableField:
             return self.predicate(Eq(other))
         
         other=self.normalize_query_input(other)
+        if other is None:
+            return Filter()
+        
         return Filter({self.get_query_name(): other})
 
     @suppress_warning
     def __ne__(self, other) -> Filter:
         other=self.normalize_query_input(other)
+        if other is None:
+            return Filter()
         return self.predicate(Ne(other)) 
 
     def is_in(self, other) -> Filter:
         other=self.normalize_query_input(other)
+        if other is None:
+            return Filter()
         return self.predicate(In(other)) 
     
     def is_not_in(self, other) -> Filter:
         other=self.normalize_query_input(other)
+        if other is None:
+            return Filter()
         return self.predicate(NotIn(other))
     
     def is_all(self, other) -> Filter:
         other=self.normalize_query_input(other)
+        if other is None:
+            return Filter()
         return self.predicate(All(other))
     
     def is_not_all(self, other) -> Filter:
         other=self.normalize_query_input(other)
+        if other is None:
+            return Filter()
         return self.predicate(NotAll(other))
     
     def is_within(self, other: Time | TimeFrame):
