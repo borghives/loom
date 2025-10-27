@@ -1,4 +1,5 @@
-from typing import Any, Optional, Tuple, Type, TypeVar
+import asyncio
+from typing import Any, ClassVar, Optional, Tuple, Type, TypeVar
 
 import pandas as pd
 import polars as pl
@@ -6,10 +7,13 @@ import polars as pl
 from bson import ObjectId
 import pyarrow
 from pydantic import Field
-from pymongo import MongoClient, ReturnDocument, UpdateOne
+from pymongo import AsyncMongoClient, MongoClient, ReturnDocument, UpdateOne
 from pymongo.collection import Collection
 from pymongo.database import Database
 from pymongo.errors import BulkWriteError
+
+from pymongo.asynchronous.database import AsyncDatabase
+from pymongo.asynchronous.collection import AsyncCollection
 
 from loom.info.field import (
     CoalesceOnIncr,
@@ -21,7 +25,7 @@ from loom.info.field import (
 from loom.info.filter import Filter
 from loom.info.aggregation import Aggregation
 from loom.info.model import Model
-from loom.info.universal import get_local_db_client, get_remote_db_client
+from loom.info.universal import get_local_db_client, get_remote_db_client, get_async_local_db_client, get_async_remote_db_client
 
 PersistableType = TypeVar("PersistableType", bound="Persistable")
 
@@ -52,6 +56,36 @@ class Persistable(Model):
         description="Entity Created Time (does not exist if entity has not been persisted)",
         default=None,
     )
+
+    # --- Class State and Helpers ---
+    _has_class_initialized : ClassVar[bool] = False
+    _init_lock : ClassVar[asyncio.Lock] = asyncio.Lock()
+
+    @classmethod
+    async def initialize_model(cls):
+        if cls._has_class_initialized:
+            return
+        
+        async with cls._init_lock:
+            if cls._has_class_initialized:
+                return
+            
+            await cls.create_collection_async()
+            await cls.create_index_async()
+            cls._has_class_initialized = True
+
+    @classmethod
+    async def create_collection_async(cls):
+        db = cls.get_async_db()
+        collection_names = await db.list_collection_names()
+        name = cls.get_db_collection_name()
+
+        if name not in collection_names:
+            await db.create_collection(name)
+
+    @classmethod
+    async def create_index_async(cls):
+        pass
 
     # --- Instance State and Helpers ---
     @property
@@ -218,7 +252,7 @@ class Persistable(Model):
         self.on_after_persist(result)
 
         return True
-
+    
     @classmethod
     def persist_many(cls, items: list, lazy: bool = False):
         """
@@ -287,6 +321,89 @@ class Persistable(Model):
                 
         return
 
+    async def persist_async(self, lazy: bool = False) -> bool:
+        if lazy and not self.should_persist:
+            return False
+
+        collection = await self.get_async_init_collection()
+        filter_ = self.self_filter()
+        update = self.get_update_instruction()
+
+        result = await collection.find_one_and_update(
+            filter_,
+            update,
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+
+        self.on_after_persist(result)
+        return True
+
+
+    @classmethod
+    async def persist_many_async(cls, items: list, lazy: bool = False):
+        operations: list = []
+        persist_items = [
+            item
+            for item in items
+            if isinstance(item, Persistable) and (item.should_persist or not lazy)
+        ]
+
+        for item in persist_items:
+            update_op = UpdateOne(
+                item.self_filter(),
+                item.get_update_instruction(),
+                upsert=True,
+            )
+            operations.append(update_op)
+
+        if not operations:
+            return
+
+        collection = await cls.get_async_init_collection()
+        await collection.bulk_write(operations)
+
+        for item in persist_items:
+            item.on_after_persist()
+
+    @classmethod
+    async def insert_dataframe_async(
+        cls, dataframe: pd.DataFrame | pl.DataFrame | pyarrow.Table
+    ):
+        """
+        Inserts a pandas DataFrame into the database.
+
+        Note: to have RefreshOnDataframeInsert fields refresh, the columns must exist in the DataFrame.  
+        Default columns to None if to have field trigger content.
+
+        Args:
+            dataframe (pd.DataFrame): The DataFrame to insert.
+        """
+
+        collection = await cls.get_async_init_collection()
+
+        records : Optional[list] = None
+
+        if isinstance(dataframe, pd.DataFrame) and not dataframe.empty:
+            records = dataframe.to_dict("records")
+        elif isinstance(dataframe, pl.DataFrame) and not dataframe.is_empty():
+            records = dataframe.to_dicts()
+        elif isinstance(dataframe, pyarrow.Table) and dataframe.num_rows > 0:
+            records = dataframe.to_pylist()
+
+        if records is None or len(records) == 0:
+            return
+
+        try:
+            await collection.insert_many(records, ordered=False)  # ordered false so that a duplicate key error won't stop the insert of many
+        except BulkWriteError as bwe:
+            # If there are errors other than duplicate key (11000), re-raise the original exception.
+            # This preserves the full error context for the caller to handle.
+            if any(error['code'] != 11000 for error in bwe.details['writeErrors']):
+                raise
+                
+        return
+
     @classmethod
     def from_id(cls, id: ObjectId | str):
         """
@@ -307,6 +424,16 @@ class Persistable(Model):
 
         filter = cls.fields()["id"] == id
         return cls.filter(filter).load_one()
+
+    @classmethod
+    async def from_id_async(cls: Type[PersistableType], id: ObjectId | str):
+        if isinstance(id, str):
+            if not ObjectId.is_valid(id):
+                return None
+            id = ObjectId(id)
+
+        filter = cls.fields()["id"] == id
+        return await cls.filter(filter).load_one_async()
     
     @classmethod
     def filter(cls: Type[PersistableType], filter: Filter = Filter()):
@@ -390,7 +517,7 @@ class Persistable(Model):
             return get_remote_db_client()
         else:
             return get_local_db_client()
-
+        
     @classmethod
     def get_db(cls) -> Database:
         """
@@ -415,7 +542,6 @@ class Persistable(Model):
         db_name = cls.get_db_name()
         collection_name = cls.get_db_collection_name()
         return client[db_name][collection_name]
-
     @classmethod
     def is_remote_db(cls) -> bool:
         """
@@ -437,20 +563,33 @@ class Persistable(Model):
         """
         db_info = cls.get_db_info()
         return db_info.get("version")
+    
+    @classmethod
+    def get_async_db_client(cls) -> AsyncMongoClient:
+        if cls.is_remote_db():
+            return get_async_remote_db_client()
+        else:
+            return get_async_local_db_client()
 
     @classmethod
-    def create_collection(cls):
-        """
-        Creates the MongoDB collection for the model if it does not exist.
-        """
-        db = cls.get_db()
-        collection_names = db.list_collection_names()
-        name = cls.get_db_collection_name()
+    def get_async_db(cls) -> AsyncDatabase:
+        client = cls.get_async_db_client()
+        db_name = cls.get_db_name()
+        return client[db_name]
 
-        if name not in collection_names:
-            db.create_collection(
-                name,
-            )
+    @classmethod
+    def get_async_db_collection(cls) -> AsyncCollection:
+        client = cls.get_async_db_client()
+        db_name = cls.get_db_name()
+        collection_name = cls.get_db_collection_name()
+        return client[db_name][collection_name]
+    
+    @classmethod
+    async def get_async_init_collection(cls) -> AsyncCollection:
+        await cls.initialize_model()
+        return cls.get_async_db_collection()
+    
+
 
 def declare_persist_db(
     collection_name: str,

@@ -226,10 +226,13 @@ class MomentWindow(Generic[T]):
             A tuple containing two `MomentWindow` objects: one for the past and one for the future.
         """
         for i in range(len(self) - past_size + 1):
-            yield MomentWindow[T](moments=self.moments[i:i + past_size], symbol=self.symbol), MomentWindow[T](
+            past_cone = MomentWindow[T](moments=self.moments[i:i + past_size], symbol=self.symbol)
+            future_cone = MomentWindow[T](
                 moments=self.moments[i + past_size:min(i + past_size + future_size, len(self))],
                 symbol=self.symbol
             )
+            
+            yield past_cone, future_cone
 
     def get_moments(self, after: Optional[datetime] = None, before: Optional[datetime] = None) -> list[T]:
         """

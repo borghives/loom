@@ -46,6 +46,20 @@ class LedgerModel(Persistable):
         self._has_update = False
         return True
 
+    async def persist_async(self, lazy: bool = False) -> bool:
+        if lazy and not self.should_persist:
+            return False
+
+        collection = await self.get_async_init_collection()
+        self.coalesce_fields_for(CoalesceOnInsert)
+        self.coalesce_fields_for(RefreshOnSet)
+        result = await collection.insert_one(self.dump_doc())
+        if result:
+            self._id = result.inserted_id
+
+        self._has_update = False
+        return True
+
     @classmethod
     def persist_many(cls, items: list, lazy: bool = False) -> None:
         """
@@ -76,6 +90,28 @@ class LedgerModel(Persistable):
 
         collection = cls.get_db_collection()
         collection.bulk_write(operations)
+
+    @classmethod
+    async def persist_many_async(cls, items: list, lazy: bool = False) -> None:
+        operations: list = []
+        persist_items = [
+            item
+            for item in items
+            if isinstance(item, Persistable) and (item.should_persist or not lazy)
+        ]
+
+        for item in persist_items:
+            item.coalesce_fields_for(CoalesceOnInsert)
+            item.coalesce_fields_for(RefreshOnSet)
+            insert_op = InsertOne(item.dump_doc())
+            operations.append(insert_op)
+
+        if not operations:
+            return
+
+        collection = await cls.get_async_init_collection()
+        await collection.bulk_write(operations)
+
 
 class TimeSeriesLedgerModel(LedgerModel):
     """
@@ -140,6 +176,31 @@ class TimeSeriesLedgerModel(LedgerModel):
         ttl = series_info.get("ttl")
         if name not in collection_names:
             db.create_collection(
+                name, timeseries=timeseries, expireAfterSeconds=ttl
+            )
+
+    @classmethod
+    async def create_collection_async(cls) -> None:
+        db = cls.get_async_db()
+        collection_names = await db.list_collection_names()
+        name = cls.get_db_collection_name()
+
+        timeseries = {
+            "timeField": "updated_time",
+        }
+
+        series_info = cls.get_timeseries_info()
+        granularity = series_info.get("granularity")
+        if granularity:
+            timeseries["granularity"] = granularity
+
+        metafield = series_info.get("metakey")
+        if metafield:
+            timeseries["metaField"] = metafield
+
+        ttl = series_info.get("ttl")
+        if name not in collection_names:
+            await db.create_collection(
                 name, timeseries=timeseries, expireAfterSeconds=ttl
             )
             
