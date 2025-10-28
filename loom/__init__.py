@@ -5,7 +5,8 @@ from loom.info import (
     SortDesc,
     SortOp,
     Time,
-    QueryableField
+    QueryableField,
+    Index
 )
 
 from loom.info.universal import access_secret
@@ -40,7 +41,7 @@ __all__ = [
     "Filter",
     "access_secret",
     "Time",
-
+    "Index",
 
     #Time
     "TimeFrameResolution",
