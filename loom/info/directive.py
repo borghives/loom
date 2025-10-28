@@ -25,7 +25,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr: Aggregation = Aggregation()
         self._persist_cls: Type[PersistableType] = persistable
 
-    def filter(self, filter: Filter) -> "LoadDirective[PersistableType]":
+    def filter(self : "LoadDirective[PersistableType]", filter: Filter) -> "LoadDirective[PersistableType]":
         """
         Adds a filter to the query.
 
@@ -38,7 +38,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr = self._aggregation_expr.match(filter)
         return self
 
-    def sort(self, sort: SortOp | str, descending: bool = False) -> "LoadDirective[PersistableType]":
+    def sort(self : "LoadDirective[PersistableType]", sort: SortOp | str, descending: bool = False) -> "LoadDirective[PersistableType]":
         """
         Adds a sort to the query.
 
@@ -57,7 +57,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr = self._aggregation_expr.sort(sort_op)
         return self
     
-    def skip(self, skip: int) -> "LoadDirective[PersistableType]":
+    def skip(self : "LoadDirective[PersistableType]", skip: int) -> "LoadDirective[PersistableType]":
         """
         Adds a skip to the query.
 
@@ -70,7 +70,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr = self._aggregation_expr.skip(skip)
         return self
     
-    def limit(self, limit: int) -> "LoadDirective[PersistableType]":
+    def limit(self : "LoadDirective[PersistableType]", limit: int) -> "LoadDirective[PersistableType]":
         """
         Adds a limit to the query.
 
@@ -83,7 +83,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr = self._aggregation_expr.limit(limit)
         return self
     
-    def sample(self, sample: int) -> "LoadDirective[PersistableType]":
+    def sample(self : "LoadDirective[PersistableType]", sample: int) -> "LoadDirective[PersistableType]":
         """
         Adds a sample stage to the aggregation pipeline.
 
@@ -110,7 +110,7 @@ class LoadDirective(Generic[PersistableType]):
         return 0
 
     
-    def aggregation(self, aggregation: Aggregation) -> "LoadDirective[PersistableType]":
+    def aggregation(self : "LoadDirective[PersistableType]", aggregation: Aggregation) -> "LoadDirective[PersistableType]":
         """
         Adds an aggregation pipeline to the query.
 
@@ -138,7 +138,7 @@ class LoadDirective(Generic[PersistableType]):
         collection = p_cls.get_init_collection()
         return collection.aggregate(self.get_pipeline_expr(post_agg))
 
-    def load_aggregate(self, post_agg: Optional[Aggregation] = None):
+    def load_aggregate(self : "LoadDirective[PersistableType]", post_agg: Optional[Aggregation] = None):
         """
         Executes an aggregation and returns the results as a list of models.
 
@@ -153,7 +153,7 @@ class LoadDirective(Generic[PersistableType]):
         with self.exec_aggregate(post_agg) as cursors:
             return [p_cls.from_doc(doc) for doc in cursors]
     
-    def load_one(self):
+    def load_one(self: "LoadDirective[PersistableType]"):
         """
         Loads a single document from the database.
 
@@ -163,7 +163,7 @@ class LoadDirective(Generic[PersistableType]):
         docs = self.load_aggregate(Aggregation().limit(1))
         return docs[0] if len(docs) > 0 else None
     
-    def load_many(self):
+    def load_many(self: "LoadDirective[PersistableType]"):
         """
         Loads multiple documents from the database.
 
@@ -172,7 +172,7 @@ class LoadDirective(Generic[PersistableType]):
         """
         return self.load_aggregate()
     
-    def load_latest(self, sort: SortOp = SortDesc("updated_time")):
+    def load_latest(self: "LoadDirective[PersistableType]", sort: SortOp = SortDesc("updated_time")):
         """
         Loads the most recently updated document from the database.
 
@@ -185,7 +185,7 @@ class LoadDirective(Generic[PersistableType]):
         docs = self.load_aggregate(Aggregation().sort(sort).limit(1))
         return docs[0] if len(docs) > 0 else None
     
-    async def exec_aggregate_async(self, post_agg: Optional[Aggregation] = None):
+    async def exec_aggregate_async(self: "LoadDirective[PersistableType]", post_agg: Optional[Aggregation] = None):
         p_cls = self._persist_cls
         collection = await p_cls.get_init_collection_async()
         return await collection.aggregate(self.get_pipeline_expr(post_agg))
@@ -196,14 +196,14 @@ class LoadDirective(Generic[PersistableType]):
         async with cursor:
             return [p_cls.from_doc(doc) async for doc in cursor]
 
-    async def load_one_async(self):
+    async def load_one_async(self: "LoadDirective[PersistableType]"):
         docs = await self.load_aggregate_async(Aggregation().limit(1))
         return docs[0] if len(docs) > 0 else None
     
-    async def load_many_async(self):
+    async def load_many_async(self: "LoadDirective[PersistableType]"):
         return await self.load_aggregate_async()
 
-    async def load_latest_async(self, sort: SortOp = SortDesc("updated_time")):
+    async def load_latest_async(self: "LoadDirective[PersistableType]", sort: SortOp = SortDesc("updated_time")):
         docs = await self.load_aggregate_async(Aggregation().sort(sort).limit(1))
         return docs[0] if len(docs) > 0 else None
     
