@@ -6,6 +6,9 @@ import arrow
 # Using ZoneInfo to properly handle Daylight Saving Time for the Eastern timezone.
 EST_TIMEZONE = timezone(timedelta(hours=-5)) #fixed offset for EST
 EASTERN_TIMEZONE = ZoneInfo("America/New_York")
+UTC_TIMEZONE = timezone.utc
+
+
 
 
 def to_offset_aware(dt: datetime, offset_seconds: int) -> datetime:

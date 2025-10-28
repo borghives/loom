@@ -135,7 +135,8 @@ class LoadDirective(Generic[PersistableType]):
             CommandCursor: A `pymongo` cursor to the results of the aggregation.
         """
         p_cls = self._persist_cls
-        return p_cls.get_db_collection().aggregate(self.get_pipeline_expr(post_agg))
+        collection = p_cls.get_init_collection()
+        return collection.aggregate(self.get_pipeline_expr(post_agg))
 
     def load_aggregate(self, post_agg: Optional[Aggregation] = None):
         """
@@ -186,7 +187,7 @@ class LoadDirective(Generic[PersistableType]):
     
     async def exec_aggregate_async(self, post_agg: Optional[Aggregation] = None):
         p_cls = self._persist_cls
-        collection = await p_cls.get_async_init_collection()
+        collection = await p_cls.get_init_collection_async()
         return await collection.aggregate(self.get_pipeline_expr(post_agg))
 
     async def load_aggregate_async(self : "LoadDirective[PersistableType]", post_agg: Optional[Aggregation] = None):

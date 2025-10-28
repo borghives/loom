@@ -1,7 +1,5 @@
 from datetime import datetime, timedelta, timezone
 
-from dateutil import tz
-
 import loom as lm
 
 
@@ -66,7 +64,7 @@ def test_to_eastern_aware_handles_dst():
 def test_get_current_time():
     current_time = lm.get_current_time()
     assert current_time.tzinfo is not None
-    assert current_time.tzinfo == tz.tzutc()
+    assert current_time.tzinfo == lm.UTC_TIMEZONE
 
 
 def test_get_current_event_time():

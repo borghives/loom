@@ -1,6 +1,9 @@
 from typing import Optional
 
 from pymongo import InsertOne
+from pymongo.database import Database
+
+from pymongo.asynchronous.database import AsyncDatabase
 
 from loom.info.field import CoalesceOnInsert, RefreshOnSet
 from loom.info.persistable import Persistable
@@ -35,7 +38,7 @@ class LedgerModel(Persistable):
         if lazy and not self.should_persist:
             return False
 
-        collection = self.get_db_collection()
+        collection = self.get_init_collection()
 
         self.coalesce_fields_for(CoalesceOnInsert)
         self.coalesce_fields_for(RefreshOnSet)
@@ -50,7 +53,7 @@ class LedgerModel(Persistable):
         if lazy and not self.should_persist:
             return False
 
-        collection = await self.get_async_init_collection()
+        collection = await self.get_init_collection_async()
         self.coalesce_fields_for(CoalesceOnInsert)
         self.coalesce_fields_for(RefreshOnSet)
         result = await collection.insert_one(self.dump_doc())
@@ -88,7 +91,7 @@ class LedgerModel(Persistable):
             insert_op = InsertOne(item.dump_doc())
             operations.append(insert_op)
 
-        collection = cls.get_db_collection()
+        collection = cls.get_init_collection()
         collection.bulk_write(operations)
 
     @classmethod
@@ -109,7 +112,7 @@ class LedgerModel(Persistable):
         if not operations:
             return
 
-        collection = await cls.get_async_init_collection()
+        collection = await cls.get_init_collection_async()
         await collection.bulk_write(operations)
 
 
@@ -156,7 +159,9 @@ class TimeSeriesLedgerModel(LedgerModel):
         parameters specified in the `@declare_timeseries` decorator. The time
         field is automatically set to 'updated_time'.
         """
-        db = cls.get_db()
+        db = cls.get_db(withAsync=False)
+        assert isinstance(db, Database)
+
         collection_names = db.list_collection_names()
         name = cls.get_db_collection_name()
 
@@ -181,7 +186,9 @@ class TimeSeriesLedgerModel(LedgerModel):
 
     @classmethod
     async def create_collection_async(cls) -> None:
-        db = cls.get_async_db()
+        db = cls.get_db(withAsync=True)
+        assert isinstance(db, AsyncDatabase)
+
         collection_names = await db.list_collection_names()
         name = cls.get_db_collection_name()
 

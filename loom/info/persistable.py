@@ -25,7 +25,7 @@ from loom.info.field import (
 from loom.info.filter import Filter
 from loom.info.aggregation import Aggregation
 from loom.info.model import Model
-from loom.info.universal import get_local_db_client, get_remote_db_client, get_async_local_db_client, get_async_remote_db_client
+from loom.info.universal import get_local_db_client, get_remote_db_client
 
 PersistableType = TypeVar("PersistableType", bound="Persistable")
 
@@ -62,7 +62,31 @@ class Persistable(Model):
     _init_lock : ClassVar[asyncio.Lock] = asyncio.Lock()
 
     @classmethod
-    async def initialize_model(cls):
+    def initialize_model(cls):
+        if cls._has_class_initialized:
+            return
+        
+        cls.create_collection()
+        cls.create_index()
+        cls._has_class_initialized = True
+
+    @classmethod
+    def create_collection(cls):
+        db = cls.get_db()
+        assert isinstance(db, Database)
+
+        collection_names = db.list_collection_names()
+        name = cls.get_db_collection_name()
+
+        if name not in collection_names:
+            db.create_collection(name)
+
+    @classmethod
+    def create_index(cls):
+        pass
+
+    @classmethod
+    async def initialize_model_async(cls):
         if cls._has_class_initialized:
             return
         
@@ -76,7 +100,8 @@ class Persistable(Model):
 
     @classmethod
     async def create_collection_async(cls):
-        db = cls.get_async_db()
+        db = cls.get_db(withAsync=True)
+        assert isinstance(db, AsyncDatabase)
         collection_names = await db.list_collection_names()
         name = cls.get_db_collection_name()
 
@@ -325,7 +350,8 @@ class Persistable(Model):
         if lazy and not self.should_persist:
             return False
 
-        collection = await self.get_async_init_collection()
+        collection = await self.get_init_collection_async()
+
         filter_ = self.self_filter()
         update = self.get_update_instruction()
 
@@ -338,7 +364,6 @@ class Persistable(Model):
 
         self.on_after_persist(result)
         return True
-
 
     @classmethod
     async def persist_many_async(cls, items: list, lazy: bool = False):
@@ -357,10 +382,10 @@ class Persistable(Model):
             )
             operations.append(update_op)
 
-        if not operations:
+        if not operations or len(operations) == 0:
             return
 
-        collection = await cls.get_async_init_collection()
+        collection = await cls.get_init_collection_async()
         await collection.bulk_write(operations)
 
         for item in persist_items:
@@ -380,7 +405,7 @@ class Persistable(Model):
             dataframe (pd.DataFrame): The DataFrame to insert.
         """
 
-        collection = await cls.get_async_init_collection()
+        collection = await cls.get_init_collection_async()
 
         records : Optional[list] = None
 
@@ -506,7 +531,7 @@ class Persistable(Model):
         return name
 
     @classmethod
-    def get_db_client(cls) -> MongoClient:
+    def get_db_client(cls, withAsync: bool = False) -> MongoClient | AsyncMongoClient:
         """
         Gets the appropriate MongoDB client for the model (local or remote).
 
@@ -514,34 +539,41 @@ class Persistable(Model):
             MongoClient: The MongoDB client instance.
         """
         if cls.is_remote_db():
-            return get_remote_db_client()
+            return get_remote_db_client(withAsync=withAsync)
         else:
-            return get_local_db_client()
+            return get_local_db_client(withAsync=withAsync)
         
     @classmethod
-    def get_db(cls) -> Database:
+    def get_db(cls, withAsync: bool = False) -> Database | AsyncDatabase:
         """
         Gets the MongoDB database object for the model.
 
         Returns:
             Database: The `pymongo.database.Database` instance.
         """
-        client = cls.get_db_client()
+        client = cls.get_db_client(withAsync)
         db_name = cls.get_db_name()
         return client[db_name]
 
     @classmethod
-    def get_db_collection(cls) -> Collection:
+    def get_db_collection(cls, withAsync: bool = False) -> Collection | AsyncCollection:
         """
         Gets the MongoDB collection object for the model.
 
         Returns:
             Collection: The `pymongo.collection.Collection` instance.
         """
-        client = cls.get_db_client()
-        db_name = cls.get_db_name()
+        client_database = cls.get_db(withAsync)
         collection_name = cls.get_db_collection_name()
-        return client[db_name][collection_name]
+        return client_database[collection_name]
+    
+    @classmethod
+    def get_init_collection(cls) -> Collection:
+        cls.initialize_model()
+        retval = cls.get_db_collection(withAsync=False)
+        assert isinstance(retval, Collection)
+        return retval
+
     @classmethod
     def is_remote_db(cls) -> bool:
         """
@@ -565,31 +597,11 @@ class Persistable(Model):
         return db_info.get("version")
     
     @classmethod
-    def get_async_db_client(cls) -> AsyncMongoClient:
-        if cls.is_remote_db():
-            return get_async_remote_db_client()
-        else:
-            return get_async_local_db_client()
-
-    @classmethod
-    def get_async_db(cls) -> AsyncDatabase:
-        client = cls.get_async_db_client()
-        db_name = cls.get_db_name()
-        return client[db_name]
-
-    @classmethod
-    def get_async_db_collection(cls) -> AsyncCollection:
-        client = cls.get_async_db_client()
-        db_name = cls.get_db_name()
-        collection_name = cls.get_db_collection_name()
-        return client[db_name][collection_name]
-    
-    @classmethod
-    async def get_async_init_collection(cls) -> AsyncCollection:
-        await cls.initialize_model()
-        return cls.get_async_db_collection()
-    
-
+    async def get_init_collection_async(cls) -> AsyncCollection:
+        await cls.initialize_model_async()
+        retval = cls.get_db_collection(withAsync=True)
+        assert isinstance(retval, AsyncCollection)
+        return retval
 
 def declare_persist_db(
     collection_name: str,

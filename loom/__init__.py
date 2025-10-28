@@ -23,6 +23,7 @@ from loom.time import (
 
     EASTERN_TIMEZONE,
     EST_TIMEZONE,
+    UTC_TIMEZONE,
     to_eastern_aware,
     to_offset_aware,
     to_utc_aware,
@@ -54,6 +55,7 @@ __all__ = [
     #Time Util
     "EASTERN_TIMEZONE",
     "EST_TIMEZONE",
+    "UTC_TIMEZONE",
     "to_eastern_aware",
     "to_offset_aware",
     "to_utc_aware",

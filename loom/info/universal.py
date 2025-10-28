@@ -6,8 +6,7 @@ from typing import Optional
 from bson import ObjectId
 from google.cloud import secretmanager
 import keyring
-import pymongo
-from pymongo import AsyncMongoClient
+from pymongo import AsyncMongoClient, MongoClient
 
 from dotenv import load_dotenv
 
@@ -16,7 +15,6 @@ load_dotenv()
 
 LOCAL_MONGODB_CLIENT_URI = "mongodb://localhost:27017/"
 ZERO_ID = ObjectId("000000000000000000000000")
-
 
 class SecretManager(Enum):
     GCS_SECRET_MANAGER = "gcs_secret_manager"
@@ -130,10 +128,18 @@ def set_secret(
 # TLV Thread Local Variable
 thread_data = threading.local()
 
+def get_client_cache(key: str, withAsync: bool = False) -> Optional[MongoClient | AsyncMongoClient]:
+    return getattr(thread_data, f"{key}/{'async' if withAsync else 'synchronous'}", None)
+
+def set_client_cache(key: str, value: MongoClient | AsyncMongoClient, withAsync: bool = False):
+    setattr(thread_data, f"{key}/{'async' if withAsync else 'synchronous'}", value)
+
 
 def get_local_db_client(
-    uri: Optional[str] = None, secret_name: Optional[str] = None
-) -> pymongo.MongoClient:
+    uri: Optional[str] = None, 
+    secret_name: Optional[str] = None,
+    withAsync: bool = False
+) -> MongoClient | AsyncMongoClient:
     """
     Gets a thread-local MongoDB client for the local database.
 
@@ -164,18 +170,19 @@ def get_local_db_client(
         # this is not allowed in remote db
         full_mongodb_uri = mongodb_uri
 
-    local_db_client = getattr(thread_data, "local_db_client", None)
-    if local_db_client is None:
-        local_db_client = pymongo.MongoClient(full_mongodb_uri, tz_aware=True)
-        setattr(thread_data, "local_db_client", local_db_client)
-    return local_db_client
+    db_client = get_client_cache("local_db_client", withAsync=withAsync)
+    if db_client is None:
+        db_client = AsyncMongoClient(full_mongodb_uri, tz_aware=True) if withAsync else MongoClient(full_mongodb_uri, tz_aware=True)
+        set_client_cache("local_db_client", db_client, withAsync=withAsync)
 
+    return db_client
 
 def get_remote_db_client(
     uri: Optional[str] = None,
     secret_name: Optional[str] = None,
     client_name: str = "default",
-) -> pymongo.MongoClient:
+    withAsync: bool = False
+) -> MongoClient | AsyncMongoClient:
     """
     Gets a thread-local MongoDB client for the remote database.
 
@@ -190,7 +197,7 @@ def get_remote_db_client(
             Used to manage multiple remote clients.
 
     Returns:
-        pymongo.MongoClient: A thread-local MongoDB client.
+        MongoClient: A thread-local MongoDB client.
     """
 
     secret_id = secret_name or os.getenv("MONGODB_SECRET")
@@ -213,68 +220,10 @@ def get_remote_db_client(
     if len(mongodb_uri) == 0:
         raise Exception("MONGODB_URI is empty")
 
-    remote_db_client = getattr(thread_data, f"remote_db_client_{client_name}", None)
-    if remote_db_client is None:
-        full_url = mongodb_uri % access_secret(secret_id)
-        remote_db_client = pymongo.MongoClient(full_url, tz_aware=True)
-        setattr(thread_data, f"remote_db_client_{client_name}", remote_db_client)
-
-    return remote_db_client
-
-def get_async_local_db_client(
-    uri: Optional[str] = None, secret_name: Optional[str] = None
-) -> AsyncMongoClient:
-    """
-    Gets a thread-local MongoDB async client for the local database.
-    """
-    mongodb_uri = uri or os.getenv("MONGODB_LOCAL_URI") or LOCAL_MONGODB_CLIENT_URI
-    mongodb_uri = mongodb_uri.strip()
-
-    if not mongodb_uri:
-        raise Exception("MONGODB_LOCAL_URI is empty or not set")
-
-    secret_id = secret_name or os.getenv("MONGODB_LOCAL_SECRET")
-    if secret_id:
+    db_client = get_client_cache(f"remote_{client_name}", withAsync=withAsync)
+    if db_client is None:
         full_mongodb_uri = mongodb_uri % access_secret(secret_id)
-    else:
-        full_mongodb_uri = mongodb_uri
+        db_client = AsyncMongoClient(full_mongodb_uri, tz_aware=True) if withAsync else MongoClient(full_mongodb_uri, tz_aware=True)
+        set_client_cache(f"remote_{client_name}", db_client, withAsync=withAsync)
 
-    local_db_client = getattr(thread_data, "async_local_db_client", None)
-    if local_db_client is None:
-        local_db_client = AsyncMongoClient(full_mongodb_uri, tz_aware=True)
-        setattr(thread_data, "async_local_db_client", local_db_client)
-    return local_db_client
-
-
-def get_async_remote_db_client(
-    uri: Optional[str] = None,
-    secret_name: Optional[str] = None,
-    client_name: str = "default",
-) -> AsyncMongoClient:
-    """
-    Gets a thread-local MongoDB async client for the remote database.
-    """
-    secret_id = secret_name or os.getenv("MONGODB_SECRET")
-    if not secret_id:
-        raise Exception(
-            """
-            MONGODB_SECRET is not set for remote client. For safety reasons, there should
-            always be a secret part to the remote database URI.
-            """
-        )
-
-    mongodb_uri = uri or os.getenv("MONGODB_URI")
-    if not mongodb_uri:
-        raise Exception("MONGODB_URI not set for remote client")
-
-    mongodb_uri = mongodb_uri.strip()
-    if not mongodb_uri:
-        raise Exception("MONGODB_URI is empty")
-
-    remote_db_client = getattr(thread_data, f"async_remote_db_client_{client_name}", None)
-    if remote_db_client is None:
-        full_url = mongodb_uri % access_secret(secret_id)
-        remote_db_client = AsyncMongoClient(full_url, tz_aware=True)
-        setattr(thread_data, f"async_remote_db_client_{client_name}", remote_db_client)
-
-    return remote_db_client
+    return db_client
