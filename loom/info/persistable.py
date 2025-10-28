@@ -613,7 +613,7 @@ def declare_persist_db(
     db_name: str,
     remote_db: bool = False,
     version: Optional[int] = None,
-    index: List[Index] = [],
+    index: Optional[List[Index]] = None,
     test: bool = False,
 ):
     """
