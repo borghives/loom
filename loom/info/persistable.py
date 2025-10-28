@@ -64,11 +64,17 @@ class Persistable(Model):
 
     @classmethod
     def initialize_model(cls):
+        if cls._has_class_initialized:
+            return
+        
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
             asyncio.run(cls.initialize_model_async())
-            loop = None
+            return
+
+        if cls._has_class_initialized:
+            return
 
         try:
             if loop:
