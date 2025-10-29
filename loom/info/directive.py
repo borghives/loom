@@ -96,6 +96,19 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr = self._aggregation_expr.sample(sample)
         return self
     
+    def project(self : "LoadDirective[PersistableType]", project: dict) -> "LoadDirective[PersistableType]":
+        """
+        Adds a project stage to the aggregation pipeline.
+
+        Args:
+            project (dict): The project specification.
+
+        Returns
+        """
+        self._aggregation_expr = self._aggregation_expr.project(project)
+        return self
+    
+
     def count(self) -> int:
         """
         Executes a count query on the model's collection.
