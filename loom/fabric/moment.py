@@ -176,7 +176,7 @@ class MomentWindow(Generic[T]):
         """
         return iter(self.moments)
 
-    def __getitem__(self, key: Union[int, slice]) -> Union[T, 'MomentWindow[T]']:
+    def __getitem__(self : 'MomentWindow[T]', key: Union[int, slice]) -> Union[T, 'MomentWindow[T]']:
         """
         Get an item or slice from the window.
 
@@ -200,7 +200,7 @@ class MomentWindow(Generic[T]):
                 f"not {type(key).__name__}"
             )
 
-    def sliding_window(self, window_size: int) -> Iterator["MomentWindow[T]"]:
+    def sliding_window(self: 'MomentWindow[T]', window_size: int) -> Iterator["MomentWindow[T]"]:
         """
         Generate sliding windows of a specified size.
 
@@ -214,7 +214,7 @@ class MomentWindow(Generic[T]):
         for i in range(len(self) - window_size + 1):
             yield MomentWindow[T](moments=self.moments[i:i + window_size], symbol=self.symbol)
 
-    def sliding_time_cone(self, past_size: int, future_size: int) -> Iterator[tuple['MomentWindow[T]', 'MomentWindow[T]']]:
+    def sliding_time_cone(self: 'MomentWindow[T]', past_size: int, future_size: int) -> Iterator[tuple['MomentWindow[T]', 'MomentWindow[T]']]:
         """
         Generate sliding time cones of past and future moments.
 
@@ -234,7 +234,7 @@ class MomentWindow(Generic[T]):
             
             yield past_cone, future_cone
 
-    def get_moments(self, after: Optional[datetime] = None, before: Optional[datetime] = None) -> list[T]:
+    def get_moments(self: 'MomentWindow[T]', after: Optional[datetime] = None, before: Optional[datetime] = None) -> list[T]:
         """
         Get moments within a specified time range.
 
