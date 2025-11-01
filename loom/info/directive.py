@@ -245,7 +245,7 @@ class LoadDirective(Generic[PersistableType]):
             Table: A PyArrow Table containing the loaded data.
         """
         p_cls = self._persist_cls
-        collection = p_cls.get_db_collection()
+        collection = p_cls.get_init_collection()
         return aggregate_arrow_all(collection, pipeline=self.get_pipeline_expr(), schema=schema)
     
     def load_dataframe(self, schema: Optional[Schema] = None) -> pd.DataFrame:
@@ -259,7 +259,7 @@ class LoadDirective(Generic[PersistableType]):
             pd.DataFrame: A pandas DataFrame containing the loaded data.
         """
         p_cls = self._persist_cls
-        collection = p_cls.get_db_collection()
+        collection = p_cls.get_init_collection()
         return aggregate_pandas_all(collection, pipeline=self.get_pipeline_expr(), schema=schema)
 
     def load_polars(self, schema: Optional[Schema] = None) -> pl.DataFrame | pl.Series:
@@ -273,7 +273,7 @@ class LoadDirective(Generic[PersistableType]):
             pl.DataFrame | pl.Series: A polars DataFrame or Series containing the loaded data.
         """
         p_cls = self._persist_cls
-        collection = p_cls.get_db_collection()
+        collection = p_cls.get_init_collection()
         return aggregate_polars_all(collection, pipeline=self.get_pipeline_expr(), schema=schema)
 
     def _load_dataframe_legacy(
