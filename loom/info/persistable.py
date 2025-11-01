@@ -66,22 +66,31 @@ class Persistable(Model):
     def initialize_model(cls):
         if cls._has_class_initialized:
             return
-        
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            asyncio.run(cls.initialize_model_async())
-            return
 
-        if cls._has_class_initialized:
-            return
+        cls.create_collection()
+        cls.create_index()
+        cls._has_class_initialized = True
 
-        try:
-            if loop:
-                loop.run_until_complete(cls.initialize_model_async())
-        except RuntimeError as e:
-            print(e)
+    @classmethod
+    def create_collection(cls):
+        db = cls.get_db()
+        assert isinstance(db, Database)
+        collection_names = db.list_collection_names()
+        name = cls.get_db_collection_name()
 
+        if name not in collection_names:
+            db.create_collection(name)
+
+    @classmethod
+    def create_index(cls):
+        db_info = cls.get_db_info()
+        indexes = db_info.get("index")
+        if indexes and len(indexes) > 0:
+            collection = cls.get_db_collection()
+            assert isinstance(collection, Collection)
+            for index in indexes:
+                assert isinstance(index, Index)
+                collection.create_index(**index.to_dict())
 
     @classmethod
     async def initialize_model_async(cls):
