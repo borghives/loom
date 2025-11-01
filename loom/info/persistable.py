@@ -86,7 +86,7 @@ class Persistable(Model):
         db_info = cls.get_db_info()
         indexes = db_info.get("index")
         if indexes and len(indexes) > 0:
-            collection = cls.get_db_collection()
+            collection = cls.get_db_collection(withAsync=False)
             assert isinstance(collection, Collection)
             for index in indexes:
                 assert isinstance(index, Index)
@@ -276,7 +276,7 @@ class Persistable(Model):
         if lazy and not self.should_persist:
             return False
 
-        collection = self.get_db_collection()
+        collection = self.get_init_collection()
 
         filter = self.self_filter()
         update = self.get_update_instruction()
@@ -316,7 +316,7 @@ class Persistable(Model):
             )
             operations.append(update_op)
 
-        collection = cls.get_db_collection()
+        collection = cls.get_init_collection()
         collection.bulk_write(operations)
 
         for item in persist_items:
@@ -336,7 +336,7 @@ class Persistable(Model):
             dataframe (pd.DataFrame): The DataFrame to insert.
         """
 
-        collection = cls.get_db_collection()
+        collection = cls.get_init_collection()
 
         records : Optional[list] = None
 
