@@ -38,7 +38,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr = self._aggregation_expr.match(filter)
         return self
 
-    def sort(self : "LoadDirective[PersistableType]", sort: SortOp | str, descending: bool = False) -> "LoadDirective[PersistableType]":
+    def sort(self : "LoadDirective[PersistableType]", sort: Optional[SortOp | str], descending: bool = False) -> "LoadDirective[PersistableType]":
         """
         Adds a sort to the query.
 
@@ -49,6 +49,10 @@ class LoadDirective(Generic[PersistableType]):
         Returns:
             LoadDirective: The `LoadDirective` object for chaining.
         """
+
+        if sort is None:
+            return self
+
         if isinstance(sort, SortOp):
             sort_op = sort
         else:
