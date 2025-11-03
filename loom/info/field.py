@@ -152,7 +152,10 @@ class QueryableField:
         other=self.normalize_query_input(other)
         return self.predicate(NotAll(other))
     
-    def is_within(self, other: Time | TimeFrame):
+    def is_within(self, other: Optional[Time | TimeFrame]):
+        if other is None:
+            return Filter()
+        
         if isinstance(other, TimeFrame):
             return self.predicate(Time().in_frame(other))
         
