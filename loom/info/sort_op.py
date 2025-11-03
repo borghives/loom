@@ -27,6 +27,31 @@ class SortOp(Expression):
 
     def express(self):
         return self._value
+    
+    def __and__(self, other):
+        if other is None:
+            return self
+        
+        if not isinstance(other, SortOp):
+            other = SortOp.wrap(other)
+
+        if self.is_empty():
+            return other
+        
+        if other.is_empty():
+            return self
+        
+        assert isinstance(self._value, dict)
+        assert isinstance(other._value, dict)
+        
+        combined = self._value | other._value
+
+        return SortOp(combined)
+        
+
+
+    
+
 
 
 class SortAsc(SortOp):
