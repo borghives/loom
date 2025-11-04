@@ -8,6 +8,8 @@ from loom.info.ledger import LedgerModel, TimeSeriesLedgerModel, declare_timeser
 from loom.info.aggregation import Aggregation
 from loom.info.sort_op import SortAsc, SortDesc, SortOp
 from loom.info.query_op import Time
+from loom.info.op import to_int, to_upper, to_lower, to_date_alignment, to_double, sanitize_number, multiply, divide
+
 
 __all__ = [
     "Aggregation",
@@ -33,4 +35,13 @@ __all__ = [
     "SortDesc",
     "SortOp",
     "Time",
+    "to_int",
+    "to_upper",
+    "to_lower",
+    "to_date_alignment",
+    "to_double",
+    "sanitize_number",
+    "multiply",
+    "divide",
+
 ]
