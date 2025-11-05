@@ -74,6 +74,19 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr = self._aggregation_expr.skip(skip)
         return self
     
+    def add_fields(self : "LoadDirective[PersistableType]", add_fields: dict) -> "LoadDirective[PersistableType]":
+        """
+        Adds an addFields stage to the aggregation pipeline.
+
+        Args:
+            add_fields (dict): The fields to add.
+
+        Returns:
+            LoadDirective: The `LoadDirective` object for chaining.
+        """
+        self._aggregation_expr = self._aggregation_expr.add_fields(add_fields)
+        return self
+
     def limit(self : "LoadDirective[PersistableType]", limit: int) -> "LoadDirective[PersistableType]":
         """
         Adds a limit to the query.
