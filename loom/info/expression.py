@@ -37,14 +37,14 @@ class Expression(ABC):
 
     @property
     @abstractmethod
-    def value(self):
+    def repr_value(self):
         pass
     
     def express(self, driver: Optional[ExpressionDriver] = None):
-        return driver.marshal(self.value) if driver else self.value
+        return driver.marshal(self.repr_value) if driver else self.repr_value
     
     def is_empty(self):
-        value = self.value
+        value = self.repr_value
         if value is None:
             return True
         

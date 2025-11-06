@@ -10,7 +10,7 @@ class Filter(Expression):
         self._value = query if query is not None else {}
 
     @property
-    def value(self):
+    def repr_value(self):
         return self._value
     
     @classmethod

@@ -25,7 +25,7 @@ class In(UserList, QueryOpExpression):
     """
 
     @property
-    def value(self):
+    def repr_value(self):
         return {"$in": self.data}
 
 
@@ -35,7 +35,7 @@ class NotIn(UserList, QueryOpExpression):
     """
 
     @property
-    def value(self):
+    def repr_value(self):
         return {"$nin": self.data}
 
 class All(UserList, QueryOpExpression):
@@ -44,7 +44,7 @@ class All(UserList, QueryOpExpression):
     """
 
     @property
-    def value(self):
+    def repr_value(self):
         return {"$all": self.data}
 
 class Not(QueryOpExpression):
@@ -56,7 +56,7 @@ class Not(QueryOpExpression):
         self._value = value
 
     @property
-    def value(self):
+    def repr_value(self):
         return {"$not": self._value}
 
 class NotAll(UserList, QueryOpExpression):
@@ -65,7 +65,7 @@ class NotAll(UserList, QueryOpExpression):
     """
 
     @property
-    def value(self):
+    def repr_value(self):
         return Not(All(self.data))
 
 
@@ -78,7 +78,7 @@ class Gt(QueryOpExpression):
         self._value = value
 
     @property
-    def value(self):
+    def repr_value(self):
         return {"$gt": self._value}
 
 class Gte(QueryOpExpression):
@@ -90,7 +90,7 @@ class Gte(QueryOpExpression):
         self._value = value
 
     @property
-    def value(self):
+    def repr_value(self):
         return {"$gte" : self._value}
 
 
@@ -103,7 +103,7 @@ class Lt(QueryOpExpression):
         self._value = value
 
     @property
-    def value(self):
+    def repr_value(self):
         return {"$lt" : self._value}
 
 
@@ -116,7 +116,7 @@ class Lte(QueryOpExpression):
         self._value = value
 
     @property
-    def value(self):
+    def repr_value(self):
         return {"$lte" : self._value}
 
 
@@ -129,7 +129,7 @@ class Eq(QueryOpExpression):
         self._value = value
 
     @property
-    def value(self):
+    def repr_value(self):
         return {"$eq" : self._value}
     
 class Ne(QueryOpExpression):
@@ -141,7 +141,7 @@ class Ne(QueryOpExpression):
         self._value = value
 
     @property
-    def value(self):
+    def repr_value(self):
         return {"$ne" : self._value}
 
 class Exists(QueryOpExpression):
@@ -149,7 +149,7 @@ class Exists(QueryOpExpression):
         self._value = value
 
     @property
-    def value(self):
+    def repr_value(self):
         return {"exists": self._value}
 
 @dataclass
@@ -171,7 +171,7 @@ class Time(QueryOpExpression):
         return None
     
     @property
-    def value(self):
+    def repr_value(self):
         time_match = {}
         if self.after_t:
             time_match["$gte" if self.after_incl else "$gt"] = PredicateInput(self.field_name, self.after_t)
@@ -222,7 +222,7 @@ class And(UserList, QueryOpExpression):
     """
 
     @property
-    def value(self):
+    def repr_value(self):
         return {"$and": self.data}
 
 class Or(UserList, QueryOpExpression):
@@ -231,5 +231,5 @@ class Or(UserList, QueryOpExpression):
     It takes a list of filter expressions.
     """
     @property
-    def value(self):
+    def repr_value(self):
         return {"$or": self.data}

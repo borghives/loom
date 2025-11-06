@@ -5,7 +5,7 @@ from typing import Optional
 
 from loom.info.expression import Expression
 from loom.info.filter import Filter
-from loom.info.predicate import PredicateInput, PredicateName
+from loom.info.predicate import PredicateInput, FieldName
 from loom.info.query_op import (
     All,
     Exists,
@@ -35,7 +35,7 @@ class QueryableField:
         self.name = name
 
     def get_query_name(self):
-        return PredicateName(self.name)
+        return FieldName(self.name)
 
     def normalize_literal_input(self, literal_input):
         if isinstance(literal_input, dict):

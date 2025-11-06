@@ -1,14 +1,14 @@
 from typing import List, Optional, Tuple
 from pymongo import ASCENDING, DESCENDING
 from loom.info.expression import Expression, ExpressionDriver
-from loom.info.predicate import PredicateName
+from loom.info.predicate import FieldName
 
 class SortOp(Expression):
     def __init__(self, value: Optional[dict] = None) -> None:
         self._value = value
 
     @property
-    def value(self):
+    def repr_value(self):
         return self._value
     
     @classmethod
@@ -42,8 +42,8 @@ class SortOp(Expression):
         if other.is_empty():
             return self
         
-        self_value = self.value
-        other_value = other.value
+        self_value = self.repr_value
+        other_value = other.repr_value
 
         assert isinstance(self_value, dict)
         assert isinstance(other_value, dict)
@@ -54,8 +54,8 @@ class SortOp(Expression):
         
 class SortAsc(SortOp):
     def __init__(self, field: str) -> None:
-        self._value = {PredicateName(field): ASCENDING}
+        self._value = {FieldName(field): ASCENDING}
 
 class SortDesc(SortOp):
     def __init__(self, field: str) -> None:
-        self._value = {PredicateName(field): DESCENDING}
+        self._value = {FieldName(field): DESCENDING}

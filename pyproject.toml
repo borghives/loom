@@ -1,6 +1,6 @@
 [project]
 name = "loom"
-version = "2.11.0"
+version = "2.11.1"
 description = "A Python library for data analysis and persistence."
 authors = [
     {name = "Ed Dao",email = "ed@intellogic.com"}
@@ -32,7 +32,6 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "loom"
-version = "2.11.0"
 description = "A Python library for data analysis and persistence."
 authors = ["Ed Dao <ed@intellogic.com>"]
 license = "MIT"
