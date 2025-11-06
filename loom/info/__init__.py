@@ -5,7 +5,7 @@ from loom.info.atomic import IncrCounter
 from loom.info.model import Model, RefreshOnSet, CoalesceOnInsert, Collapsible, StrUpper, StrLower, TimeUpdated, TimeInserted, TimeNorm
 from loom.info.field import QueryableField
 from loom.info.ledger import LedgerModel, TimeSeriesLedgerModel, declare_timeseries
-from loom.info.aggregation import Aggregation
+from loom.info.aggregation import AggregationStages
 from loom.info.sort_op import SortAsc, SortDesc, SortOp
 from loom.info.query_op import TimeQuery
 from loom.info.op import to_int, to_upper, to_lower, to_date_alignment, to_double, sanitize_number, multiply, divide
@@ -13,7 +13,7 @@ from loom.info.util import coalesce
 
 
 __all__ = [
-    "Aggregation",
+    "AggregationStages",
     "QueryPredicates",
     "QueryableField",
     "Persistable",

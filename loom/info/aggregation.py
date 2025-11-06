@@ -20,11 +20,12 @@ Example:
     mongo_pipeline = pipeline.pipeline()
 """
 from typing import List, Optional
+from loom.info.expression import Expression
 from loom.info.sort_op import SortOp
 from loom.info.filter import QueryPredicates
 from pyrsistent import pvector, PVector, PMap, freeze, thaw
 
-class Aggregation:
+class AggregationStages(Expression):
     """
     A builder class for creating MongoDB aggregation pipelines.
 
@@ -33,9 +34,13 @@ class Aggregation:
     immutable `Aggregation` object, so that the methods can be chained 
     together to create a complex pipeline.
 
+    ref: https://www.mongodb.com/docs/manual/reference/mql/aggregation-stages/
+
     Usage:
         agg = Aggregation().match({"status": "active"}).limit(100)
         pipeline_stages = agg.pipeline()
+
+    
     """
 
     stages: PVector[PMap]
@@ -52,7 +57,7 @@ class Aggregation:
             self.stages = pvector()
             return
         
-        if isinstance(pipeline, Aggregation):
+        if isinstance(pipeline, AggregationStages):
             self.stages = pipeline.stages
             return
 
@@ -78,8 +83,11 @@ class Aggregation:
         """
         return iter([(k, thaw(v)) for stage in self.stages for k,v in stage.items()])
 
+    @property
+    def repr_value(self):
+        return self.pipeline()
 
-    def match(self, filter: QueryPredicates | dict) -> "Aggregation":
+    def match(self, filter: QueryPredicates | dict) -> "AggregationStages":
         """
         Adds a `$match` stage to the pipeline.
 
@@ -107,9 +115,9 @@ class Aggregation:
 
         expression = filter
 
-        return Aggregation(self.stages.append(freeze({"$match": expression})))
+        return AggregationStages(self.stages.append(freeze({"$match": expression})))
 
-    def group(self, group: dict) -> "Aggregation":
+    def group(self, group: dict) -> "AggregationStages":
         """
         Adds a `$group` stage to the pipeline.
 
@@ -122,9 +130,9 @@ class Aggregation:
         Returns:
             Aggregation: The `Aggregation` object for chaining.
         """
-        return Aggregation(self.stages.append(freeze({"$group": group})))
+        return AggregationStages(self.stages.append(freeze({"$group": group})))
 
-    def replace_root(self, root: dict) -> "Aggregation":
+    def replace_root(self, root: dict) -> "AggregationStages":
         """
         Adds a `$replaceRoot` stage to the pipeline.
 
@@ -136,9 +144,9 @@ class Aggregation:
         Returns:
             Aggregation: The `Aggregation` object for chaining.
         """
-        return Aggregation(self.stages.append(freeze({"$replaceRoot": root})))
+        return AggregationStages(self.stages.append(freeze({"$replaceRoot": root})))
 
-    def project(self, project: dict) -> "Aggregation":
+    def project(self, project: dict) -> "AggregationStages":
         """
         Adds a `$project` stage to the pipeline.
 
@@ -151,9 +159,9 @@ class Aggregation:
         Returns:
             Aggregation: The `Aggregation` object for chaining.
         """
-        return Aggregation(self.stages.append(freeze({"$project": project})))
+        return AggregationStages(self.stages.append(freeze({"$project": project})))
 
-    def add_fields(self, fields: dict) -> "Aggregation":
+    def add_fields(self, fields: dict) -> "AggregationStages":
         """
         Adds an `$addFields` stage to the pipeline.
 
@@ -168,9 +176,9 @@ class Aggregation:
         Returns:
             Aggregation: The `Aggregation` object for chaining.
         """
-        return Aggregation(self.stages.append(freeze({"$addFields": fields})))
+        return AggregationStages(self.stages.append(freeze({"$addFields": fields})))
 
-    def sort(self, sort: SortOp) -> "Aggregation":
+    def sort(self, sort: SortOp) -> "AggregationStages":
         """
         Adds a `$sort` stage to the pipeline.
 
@@ -186,9 +194,9 @@ class Aggregation:
         if sort.is_empty():
             return self
         
-        return Aggregation(self.stages.append(freeze({"$sort": sort})))
+        return AggregationStages(self.stages.append(freeze({"$sort": sort})))
 
-    def limit(self, limit: int) -> "Aggregation":
+    def limit(self, limit: int) -> "AggregationStages":
         """
         Adds a `$limit` stage to the pipeline.
 
@@ -204,9 +212,9 @@ class Aggregation:
         if limit == 0:
             return self
 
-        return Aggregation(self.stages.append(freeze({"$limit": limit})))
+        return AggregationStages(self.stages.append(freeze({"$limit": limit})))
 
-    def skip(self, skip: int) -> "Aggregation":
+    def skip(self, skip: int) -> "AggregationStages":
         """
         Adds a `$skip` stage to the pipeline.
 
@@ -219,9 +227,9 @@ class Aggregation:
         Returns:
             Aggregation: The `Aggregation` object for chaining.
         """
-        return Aggregation(self.stages.append(freeze({"$skip": skip})))
+        return AggregationStages(self.stages.append(freeze({"$skip": skip})))
 
-    def unwind(self, path: str) -> "Aggregation":
+    def unwind(self, path: str) -> "AggregationStages":
         """
         Adds a `$unwind` stage to the pipeline.
 
@@ -234,11 +242,11 @@ class Aggregation:
         Returns:
             Aggregation: The `Aggregation` object for chaining.
         """
-        return Aggregation(self.stages.append(freeze({"$unwind": path})))
+        return AggregationStages(self.stages.append(freeze({"$unwind": path})))
 
     def lookup(
         self, foreignCollection: str, localField: str, foreignField: str, toField: str = "result"
-    ) -> "Aggregation":
+    ) -> "AggregationStages":
         """
         Adds a `$lookup` stage to the pipeline for a simple equality match.
 
@@ -256,7 +264,7 @@ class Aggregation:
         Returns:
             Aggregation: The `Aggregation` object for chaining.
         """
-        return Aggregation(self.stages.append(freeze(
+        return AggregationStages(self.stages.append(freeze(
             {
                 "$lookup": {
                     "from": foreignCollection,
@@ -267,7 +275,7 @@ class Aggregation:
             }
         )))
 
-    def merge(self, merge: dict) -> "Aggregation":
+    def merge(self, merge: dict) -> "AggregationStages":
         """
         Adds a `$merge` stage to the pipeline.
 
@@ -280,9 +288,9 @@ class Aggregation:
         Returns:
             Aggregation: The `Aggregation` object for chaining.
         """
-        return Aggregation(self.stages.append(freeze({"$merge": merge})))
+        return AggregationStages(self.stages.append(freeze({"$merge": merge})))
 
-    def out(self, coll: str) -> "Aggregation":
+    def out(self, coll: str) -> "AggregationStages":
         """
         Adds an `$out` stage to the pipeline.
 
@@ -295,9 +303,9 @@ class Aggregation:
         Returns:
             Aggregation: The `Aggregation` object for chaining.
         """
-        return Aggregation(self.stages.append(freeze({"$out": coll})))
+        return AggregationStages(self.stages.append(freeze({"$out": coll})))
 
-    def sample(self, size: int) -> "Aggregation":
+    def sample(self, size: int) -> "AggregationStages":
         """
         Adds a `$sample` stage to the pipeline.
 
@@ -312,14 +320,14 @@ class Aggregation:
         if (size == 0):
             return self
 
-        return Aggregation(self.stages.append(freeze({"$sample": {"size": size}})))
+        return AggregationStages(self.stages.append(freeze({"$sample": {"size": size}})))
     
-    def count(self, field: str) -> "Aggregation":
-        return Aggregation(self.stages.append(freeze({"$count": field})))
+    def count(self, field: str) -> "AggregationStages":
+        return AggregationStages(self.stages.append(freeze({"$count": field})))
 
 
 
-    def graph_lookup(self, fields: dict) -> "Aggregation":
+    def graph_lookup(self, fields: dict) -> "AggregationStages":
         """
         Adds a `$graphLookup` stage to the pipeline.
 
@@ -333,9 +341,9 @@ class Aggregation:
         Returns:
             Aggregation: The `Aggregation` object for chaining.
         """
-        return Aggregation(self.stages.append(freeze({"$graphLookup": fields})))
+        return AggregationStages(self.stages.append(freeze({"$graphLookup": fields})))
 
-    def __or__(self, agg: Optional["Aggregation"]) -> "Aggregation":
+    def __or__(self, agg: Optional["AggregationStages"]) -> "AggregationStages":
         """
         Merges this aggregation pipeline with another one.
 
@@ -355,7 +363,7 @@ class Aggregation:
         """
         if agg is None:
             return self
-        return Aggregation(self.stages + agg.stages)
+        return AggregationStages(self.stages + agg.stages)
 
     def pipeline(self) -> List:
         """

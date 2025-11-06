@@ -25,7 +25,7 @@ from loom.info.model import (
     TimeUpdated,
 )
 from loom.info.filter import QueryPredicates
-from loom.info.aggregation import Aggregation
+from loom.info.aggregation import AggregationStages
 from loom.info.index import Index
 from loom.info.model import Model
 from loom.info.universal import get_local_db_client, get_remote_db_client
@@ -486,7 +486,7 @@ class Persistable(Model):
         return LoadDirective[PersistableType](cls).filter(filter)
 
     @classmethod
-    def agg(cls: Type[PersistableType], aggregation: Aggregation = Aggregation()):
+    def agg(cls: Type[PersistableType], aggregation: AggregationStages = AggregationStages()):
         from loom.info.directive import LoadDirective
         return LoadDirective[PersistableType](cls).agg(aggregation)
     

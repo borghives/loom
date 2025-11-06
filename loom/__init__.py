@@ -1,6 +1,6 @@
 from loom.info import (
     QueryPredicates, 
-    Aggregation,
+    AggregationStages,
     SortAsc,
     SortDesc,
     SortOp,
@@ -37,7 +37,7 @@ from loom.time import (
 fld = QueryableField
 
 __all__ = [
-    "Aggregation",
+    "AggregationStages",
     "QueryPredicates",
     "access_secret",
     "TimeQuery",

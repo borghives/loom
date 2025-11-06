@@ -9,8 +9,7 @@ from pymongoarrow.api import ( #type: ignore
 import pandas as pd
 import polars as pl
 
-from loom.info.aggregation import Aggregation
-from loom.info.expression import ExpressionDriver
+from loom.info.aggregation import AggregationStages
 from loom.info.filter import QueryPredicates
 from loom.info.sort_op import SortDesc, SortOp, SortAsc
 from loom.info.persistable import PersistableType
@@ -23,7 +22,7 @@ class LoadDirective(Generic[PersistableType]):
     It supports filtering, sorting, limiting, and aggregation.
     """
     def __init__(self, persistable: Type[PersistableType]) -> None:
-        self._aggregation_expr: Aggregation = Aggregation()
+        self._aggregation_expr: AggregationStages = AggregationStages()
         self._persist_cls: Type[PersistableType] = persistable
 
     def filter(self : "LoadDirective[PersistableType]", filter: QueryPredicates) -> "LoadDirective[PersistableType]":
@@ -142,7 +141,7 @@ class LoadDirective(Generic[PersistableType]):
         return 0
 
     
-    def agg(self : "LoadDirective[PersistableType]", aggregation: Aggregation) -> "LoadDirective[PersistableType]":
+    def agg(self : "LoadDirective[PersistableType]", aggregation: AggregationStages) -> "LoadDirective[PersistableType]":
         """
         Adds an aggregation pipeline to the query.
 
@@ -155,7 +154,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr |= aggregation
         return self
     
-    def exec_agg(self : "LoadDirective[PersistableType]", post_agg: Optional[Aggregation] = None):
+    def exec_agg(self : "LoadDirective[PersistableType]", post_agg: Optional[AggregationStages] = None):
         """
         Performs an aggregation query on the model's collection.
 
@@ -170,7 +169,7 @@ class LoadDirective(Generic[PersistableType]):
         collection = p_cls.get_init_collection()
         return collection.aggregate(self.get_pipeline_expr(post_agg))
 
-    def load_agg(self : "LoadDirective[PersistableType]", post_agg: Optional[Aggregation] = None):
+    def load_agg(self : "LoadDirective[PersistableType]", post_agg: Optional[AggregationStages] = None):
         """
         Executes an aggregation and returns the results as a list of models.
 
@@ -192,7 +191,7 @@ class LoadDirective(Generic[PersistableType]):
         Returns:
             Optional[Persistable]: An instance of the model, or `None` if no document is found.
         """
-        docs = self.load_agg(Aggregation().limit(1))
+        docs = self.load_agg(AggregationStages().limit(1))
         return docs[0] if len(docs) > 0 else None
     
     def load_many(self: "LoadDirective[PersistableType]"):
@@ -214,29 +213,29 @@ class LoadDirective(Generic[PersistableType]):
         Returns:
             Optional[Persistable]: An instance of the loaded document, or `None` if not found.
         """
-        docs = self.load_agg(Aggregation().sort(sort).limit(1))
+        docs = self.load_agg(AggregationStages().sort(sort).limit(1))
         return docs[0] if len(docs) > 0 else None
     
-    async def exec_agg_async(self: "LoadDirective[PersistableType]", post_agg: Optional[Aggregation] = None):
+    async def exec_agg_async(self: "LoadDirective[PersistableType]", post_agg: Optional[AggregationStages] = None):
         p_cls = self._persist_cls
         collection = await p_cls.get_init_collection_async()
         return await collection.aggregate(self.get_pipeline_expr(post_agg))
 
-    async def load_agg_async(self : "LoadDirective[PersistableType]", post_agg: Optional[Aggregation] = None):
+    async def load_agg_async(self : "LoadDirective[PersistableType]", post_agg: Optional[AggregationStages] = None):
         p_cls = self._persist_cls
         cursor = await self.exec_agg_async(post_agg)
         async with cursor:
             return [p_cls.from_doc(doc) async for doc in cursor]
 
     async def load_one_async(self: "LoadDirective[PersistableType]"):
-        docs = await self.load_agg_async(Aggregation().limit(1))
+        docs = await self.load_agg_async(AggregationStages().limit(1))
         return docs[0] if len(docs) > 0 else None
     
     async def load_many_async(self: "LoadDirective[PersistableType]"):
         return await self.load_agg_async()
 
     async def load_latest_async(self: "LoadDirective[PersistableType]", sort: SortOp = SortDesc("updated_time")):
-        docs = await self.load_agg_async(Aggregation().sort(sort).limit(1))
+        docs = await self.load_agg_async(AggregationStages().sort(sort).limit(1))
         return docs[0] if len(docs) > 0 else None
     
     def exists(self) -> bool:
@@ -246,11 +245,11 @@ class LoadDirective(Generic[PersistableType]):
         Returns:
             bool: `True` if a matching document exists, `False` otherwise.
         """
-        docs = self.load_agg(Aggregation().limit(1))
+        docs = self.load_agg(AggregationStages().limit(1))
         return len(docs) > 0
 
     async def exists_async(self) -> bool:
-        docs = await self.load_agg_async(Aggregation().limit(1))
+        docs = await self.load_agg_async(AggregationStages().limit(1))
         return len(docs) > 0
     
     def load_table(self, schema: Optional[Schema] = None) -> Table:
@@ -316,14 +315,8 @@ class LoadDirective(Generic[PersistableType]):
             df = pd.DataFrame(cursors)
             return df
         
-    def get_pipeline_expr(self, post_agg: Optional[Aggregation] = None) -> list[dict]:
-        pipelines = (self._aggregation_expr | post_agg).pipeline()
-        return [normalize_pipeline_stage(stage, self._persist_cls.get_mql_driver()) for stage in pipelines if stage is not None]
-
-def normalize_pipeline_stage(stage: dict, driver: Optional[ExpressionDriver] = None) -> dict:
-    if driver is None:
-        driver = ExpressionDriver({})
-
-    retval =  driver.marshal(stage)
-    assert isinstance(retval, dict)
-    return retval
+    def get_pipeline_expr(self, post_agg: Optional[AggregationStages] = None) -> list[dict]:
+        pipelines = (self._aggregation_expr | post_agg)
+        flattened_pipelines =pipelines.express(self._persist_cls.get_mql_driver())
+        assert isinstance(flattened_pipelines, list)
+        return flattened_pipelines

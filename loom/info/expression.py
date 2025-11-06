@@ -37,7 +37,7 @@ class ExpressionDriver:
         if isinstance(value, dict):
             return {self.marshal(k): self.marshal(v) for k, v in value.items()}
         if isinstance(value, list):
-            return [self.marshal(v) for v in value]
+            return [self.marshal(v) for v in value if v is not None]
         return value
 
 class Expression(ABC):
@@ -54,6 +54,9 @@ class Expression(ABC):
         pass
     
     def express(self, driver: Optional[ExpressionDriver] = None):
+        if driver is None:
+            driver = ExpressionDriver({})
+        
         return driver.marshal(self.repr_value) if driver else self.repr_value
     
     def is_empty(self):
