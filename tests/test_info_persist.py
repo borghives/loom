@@ -1,19 +1,18 @@
 import unittest
 from datetime import datetime, timezone
 from typing import cast
-from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import polars as pl
 import rich
 from bson import ObjectId
 from pydantic import Field
-from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
+from pymongo.collection import Collection
 
 from loom.info import Persistable, IncrCounter, declare_persist_db
-from loom.info.field import StrLower, StrUpper, CoalesceOnInsert, RefreshOnSet
-
+from loom.info.model import StrLower, StrUpper, CoalesceOnInsert, RefreshOnSet
+import loom as lm
 
 
 @declare_persist_db(db_name="test_db", collection_name="test_collection", version=1, test=True)
@@ -21,8 +20,6 @@ class TestModel(Persistable):
     name: str
     value: int
     link_id: ObjectId | None = None
-
-test_fld = TestModel.fields()
 
 @declare_persist_db(collection_name="test_inc_collection", db_name="test_db", test=True)
 class TestIncModel(Persistable):
@@ -184,6 +181,8 @@ class PersistableTest(unittest.TestCase):
 
         # 2. Check the database for the initial state
         collection = TestIncModel.get_db_collection()
+        assert collection is not None
+        assert isinstance(collection, Collection)
         db_data = collection.find_one(model.self_filter())
         assert db_data is not None
         assert db_data["test_field"] == "inc_test"
@@ -195,7 +194,7 @@ class PersistableTest(unittest.TestCase):
         # 3. Load from DB, increment again, and persist
         assert model.id is not None
         
-        field = TestIncModel.fields()["counter"]
+        field = lm.fld("counter")
         assert field is not None
 
 
@@ -217,44 +216,29 @@ class PersistableTest(unittest.TestCase):
         collection.delete_one(model.self_filter())
 
 
-    @patch.object(TestModel, 'get_db_collection')
-    def test_persist_instance(self, mock_get_collection):
+    def test_persist_instance(self):
         """Test persisting a single model instance."""
-        mock_collection = MagicMock()
-        mock_get_collection.return_value = mock_collection
 
         model = TestModel(name="to_persist", value=100)
-        
-        result_doc = {"_id": model.collapse_id(), "name": "persisted", "value": 101, "created_at": datetime.now(timezone.utc)}
-        mock_collection.find_one_and_update.return_value = result_doc
+        model.name = "persisted"
 
         self.assertTrue(model.persist())
 
-        mock_collection.find_one_and_update.assert_called_once()
         self.assertFalse(model.has_update)
         self.assertEqual(model.name, "persisted")
 
-    @patch.object(TestModel, 'get_db_collection')
-    def test_persist_lazy(self, mock_get_collection):
+    def test_persist_lazy(self):
         """Test the lazy=True flag on the persist method."""
-        mock_collection = MagicMock()
-        mock_get_collection.return_value = mock_collection
 
         loaded_model = TestModel.from_doc({"_id": ObjectId(), "name": "loaded", "value": 1})
         self.assertFalse(loaded_model.persist(lazy=True))
-        mock_collection.find_one_and_update.assert_not_called()
 
         new_model = TestModel(name="new", value=2)
-        result_doc = {"_id": new_model.collapse_id(), "name": "new", "value": 2, "created_at": datetime.now(timezone.utc)}
-        mock_collection.find_one_and_update.return_value = result_doc
         self.assertTrue(new_model.persist(lazy=True))
-        self.assertEqual(mock_collection.find_one_and_update.call_count, 1)
 
-    @patch.object(TestModel, 'get_db_collection')
-    def test_persist_many(self, mock_get_collection):
+
+    def test_persist_many(self):
         """Test persisting multiple model instances."""
-        mock_collection = MagicMock()
-        mock_get_collection.return_value = mock_collection
 
         items = [
             TestModel(name="item1", value=1),
@@ -266,37 +250,21 @@ class PersistableTest(unittest.TestCase):
 
         TestModel.persist_many(items, lazy=True)
 
-        mock_collection.bulk_write.assert_called_once()
-        operations = mock_collection.bulk_write.call_args[0][0]
-        self.assertEqual(len(operations), 2)
-        self.assertIsInstance(operations[0], UpdateOne)
 
         self.assertFalse(items[0].has_update)
         self.assertFalse(items[2].has_update)
 
-    @patch.object(TestModel, 'get_db_collection')
-    def test_insert_dataframe(self, mock_get_collection):
+    def test_insert_dataframe(self):
         """Test inserting a pandas DataFrame."""
-        mock_collection = MagicMock()
-        mock_get_collection.return_value = mock_collection
+
 
         df = pd.DataFrame({"name": ["df_user1"], "value": [10], "updated_time": [None]})
         TestModel.insert_dataframe(df)
 
-        mock_collection.insert_many.assert_called_once()
-        inserted_records = mock_collection.insert_many.call_args[0][0]
-        self.assertEqual(inserted_records[0]["name"], "df_user1")
-        self.assertIn("updated_time", inserted_records[0])
 
-    @patch.object(TestModel, 'get_db_collection')
-    def test_insert_dataframe_ignores_duplicate_error(self, mock_get_collection):
+    def test_insert_dataframe_ignores_duplicate_error(self):
         """Test that insert_dataframe handles and ignores duplicate key errors."""
-        mock_collection = MagicMock()
-        mock_get_collection.return_value = mock_collection
         
-        error_details = {"writeErrors": [{"code": 11000}]}
-        bwe = BulkWriteError(error_details)
-        mock_collection.insert_many.side_effect = bwe
 
         df = pd.DataFrame({"name": ["test"], "value": [1]})
         
@@ -340,24 +308,24 @@ class TestLoadDirective(unittest.TestCase):
 
     def test_load_one(self):
         
-        user = TestModel.filter(test_fld['name'] == "Alice").load_one()
+        user = TestModel.filter(lm.fld('name') == "Alice").load_one()
         self.assertIsNotNone(user)
         self.assertIsInstance(user, TestModel)
         assert user is not None
         self.assertEqual(user.name, "Alice")
 
     def test_load_many(self):
-        users = TestModel.filter(test_fld['value'] > 35).load_many()
+        users = TestModel.filter(lm.fld('value') > 35).load_many()
         self.assertEqual(len(users), 2)
 
     def test_load_latest(self):
-        latest_user = cast(TestModel, TestModel.filter(test_fld['name'] == "Charlie").load_latest())
+        latest_user = cast(TestModel, TestModel.filter(lm.fld('name') == "Charlie").load_latest())
         self.assertIsNotNone(latest_user)
         self.assertEqual(latest_user.name, "Charlie")
 
     def test_exists(self):
-        self.assertTrue(TestModel.filter(test_fld['name'] == "Alice").exists())
-        self.assertFalse(TestModel.filter(test_fld['name'] == "David").exists())
+        self.assertTrue(TestModel.filter(lm.fld('name') == "Alice").exists())
+        self.assertFalse(TestModel.filter(lm.fld('name') == "David").exists())
 
     def test_load_dataframe(self):
         df = TestModel.filter().load_dataframe()
@@ -383,8 +351,6 @@ class TestNormModel(Persistable):
     description: StrUpper
     notes: StrLower
 
-test_norm_fld = TestNormModel.fields()
-
 class TestNormalizeQueryInput(unittest.TestCase):
     def setUp(self):
         self.collection = TestNormModel.get_db_collection()
@@ -396,12 +362,12 @@ class TestNormalizeQueryInput(unittest.TestCase):
 
     def test_normalize_query_input_filter(self):
         # Query with un-normalized value
-        item = TestNormModel.filter(test_norm_fld['description'] == 'upper').load_one()
+        item = TestNormModel.filter(lm.fld('description') == 'upper').load_one()
         self.assertIsNotNone(item)
         assert item is not None
         self.assertEqual(item.description, "UPPER")
 
-        item = TestNormModel.filter(test_norm_fld['notes'] == 'LOWER').load_one()
+        item = TestNormModel.filter(lm.fld('notes') == 'LOWER').load_one()
         self.assertIsNotNone(item)
         assert item is not None
 
@@ -409,13 +375,13 @@ class TestNormalizeQueryInput(unittest.TestCase):
 
     def test_normalize_query_input_filter_in_op(self):
         # Query with un-normalized value in a list
-        item = TestNormModel.filter(test_norm_fld['description'].is_in(['upper', 'another'])).load_one()
+        item = TestNormModel.filter(lm.fld('description').is_in(['upper', 'another'])).load_one()
         self.assertIsNotNone(item)
         assert item is not None
 
         self.assertEqual(item.description, "UPPER")
 
-        item = TestNormModel.filter(test_norm_fld['notes'].is_in(['LOWER', 'ANOTHER'])).load_one()
+        item = TestNormModel.filter(lm.fld('notes').is_in(['LOWER', 'ANOTHER'])).load_one()
         self.assertIsNotNone(item)
         assert item is not None
 

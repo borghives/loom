@@ -1,11 +1,14 @@
-from abc import abstractmethod
+
 from collections import UserList
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
-from loom.info.expression import Expression, marshal_expression
+from loom.info.expression import Expression
+
+from loom.info.predicate import PredicateInput
 from loom.time.timeframing import TimeFrame
 from loom.time.util import to_utc_aware
+
 
 
 class QueryOpExpression(Expression):
@@ -13,9 +16,7 @@ class QueryOpExpression(Expression):
     A MongoDB query operator expression.
     """
 
-    @abstractmethod
-    def express(self) -> dict:
-        pass
+    pass
 
 
 class In(UserList, QueryOpExpression):
@@ -23,7 +24,8 @@ class In(UserList, QueryOpExpression):
     A match directive that creates a `$in` operator.
     """
 
-    def express(self) -> dict:
+    @property
+    def value(self):
         return {"$in": self.data}
 
 
@@ -32,7 +34,8 @@ class NotIn(UserList, QueryOpExpression):
     A match directive that creates a `$nin` operator.
     """
 
-    def express(self) -> dict:
+    @property
+    def value(self):
         return {"$nin": self.data}
 
 class All(UserList, QueryOpExpression):
@@ -40,7 +43,8 @@ class All(UserList, QueryOpExpression):
     A match directive that creates a `$all` operator.
     """
 
-    def express(self) -> dict:
+    @property
+    def value(self):
         return {"$all": self.data}
 
 class Not(QueryOpExpression):
@@ -49,21 +53,20 @@ class Not(QueryOpExpression):
     """
 
     def __init__(self, value):
-        self.value = value
+        self._value = value
 
-    def express(self) -> dict:
-        if isinstance(self.value, QueryOpExpression):
-            return {"$not": self.value.express()}
-        
-        return {"$not": self.value}
+    @property
+    def value(self):
+        return {"$not": self._value}
 
 class NotAll(UserList, QueryOpExpression):
     """
     A match directive that creates a not `$all` operator.
     """
 
-    def express(self) -> dict:
-        return Not(All(self.data)).express()
+    @property
+    def value(self):
+        return Not(All(self.data))
 
 
 class Gt(QueryOpExpression):
@@ -72,11 +75,11 @@ class Gt(QueryOpExpression):
     """
 
     def __init__(self, value):
-        self.value = value
+        self._value = value
 
-    def express(self) -> dict:
-        return {"$gt": self.value}
-
+    @property
+    def value(self):
+        return {"$gt": self._value}
 
 class Gte(QueryOpExpression):
     """
@@ -84,10 +87,11 @@ class Gte(QueryOpExpression):
     """
 
     def __init__(self, value):
-        self.value = value
+        self._value = value
 
-    def express(self) -> dict:
-        return {"$gte": self.value}
+    @property
+    def value(self):
+        return {"$gte" : self._value}
 
 
 class Lt(QueryOpExpression):
@@ -96,10 +100,11 @@ class Lt(QueryOpExpression):
     """
 
     def __init__(self, value):
-        self.value = value
+        self._value = value
 
-    def express(self) -> dict:
-        return {"$lt": self.value}
+    @property
+    def value(self):
+        return {"$lt" : self._value}
 
 
 class Lte(QueryOpExpression):
@@ -108,10 +113,11 @@ class Lte(QueryOpExpression):
     """
 
     def __init__(self, value):
-        self.value = value
+        self._value = value
 
-    def express(self) -> dict:
-        return {"$lte": self.value}
+    @property
+    def value(self):
+        return {"$lte" : self._value}
 
 
 class Eq(QueryOpExpression):
@@ -120,10 +126,11 @@ class Eq(QueryOpExpression):
     """
 
     def __init__(self, value):
-        self.value = value
+        self._value = value
 
-    def express(self) -> dict:
-        return {"$eq": self.value}
+    @property
+    def value(self):
+        return {"$eq" : self._value}
     
 class Ne(QueryOpExpression):
     """
@@ -131,28 +138,26 @@ class Ne(QueryOpExpression):
     """
 
     def __init__(self, value):
-        self.value = value
+        self._value = value
 
-    def express(self) -> dict:
-        return {"$ne": self.value}
+    @property
+    def value(self):
+        return {"$ne" : self._value}
 
 class Exists(QueryOpExpression):
-    """
-    A match directive that creates a `$neq` filter.
-    """
-
     def __init__(self, value: bool):
-        self.value = value
+        self._value = value
 
-    def express(self) -> dict:
-        return {"$exists": self.value}
+    @property
+    def value(self):
+        return {"exists": self._value}
 
 @dataclass
 class Time(QueryOpExpression):
     """
     A time match description that creates a time-based query operator expression.
     """
-
+    field_name: str = ""
     after_t: Optional[datetime] = None
     after_incl: bool = False
     before_t: Optional[datetime] = None
@@ -164,17 +169,19 @@ class Time(QueryOpExpression):
             return value
         
         return None
-
-    def express(self) -> dict:
+    
+    @property
+    def value(self):
         time_match = {}
-
         if self.after_t:
-            time_match["$gte" if self.after_incl else "$gt"] = self.after_t
+            time_match["$gte" if self.after_incl else "$gt"] = PredicateInput(self.field_name, self.after_t)
 
         if self.before_t:
-            time_match["$lte" if self.before_incl else "$lt"] = self.before_t
-
+            time_match["$lte" if self.before_incl else "$lt"] = PredicateInput(self.field_name, self.before_t)
         return time_match
+    
+    def is_empty(self):
+        return self.after_t is None and self.before_t is None
     
     def after(self, time : datetime) -> "Time":
         time = to_utc_aware(time)
@@ -213,13 +220,16 @@ class And(UserList, QueryOpExpression):
     A match directive that creates an `$and` operator.
     It takes a list of filter expressions.
     """
-    def express(self) -> dict:
-        return {"$and": [marshal_expression(item) for item in self.data]}
+
+    @property
+    def value(self):
+        return {"$and": self.data}
 
 class Or(UserList, QueryOpExpression):
     """
     A match directive that creates an `$or` operator.
     It takes a list of filter expressions.
     """
-    def express(self) -> dict:
-        return {"$or": [marshal_expression(item) for item in self.data]}
+    @property
+    def value(self):
+        return {"$or": self.data}

@@ -1,5 +1,6 @@
 import pytest
 from loom.info.aggregation import Aggregation
+from loom.info.directive import normalize_pipeline_stage
 from loom.info.filter import Filter
 from loom.info.sort_op import SortAsc, SortDesc
 
@@ -14,24 +15,24 @@ def test_aggregation_initialization():
 def test_match_stage():
     """Tests the match method."""
     agg = Aggregation().match(Filter({"status": "A"}))
-    assert agg.pipeline() == [{"$match": {"status": "A"}}]
+    assert [normalize_pipeline_stage(stage)  for stage in agg.pipeline() if stage is not None ]== [{"$match": {"status": "A"}}]
 
     agg_dict = Aggregation().match({"status": "B"})
-    assert agg_dict.pipeline() == [{"$match": {"status": "B"}}]
+    assert [normalize_pipeline_stage(stage)  for stage in agg_dict.pipeline() if stage is not None ] == [{"$match": {"status": "B"}}]
 
 def test_group_stage():
     """Tests the group method."""
     group_expr = {"_id": "$customer_id", "total": {"$sum": "$amount"}}
     agg = Aggregation().group(group_expr)
-    assert agg.pipeline() == [{"$group": group_expr}]
+    assert [normalize_pipeline_stage(stage)  for stage in agg.pipeline() if stage is not None ] == [{"$group": group_expr}]
 
 def test_sort_stage():
     """Tests the sort method."""
     agg = Aggregation().sort(SortDesc("total"))
-    assert agg.pipeline() == [{"$sort": {"total": -1}}]
+    assert [normalize_pipeline_stage(stage)  for stage in agg.pipeline() if stage is not None ] == [{"$sort": {"total": -1}}]
 
     agg_asc = Aggregation().sort(SortAsc("name"))
-    assert agg_asc.pipeline() == [{"$sort": {"name": 1}}]
+    assert [normalize_pipeline_stage(stage)  for stage in agg_asc.pipeline() if stage is not None ] == [{"$sort": {"name": 1}}]
 
 def test_limit_stage():
     """Tests the limit method."""
@@ -71,7 +72,7 @@ def test_chaining_methods():
         {"$limit": 10},
     ]
     
-    assert agg.pipeline() == expected_pipeline
+    assert [normalize_pipeline_stage(stage)  for stage in agg.pipeline() if stage is not None ] == expected_pipeline
 
 def test_or_operator():
     """Tests the merging of two Aggregation objects using the | operator."""

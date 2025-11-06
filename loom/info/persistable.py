@@ -15,7 +15,9 @@ from pymongo.errors import BulkWriteError
 from pymongo.asynchronous.database import AsyncDatabase
 from pymongo.asynchronous.collection import AsyncCollection
 
-from loom.info.field import (
+from loom.info.expression import ExpressionDriver
+from loom.info.field import QueryableField
+from loom.info.model import (
     CoalesceOnIncr,
     CoalesceOnInsert,
     RefreshOnSet,
@@ -461,7 +463,7 @@ class Persistable(Model):
                 return None
             id = ObjectId(id)
 
-        filter = cls.fields()["id"] == id
+        filter = QueryableField("id") == id
         return cls.filter(filter).load_one()
 
     @classmethod
@@ -471,9 +473,13 @@ class Persistable(Model):
                 return None
             id = ObjectId(id)
 
-        filter = cls.fields()["id"] == id
+        filter = QueryableField("id") == id
         return await cls.filter(filter).load_one_async()
     
+    @classmethod
+    def get_mql_driver(cls) -> ExpressionDriver:
+        return ExpressionDriver(cls.model_fields)
+
     @classmethod
     def filter(cls: Type[PersistableType], filter: Filter = Filter()):
         from loom.info.directive import LoadDirective

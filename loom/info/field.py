@@ -1,12 +1,11 @@
-from datetime import datetime
+
 from enum import Enum
 from functools import wraps
-from typing import Annotated, Optional
+from typing import Optional
 
-from pydantic import AfterValidator, Field
-from pydantic.fields import FieldInfo
 from loom.info.expression import Expression
 from loom.info.filter import Filter
+from loom.info.predicate import PredicateInput, PredicateName
 from loom.info.query_op import (
     All,
     Exists,
@@ -23,148 +22,122 @@ from loom.info.query_op import (
     QueryOpExpression,
 )
 from loom.time.timeframing import TimeFrame
-from loom.time.util import get_current_time, to_utc_aware
 
 def suppress_warning(func):
-    """suppress pylance error :-/ Not proud of myself! Picking on a dumb kid who you like"""
+    """suppress pylance error :-/ Not proud of myself!"""
     @wraps(func) 
     def wrapper(self, other):
         return func(self, other)
     return wrapper
 
 class QueryableField:
-    def __init__(self, name: str, field_info: Optional[FieldInfo] = None):
+    def __init__(self, name: str):
         self.name = name
-        self.field_info = field_info
 
-    def get_query_name(self) -> str:
-        if self.field_info is None:
-            return self.name
-        
-        return self.field_info.alias or self.name
+    def get_query_name(self):
+        return PredicateName(self.name)
 
-    def get_field_metadata(
-        self, hint_type: Optional[type] = None
-    ) -> list:
-        """
-        Gets the metadata for a specific field, optionally filtered by type.
-
-        Args:
-            field_name: The name of the field to inspect.
-            hint_type (type, optional): If provided, only metadata items of this type are
-                returned. Defaults to None.
-
-        Returns:
-            A list of metadata items found on the field.
-        """
-        if self.field_info is None:
-            return []
-
-        metadata = self.field_info.metadata
-        if hint_type is None:
-            return metadata
-
-        return [item for item in metadata if isinstance(item, hint_type)]
+    def normalize_literal_input(self, literal_input):
+        if isinstance(literal_input, dict):
+            return {k: PredicateInput(self.name, v) for k, v in literal_input.items()}
     
-    def normalize_query_input(self, value):
-        transformers = self.get_field_metadata(NormalizeQueryInput)
-        if (transformers is None or len(transformers) == 0):
-            return value
+        if isinstance(literal_input, list):
+            return [PredicateInput(self.name, v) for v in literal_input]
         
-        if isinstance(value, dict):
-            return {k: self.normalize_query_input(v) for k, v in value.items()}
-        
-        if isinstance(value, list):
-            return [self.normalize_query_input(v) for v in value]
-        
-        return coalesce(value, transformers)
+        return PredicateInput(self.name, literal_input)
 
-    def __gt__(self, other) -> Filter:
-        if other is None:
+    def __gt__(self, literal_input) -> Filter:
+        if literal_input is None:
             return Filter()
-        other=self.normalize_query_input(other)
-        return self.predicate(Gt(other))
+        input=self.normalize_literal_input(literal_input)
+        return self.predicate(Gt(input))
 
-    def __lt__(self, other) -> Filter:
-        if other is None:
+    def __lt__(self, literal_input) -> Filter:
+        if literal_input is None:
             return Filter()
-        other=self.normalize_query_input(other)
-        return self.predicate(Lt(other))
+        input=self.normalize_literal_input(literal_input)
+        return self.predicate(Lt(input))
 
-    def __ge__(self, other) -> Filter:
-        if other is None:
+    def __ge__(self, literal_input) -> Filter:
+        if literal_input is None:
             return Filter()
-        other=self.normalize_query_input(other)
-        return self.predicate(Gte(other)) 
+        input=self.normalize_literal_input(literal_input)
+        return self.predicate(Gte(input)) 
 
-    def __le__(self, other) -> Filter:
-        if other is None:
+    def __le__(self, literal_input) -> Filter:
+        if literal_input is None:
             return Filter()
-        other=self.normalize_query_input(other)
-        return self.predicate(Lte(other)) 
+        input=self.normalize_literal_input(literal_input)
+        return self.predicate(Lte(input)) 
 
     @suppress_warning
-    def __eq__(self, other) -> Filter:
-        if other is None:
+    def __eq__(self, input) -> Filter:
+        if input is None:
             return Filter()
         
-        if isinstance(other, Enum):
-            return self.is_enum(other)
+        if isinstance(input, Enum):
+            return self.is_enum(input)
         
-        if isinstance(other, Expression):
-            return self.predicate(Eq(other))
+        if isinstance(input, Expression):
+            return self.predicate(Eq(input))
         
-        other=self.normalize_query_input(other)        
-        return Filter({self.get_query_name(): other})
+        input=self.normalize_literal_input(input)        
+        return Filter({self.get_query_name(): input})
 
     @suppress_warning
-    def __ne__(self, other) -> Filter:
-        if other is None:
+    def __ne__(self, literal_input) -> Filter:
+        if literal_input is None:
             return Filter()
         
-        other=self.normalize_query_input(other)
-        return self.predicate(Ne(other)) 
+        input=self.normalize_literal_input(literal_input)
+        return self.predicate(Ne(input)) 
 
-    def is_in(self, other) -> Filter:
-        if other is None:
-            return Filter()
-
-        other=self.normalize_query_input(other)
-        return self.predicate(In(other)) 
-    
-    def is_not_in(self, other) -> Filter:
-        if other is None:
-            return Filter()
-        other=self.normalize_query_input(other)
-        return self.predicate(NotIn(other))
-    
-    def is_all(self, other) -> Filter:
-        if other is None:
-            return Filter()
-        
-        other=self.normalize_query_input(other)
-        return self.predicate(All(other))
-    
-    def is_not_all(self, other) -> Filter:
-        if other is None:
+    def is_in(self, literal_input) -> Filter:
+        if literal_input is None:
             return Filter()
 
-        other=self.normalize_query_input(other)
-        return self.predicate(NotAll(other))
+        input=self.normalize_literal_input(literal_input)
+        assert isinstance(input, list)
+        return self.predicate(In(input)) 
     
-    def is_within(self, other: Optional[Time | TimeFrame]):
-        if other is None:
+    def is_not_in(self, literal_input) -> Filter:
+        if literal_input is None:
+            return Filter()
+        input=self.normalize_literal_input(literal_input)
+        assert isinstance(input, list)
+        return self.predicate(NotIn(input))
+    
+    def is_all(self, literal_input) -> Filter:
+        if literal_input is None:
             return Filter()
         
-        if isinstance(other, TimeFrame):
-            return self.predicate(Time().in_frame(other))
-        
-        return self.predicate(other)
+        input=self.normalize_literal_input(literal_input)
+        assert isinstance(input, list)
+        return self.predicate(All(input))
     
-    def is_enum(self, other: Enum) -> Filter:
-        if (other.value == "ANY"):
+    def is_not_all(self, literal_input) -> Filter:
+        if literal_input is None:
             return Filter()
-        return Filter({self.get_query_name(): other.value})
+
+        input=self.normalize_literal_input(literal_input)
+        assert isinstance(input, list)
+        return self.predicate(NotAll(input))
+    
+    def is_within(self, literal_input: Optional[Time | TimeFrame]):
+        if literal_input is None:
+            return Filter()
+        
+        if isinstance(literal_input, TimeFrame):
+            return self.predicate(Time(self.name).in_frame(literal_input))
+        
+        assert isinstance(literal_input, Time)
+        literal_input.field_name = self.name
+        return self.predicate(literal_input)
+    
+    def is_enum(self, literal_input: Enum) -> Filter:
+        if (literal_input.value == "ANY"):
+            return Filter()
+        return Filter({self.get_query_name(): literal_input.value})
     
     def is_false(self) -> Filter:
         return Filter({self.get_query_name(): False})
@@ -185,152 +158,4 @@ class QueryableField:
         return Filter({self.get_query_name(): query_op})
 
 
-class Collapsible:
-    """
-    Abstract base for annotations that generate a value on demand.
-
-    This pattern is used for fields that get a final form of their value when they are
-    explicitly "collapsed".  The __call__ function should be idempotent as in f(f(x)) == f(x).
-    """
-
-    def __call__(self, v):
-        raise NotImplementedError()
-
-
-class CoalesceOnInsert(Collapsible):
-    """
-    A Collapsible that finalize a value on document creation for database insertion (not update).
-    """
-
-    def __init__(self, collapse):
-        self.collapse = collapse
-
-    def __call__(self, v):
-        if v is None:
-            return self.collapse()
-        return v
-
-
-class CoalesceOnIncr(Collapsible):
-    """
-    A Collapsible that provides an increment value on update.
-
-    If the field's value is `None`, it calls the `collapse` function to generate
-    a new value. This is intended for use with `$inc` operations.
-    """
-
-    def __init__(self, collapse):
-        self.collapse = collapse
-
-    def __call__(self, v):
-        if v is None:
-            return self.collapse()
-        return v
-
-class Refreshable:
-    """
-    Abstract base for annotations that refresh a value on demand.
-
-    This pattern is used for fields that get a final form of their value when they are
-    explicitly "refreshed".  The __call__ function should be idempotent as in f(f(x)) == f(x).
-    """
-    def __init__(self, refresh):
-        self.refresh = refresh
-
-    def __call__(self, v):
-        return self.refresh(v)
-
-class RefreshOnSet(Refreshable):
-    """
-    A Refreshable that provides a value on any database update (not insertion).
-    This is intended when a value needs to be refreshed on every save.
-    """
-
-
-class NormalizeValue(Refreshable):
-    """
-    A Refreshable that provides a normalize value for query input.
-
-    This is intended for use with query input where a value needs to be
-    normalized based the field attribute.
-    """
-
-class NormalizeQueryInput(Refreshable):
-    """
-    A Refreshable that provides a normalize value for query input.
-
-    This is intended for use with query input where a value needs to be
-    normalized based the field attribute.
-    """
-
-class BeforeSetAttr(Refreshable):
-    """
-    An annotation to transform a value before it is set on a model field.
-    This only applies when the model has been fully initialized.
-
-    This is used within the model's `__setattr__` to apply a function to the
-    value before it is assigned to the attribute.
-    """
-
-class InitializeValue(Refreshable):
-    """
-    An annotation to transform a value before it is initialized.
-
-    This is used within the model's `__init__` to apply a function to the value
-    """
-
-def coalesce(value, transformers: list):
-    """Applies a list of transformers sequentially to a value."""
-    for transformer in transformers:
-        value = transformer(value)
-    return value
-
-#: An annotated string type that automatically converts the value to uppercase.
-StrUpper = Annotated[
-    str,
-    NormalizeValue(str.upper),
-    NormalizeQueryInput(str.upper),
-]
-
-#: An annotated string type that automatically converts the value to lowercase.
-StrLower = Annotated[
-    str,
-    NormalizeValue(str.lower),
-    NormalizeQueryInput(str.lower),
-]
-
-#: A datetime field that defaults to the current UTC time on document creation.
-TimeInserted = Annotated[
-    datetime | None,
-    AfterValidator(lambda x: to_utc_aware(x) if x is not None else None),
-    CoalesceOnInsert(get_current_time),
-    Field(default=None),
-]
-
-#: A datetime field that defaults to the current UTC time on document update.
-TimeUpdated = Annotated[
-    datetime | None,
-    AfterValidator(lambda x: to_utc_aware(x) if x is not None else None),
-    RefreshOnSet(lambda x: get_current_time()),
-    Field(default=None),
-]
-
-TimeNorm = Annotated[
-    datetime,
-    NormalizeValue(to_utc_aware),
-    NormalizeQueryInput(to_utc_aware),
-]
-
-class ModelFields:
-    def __init__(self, fields: dict[str, FieldInfo]):
-        self.fields = fields
-    
-    def __getitem__(self, key) -> QueryableField:
-        return QueryableField(key, self.fields[key])
-    
-    def __len__(self):
-        return len(self.fields)
-    
-    def __contains__(self, key):
-        return key in self.fields
     

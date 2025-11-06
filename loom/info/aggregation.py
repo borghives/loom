@@ -91,13 +91,19 @@ class Aggregation:
         Returns:
             Aggregation: The `Aggregation` object for chaining.
         """
+
+        if filter is None:
+            return self
+
+        if isinstance(filter, dict):
+            if len(filter) == 0:
+                return self
+
         if isinstance(filter, Filter):
             if (filter.is_empty()):
                 return self
 
-            expression = filter.express()
-        else:
-            expression = filter
+        expression = filter
 
         return Aggregation(self.stages.append(freeze({"$match": expression})))
 
@@ -178,7 +184,7 @@ class Aggregation:
         if sort.is_empty():
             return self
         
-        return Aggregation(self.stages.append(freeze({"$sort": sort.express()})))
+        return Aggregation(self.stages.append(freeze({"$sort": sort})))
 
     def limit(self, limit: int) -> "Aggregation":
         """

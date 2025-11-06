@@ -55,8 +55,6 @@ class User(Persistable):
     email: StrLower #StrLower is an annotated str type that will normalized to lower case (querying and filtering will also lowercase the search input)
     age: int
 
-u_fld = User.fields()
-
 # 2. Create and save a new user
 new_user = User(name="Alice", email="alice@example.com", age=30)
 new_user.persist()
@@ -73,7 +71,7 @@ retrieved_user.persist()
 print(f"User's updated time: {retrieved_user.updated_time}")
 
 # 5. Load multiple users with a filter
-active_users = User.filter(u_fld['age'] < 40).load_many()
+active_users = User.filter(lm.fld['age'] < 40).load_many()
 print(f"Found {len(active_users)} active users.")
 
 # 6. Create other users to persist multiple documents at once
@@ -82,7 +80,7 @@ user_charlie = User(name="Charlie", email="charlie@example.com", age=35)
 User.persist_many([user_bob, user_charlie])
 
 # 7. Load one user with a filter
-bob_user = User.filter(u_fld['email'] == "BOB@example.COM").load_one()
+bob_user = User.filter(lm.fld['email'] == "BOB@example.COM").load_one()
 if bob_user:
     print(f"Found Bob: {bob_user.name} with email: {bob_user.email}")
 
@@ -110,7 +108,7 @@ To start building a query, use the `filter()` or `aggregation()` class methods o
 
 ```python
 # Start a query with a filter
-directive = User.filter(u_fld['age'] > 30)
+directive = User.filter(lm.fld['age'] > 30)
 
 # Start a query with an aggregation
 directive = User.aggregation(lm.Aggregation().group({"_id": "$name", "sum_age": {"$sum": "$age"}}))
@@ -129,7 +127,7 @@ These methods are chainable, so you can build complex queries in a single expres
 
 ```python
 # Build a query with a filter, sort, and limit
-users = User.filter(u_fld['age'] > 30).sort('age', descending=True).limit(10).load_many()
+users = User.filter(lm.fld['age'] > 30).sort('age', descending=True).limit(10).load_many()
 ```
 
 #### Expressive Filtering with `Model.fields()`
@@ -138,10 +136,10 @@ The `Model.fields()` method provides a more Pythonic way to create filter expres
 
 ```python
 # Find users with age between 30 and 40
-users = User.filter((u_fld['age'] >= 30) & (u_fld['age'] <= 40)).load_many()
+users = User.filter((lm.fld['age'] >= 30) & (lm.fld['age'] <= 40)).load_many()
 
 # Find users with name 'Alice' or 'Bob'
-users = User.filter(u_fld['name'].is_in(['Alice', 'Bob'])).load_many()
+users = User.filter(lm.fld['name'].is_in(['Alice', 'Bob'])).load_many()
 ```
 
 #### Loading Data
@@ -158,7 +156,7 @@ Once you have built your query, you can use one of the `load_*` methods to execu
 
 ```python
 # Load a single user
-user = User.filter(u_fld['name'] == 'Alice').load_one()
+user = User.filter(lm.fld['name'] == 'Alice').load_one()
 
 # Load all users into a pandas DataFrame
 df = User.filter().load_dataframe()

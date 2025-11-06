@@ -1,18 +1,17 @@
 
 from typing import Optional, Union
 
-from loom.info.expression import Expression, marshal_expression
+from loom.info.expression import Expression
 from loom.info.query_op import And, Or, QueryOpExpression
-
 
 class Filter(Expression):
     """Filter is MongoDb Query Predicate Expression"""
     def __init__(self, query: Optional[Union[dict, QueryOpExpression]] = None) -> None:
         self._value = query if query is not None else {}
 
-    def express(self):
-        """Convert query operator expression"""
-        return marshal_expression(self._value)
+    @property
+    def value(self):
+        return self._value
     
     @classmethod
     def wrap(cls, value) -> "Filter":
@@ -57,6 +56,7 @@ class Filter(Expression):
 
         if self.is_empty():
             return other
+        
         if other.is_empty():
             return self
 

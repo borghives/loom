@@ -4,7 +4,7 @@ from pymongo import InsertOne
 
 from pymongo.asynchronous.database import AsyncDatabase
 
-from loom.info.field import CoalesceOnInsert, RefreshOnSet
+from loom.info.model import CoalesceOnInsert, RefreshOnSet
 from loom.info.persistable import Persistable
 
 TIMESERIES_META_NAME = "_db_series_metadata"

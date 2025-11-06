@@ -10,6 +10,7 @@ import pandas as pd
 import polars as pl
 
 from loom.info.aggregation import Aggregation
+from loom.info.expression import ExpressionDriver
 from loom.info.filter import Filter
 from loom.info.sort_op import SortDesc, SortOp, SortAsc
 from loom.info.persistable import PersistableType
@@ -315,4 +316,13 @@ class LoadDirective(Generic[PersistableType]):
             return df
         
     def get_pipeline_expr(self, post_agg: Optional[Aggregation] = None) -> list[dict]:
-        return (self._aggregation_expr | post_agg).pipeline()
+        pipelines = (self._aggregation_expr | post_agg).pipeline()
+        return [normalize_pipeline_stage(stage, self._persist_cls.get_mql_driver()) for stage in pipelines if stage is not None]
+
+def normalize_pipeline_stage(stage: dict, driver: Optional[ExpressionDriver] = None) -> dict:
+    if driver is None:
+        driver = ExpressionDriver({})
+
+    retval =  driver.marshal(stage)
+    assert isinstance(retval, dict)
+    return retval
