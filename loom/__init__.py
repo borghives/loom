@@ -1,10 +1,10 @@
 from loom.info import (
-    Filter, 
+    QueryPredicates, 
     Aggregation,
     SortAsc,
     SortDesc,
     SortOp,
-    Time,
+    TimeQuery,
     QueryableField,
     Index
 )
@@ -38,9 +38,9 @@ fld = QueryableField
 
 __all__ = [
     "Aggregation",
-    "Filter",
+    "QueryPredicates",
     "access_secret",
-    "Time",
+    "TimeQuery",
     "Index",
 
     #Time

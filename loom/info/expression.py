@@ -3,7 +3,7 @@ from typing import Optional
 from pydantic.fields import FieldInfo
 
 from loom.info.model import NormalizeQueryInput
-
+from loom.info.util import coalesce
 
 class ExpressionDriver:
     """
@@ -71,3 +71,44 @@ class Expression(ABC):
             return value.is_empty()
         
         return len(value) == 0
+
+
+class FieldName(Expression):
+    """
+    An expression representing a field name that can be resolved to a database alias.
+    """
+    def __init__ (self, field_name: str):
+        self.field_name = field_name
+
+    @property
+    def repr_value(self):
+        return self.field_name
+
+    def express(self, driver: Optional[ExpressionDriver] = None):
+        return driver.get_alias(self.repr_value) if driver else self.repr_value
+        
+class LiteralInput(Expression):
+    """
+    An expression representing a literal value used in a query predicate.
+
+    This wrapper allows query-time transformations to be applied to the value
+    based on the model field's annotations.
+    """
+    def __init__ (self, literal_input):
+        self.literal_input = literal_input
+        self.linked_field_name = ""
+
+    def for_fld(self, field_name: str) -> "LiteralInput":
+        self.linked_field_name = field_name
+        return self
+
+    @property
+    def repr_value(self):
+        return self.literal_input
+
+    def express(self, driver: Optional[ExpressionDriver] = None):
+        if driver is None or not self.linked_field_name:
+            return self.repr_value
+        
+        transformers = driver.get_transformers(self.linked_field_name)
+        return coalesce(self.repr_value, transformers)

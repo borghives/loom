@@ -3,9 +3,8 @@ from collections import UserList
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
-from loom.info.expression import Expression
+from loom.info.expression import Expression, LiteralInput
 
-from loom.info.predicate import PredicateInput
 from loom.time.timeframing import TimeFrame
 from loom.time.util import to_utc_aware
 
@@ -153,66 +152,64 @@ class Exists(QueryOpExpression):
         return {"exists": self._value}
 
 @dataclass
-class Time(QueryOpExpression):
+class TimeQuery(QueryOpExpression):
     """
     A time match description that creates a time-based query operator expression.
     """
-    field_name: str = ""
     after_t: Optional[datetime] = None
     after_incl: bool = False
     before_t: Optional[datetime] = None
     before_incl: bool = False
 
-    @classmethod
-    def wrap(cls, value):
-        if isinstance(value, Time):
-            return value
-        
-        return None
+    field_name: str = ""
+
+    def for_fld(self, field_name: str) -> "TimeQuery":
+        self.field_name = field_name
+        return self
     
     @property
     def repr_value(self):
         time_match = {}
         if self.after_t:
-            time_match["$gte" if self.after_incl else "$gt"] = PredicateInput(self.field_name, self.after_t)
+            time_match["$gte" if self.after_incl else "$gt"] = LiteralInput(self.after_t).for_fld(self.field_name)
 
         if self.before_t:
-            time_match["$lte" if self.before_incl else "$lt"] = PredicateInput(self.field_name, self.before_t)
+            time_match["$lte" if self.before_incl else "$lt"] = LiteralInput(self.before_t).for_fld(self.field_name)
         return time_match
     
     def is_empty(self):
         return self.after_t is None and self.before_t is None
     
-    def after(self, time : datetime) -> "Time":
+    def after(self, time : datetime) -> "TimeQuery":
         time = to_utc_aware(time)
         if (self.after_t is None or time > self.after_t) :
             self.after_t = time
         self.after_incl = False
         return self
     
-    def before(self, time : datetime) -> "Time":
+    def before(self, time : datetime) -> "TimeQuery":
         time = to_utc_aware(time)
         if (self.before_t is None or time < self.before_t) :
             self.before_t = time
         self.before_incl = False
         return self
     
-    def iafter(self, time : datetime) -> "Time":
+    def iafter(self, time : datetime) -> "TimeQuery":
         self.after(time)
         self.after_incl = True
         return self
     
-    def ibefore(self, time : datetime) -> "Time":
+    def ibefore(self, time : datetime) -> "TimeQuery":
         self.before(time)
         self.before_incl = True
         return self
     
-    def period(self, floor: datetime, ceiling: datetime) -> "Time":
+    def period(self, floor: datetime, ceiling: datetime) -> "TimeQuery":
         self.iafter(floor)
         self.before(ceiling)
         return self
     
-    def in_frame(self, frame: TimeFrame) -> "Time":
+    def in_frame(self, frame: TimeFrame) -> "TimeQuery":
         return self.period(frame.floor, frame.ceiling)
 
 class And(UserList, QueryOpExpression):

@@ -1,4 +1,4 @@
-from loom.info.filter import Filter
+from loom.info.filter import QueryPredicates
 from loom.info.persistable import Persistable
 import loom as lm
 class TestModel(Persistable):
@@ -93,13 +93,13 @@ def test_filter_mixed_or_and():
     assert f.express(TestModel.get_mql_driver()) == expected
 
 def test_empty_filter_and():
-    f1 = Filter()
+    f1 = QueryPredicates()
     f2 = lm.fld("a") == 1
     assert (f1 & f2).express(TestModel.get_mql_driver()) == {"a": 1}
     assert (f2 & f1).express(TestModel.get_mql_driver()) == {"a": 1}
 
 def test_empty_filter_or():
-    f1 = Filter()
+    f1 = QueryPredicates()
     f2 = lm.fld("a") == 1
     assert (f1 | f2).express(TestModel.get_mql_driver()) == {"a": 1}
     assert (f2 | f1).express(TestModel.get_mql_driver()) == {"a": 1}

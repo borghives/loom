@@ -1,7 +1,6 @@
 from typing import List, Optional, Tuple
 from pymongo import ASCENDING, DESCENDING
-from loom.info.expression import Expression, ExpressionDriver
-from loom.info.predicate import FieldName
+from loom.info.expression import Expression, ExpressionDriver, FieldName
 
 class SortOp(Expression):
     """

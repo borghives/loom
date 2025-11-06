@@ -11,7 +11,7 @@ import polars as pl
 
 from loom.info.aggregation import Aggregation
 from loom.info.expression import ExpressionDriver
-from loom.info.filter import Filter
+from loom.info.filter import QueryPredicates
 from loom.info.sort_op import SortDesc, SortOp, SortAsc
 from loom.info.persistable import PersistableType
 
@@ -26,7 +26,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr: Aggregation = Aggregation()
         self._persist_cls: Type[PersistableType] = persistable
 
-    def filter(self : "LoadDirective[PersistableType]", filter: Filter) -> "LoadDirective[PersistableType]":
+    def filter(self : "LoadDirective[PersistableType]", filter: QueryPredicates) -> "LoadDirective[PersistableType]":
         """
         Adds a filter to the query.
 

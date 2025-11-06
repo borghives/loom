@@ -4,29 +4,22 @@ from typing import Optional, Union
 from loom.info.expression import Expression
 from loom.info.query_op import And, Or, QueryOpExpression
 
-class Filter(Expression):
+class QueryPredicates(Expression):
     """
     An expression that represents a MongoDB query predicate (the part of a `find`
     operation that selects documents).
 
     Filters can be combined using logical `&` (and) and `|` (or) operators.
+
+    ref: https://www.mongodb.com/docs/manual/reference/mql/query-predicates/
     """
-    def __init__(self, query: Optional[Union[dict, QueryOpExpression]] = None) -> None:
-        self._value = query if query is not None else {}
+    def __init__(self, query_predicate: Optional[Union[dict, QueryOpExpression]] = None) -> None:
+        assert query_predicate is None or isinstance(query_predicate, (dict, QueryOpExpression))
+        self._value = query_predicate if query_predicate is not None else {}
 
     @property
     def repr_value(self):
         return self._value
-    
-    @classmethod
-    def wrap(cls, value) -> "Filter":
-        if isinstance(value, Filter):
-            return value
-        
-        if isinstance(value, dict):
-            return cls(value)
-        
-        raise ValueError(f"unsupported type {type(value)} to wrap filter")
 
     def __and__(self, other):
         """
@@ -35,18 +28,18 @@ class Filter(Expression):
         if other is None:
             return self
 
-        if not isinstance(other, Filter):
-            other = Filter.wrap(other)
+        if not isinstance(other, QueryPredicates):
+            other = QueryPredicates(other)
 
         if self.is_empty():
             return other
         if other.is_empty():
             return self
 
-        self_clauses = self._value.data if isinstance(self._value, And) else [self]
-        other_clauses = other._value.data if isinstance(other._value, And) else [other]
+        self_clauses = self.repr_value.data if isinstance(self.repr_value, And) else [self]
+        other_clauses = other.repr_value.data if isinstance(other.repr_value, And) else [other]
             
-        return Filter(And(self_clauses + other_clauses))
+        return QueryPredicates(And(self_clauses + other_clauses))
 
 
     def __or__(self, other):
@@ -56,8 +49,8 @@ class Filter(Expression):
         if other is None:
             return self
 
-        if not isinstance(other, Filter):
-            other = Filter.wrap(other)
+        if not isinstance(other, QueryPredicates):
+            other = QueryPredicates(other)
 
         if self.is_empty():
             return other
@@ -65,7 +58,7 @@ class Filter(Expression):
         if other.is_empty():
             return self
 
-        self_clauses = self._value.data if isinstance(self._value, Or) else [self]
-        other_clauses = other._value.data if isinstance(other._value, Or) else [other]
+        self_clauses = self.repr_value.data if isinstance(self.repr_value, Or) else [self]
+        other_clauses = other.repr_value.data if isinstance(other.repr_value, Or) else [other]
                 
-        return Filter(Or(self_clauses + other_clauses))
+        return QueryPredicates(Or(self_clauses + other_clauses))

@@ -21,7 +21,7 @@ Example:
 """
 from typing import List, Optional
 from loom.info.sort_op import SortOp
-from loom.info.filter import Filter
+from loom.info.filter import QueryPredicates
 from pyrsistent import pvector, PVector, PMap, freeze, thaw
 
 class Aggregation:
@@ -79,7 +79,7 @@ class Aggregation:
         return iter([(k, thaw(v)) for stage in self.stages for k,v in stage.items()])
 
 
-    def match(self, filter: Filter | dict) -> "Aggregation":
+    def match(self, filter: QueryPredicates | dict) -> "Aggregation":
         """
         Adds a `$match` stage to the pipeline.
 
@@ -101,7 +101,7 @@ class Aggregation:
             if len(filter) == 0:
                 return self
 
-        if isinstance(filter, Filter):
+        if isinstance(filter, QueryPredicates):
             if (filter.is_empty()):
                 return self
 

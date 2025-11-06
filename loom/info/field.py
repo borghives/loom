@@ -3,9 +3,8 @@ from enum import Enum
 from functools import wraps
 from typing import Optional
 
-from loom.info.expression import Expression
-from loom.info.filter import Filter
-from loom.info.predicate import PredicateInput, FieldName
+from loom.info.expression import Expression, LiteralInput, FieldName
+from loom.info.filter import QueryPredicates
 from loom.info.query_op import (
     All,
     Exists,
@@ -18,7 +17,7 @@ from loom.info.query_op import (
     Eq,
     NotAll,
     NotIn,
-    Time,
+    TimeQuery,
     QueryOpExpression,
 )
 from loom.time.timeframing import TimeFrame
@@ -56,41 +55,41 @@ class QueryableField:
 
     def normalize_literal_input(self, literal_input):
         if isinstance(literal_input, dict):
-            return {k: PredicateInput(self.name, v) for k, v in literal_input.items()}
+            return {k: LiteralInput(v).for_fld(self.name) for k, v in literal_input.items()}
     
         if isinstance(literal_input, list):
-            return [PredicateInput(self.name, v) for v in literal_input]
+            return [LiteralInput(v).for_fld(self.name) for v in literal_input]
         
-        return PredicateInput(self.name, literal_input)
+        return LiteralInput(literal_input).for_fld(self.name)
 
-    def __gt__(self, literal_input) -> Filter:
+    def __gt__(self, literal_input) -> QueryPredicates:
         if literal_input is None:
-            return Filter()
+            return QueryPredicates()
         input=self.normalize_literal_input(literal_input)
         return self.predicate(Gt(input))
 
-    def __lt__(self, literal_input) -> Filter:
+    def __lt__(self, literal_input) -> QueryPredicates:
         if literal_input is None:
-            return Filter()
+            return QueryPredicates()
         input=self.normalize_literal_input(literal_input)
         return self.predicate(Lt(input))
 
-    def __ge__(self, literal_input) -> Filter:
+    def __ge__(self, literal_input) -> QueryPredicates:
         if literal_input is None:
-            return Filter()
+            return QueryPredicates()
         input=self.normalize_literal_input(literal_input)
         return self.predicate(Gte(input)) 
 
-    def __le__(self, literal_input) -> Filter:
+    def __le__(self, literal_input) -> QueryPredicates:
         if literal_input is None:
-            return Filter()
+            return QueryPredicates()
         input=self.normalize_literal_input(literal_input)
         return self.predicate(Lte(input)) 
 
     @suppress_warning
-    def __eq__(self, input) -> Filter:
+    def __eq__(self, input) -> QueryPredicates:
         if input is None:
-            return Filter()
+            return QueryPredicates()
         
         if isinstance(input, Enum):
             return self.is_enum(input)
@@ -99,80 +98,81 @@ class QueryableField:
             return self.predicate(Eq(input))
         
         input=self.normalize_literal_input(input)        
-        return Filter({self.get_query_name(): input})
+        return QueryPredicates({self.get_query_name(): input})
 
     @suppress_warning
-    def __ne__(self, literal_input) -> Filter:
+    def __ne__(self, literal_input) -> QueryPredicates:
         if literal_input is None:
-            return Filter()
+            return QueryPredicates()
         
         input=self.normalize_literal_input(literal_input)
         return self.predicate(Ne(input)) 
 
-    def is_in(self, literal_input) -> Filter:
+    def is_in(self, literal_input) -> QueryPredicates:
         if literal_input is None:
-            return Filter()
+            return QueryPredicates()
 
         input=self.normalize_literal_input(literal_input)
         assert isinstance(input, list)
         return self.predicate(In(input)) 
     
-    def is_not_in(self, literal_input) -> Filter:
+    def is_not_in(self, literal_input) -> QueryPredicates:
         if literal_input is None:
-            return Filter()
+            return QueryPredicates()
         input=self.normalize_literal_input(literal_input)
         assert isinstance(input, list)
         return self.predicate(NotIn(input))
     
-    def is_all(self, literal_input) -> Filter:
+    def is_all(self, literal_input) -> QueryPredicates:
         if literal_input is None:
-            return Filter()
+            return QueryPredicates()
         
         input=self.normalize_literal_input(literal_input)
         assert isinstance(input, list)
         return self.predicate(All(input))
     
-    def is_not_all(self, literal_input) -> Filter:
+    def is_not_all(self, literal_input) -> QueryPredicates:
         if literal_input is None:
-            return Filter()
+            return QueryPredicates()
 
         input=self.normalize_literal_input(literal_input)
         assert isinstance(input, list)
         return self.predicate(NotAll(input))
     
-    def is_within(self, literal_input: Optional[Time | TimeFrame]):
-        if literal_input is None:
-            return Filter()
+    def is_within(self, input: Optional[TimeQuery | TimeFrame]):
+        if input is None:
+            return QueryPredicates()
         
-        if isinstance(literal_input, TimeFrame):
-            return self.predicate(Time(self.name).in_frame(literal_input))
-        
-        assert isinstance(literal_input, Time)
-        literal_input.field_name = self.name
-        return self.predicate(literal_input)
+        if isinstance(input, TimeFrame):
+            time_query = TimeQuery().in_frame(input)
+        else:
+            time_query = input
+
+        assert isinstance(time_query, TimeQuery)
+        return self.predicate(time_query.for_fld(self.name))
     
-    def is_enum(self, literal_input: Enum) -> Filter:
+    def is_enum(self, literal_input: Enum) -> QueryPredicates:
         if (literal_input.value == "ANY"):
-            return Filter()
-        return Filter({self.get_query_name(): literal_input.value})
+            return QueryPredicates()
+        return QueryPredicates({self.get_query_name(): literal_input.value})
     
-    def is_false(self) -> Filter:
-        return Filter({self.get_query_name(): False})
+    def is_false(self) -> QueryPredicates:
+        return QueryPredicates({self.get_query_name(): False})
     
-    def is_true(self) -> Filter:
-        return Filter({self.get_query_name(): True})
+    def is_true(self) -> QueryPredicates:
+        return QueryPredicates({self.get_query_name(): True})
     
-    def is_exists(self) -> Filter:
+    def is_exists(self) -> QueryPredicates:
         return self.predicate(Exists(True))
     
-    def is_not_exists(self) -> Filter:
+    def is_not_exists(self) -> QueryPredicates:
         return self.predicate(Exists(False))
     
-    def is_none_or_missing(self) -> Filter:
-        return Filter({self.get_query_name(): None})
+    def is_none_or_missing(self) -> QueryPredicates:
+        return QueryPredicates({self.get_query_name(): None})
     
-    def predicate(self, query_op: QueryOpExpression) -> Filter:
-        return Filter({self.get_query_name(): query_op})
+    def predicate(self, query_op: QueryOpExpression) -> QueryPredicates:
+        return QueryPredicates({self.get_query_name(): query_op})
 
 
     

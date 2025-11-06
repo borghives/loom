@@ -1,7 +1,7 @@
 import pytest
 from loom.info.aggregation import Aggregation
 from loom.info.directive import normalize_pipeline_stage
-from loom.info.filter import Filter
+from loom.info.filter import QueryPredicates
 from loom.info.sort_op import SortAsc, SortDesc
 
 def test_aggregation_initialization():
@@ -14,7 +14,7 @@ def test_aggregation_initialization():
 
 def test_match_stage():
     """Tests the match method."""
-    agg = Aggregation().match(Filter({"status": "A"}))
+    agg = Aggregation().match(QueryPredicates({"status": "A"}))
     assert [normalize_pipeline_stage(stage)  for stage in agg.pipeline() if stage is not None ]== [{"$match": {"status": "A"}}]
 
     agg_dict = Aggregation().match({"status": "B"})

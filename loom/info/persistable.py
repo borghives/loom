@@ -24,7 +24,7 @@ from loom.info.model import (
     TimeInserted,
     TimeUpdated,
 )
-from loom.info.filter import Filter
+from loom.info.filter import QueryPredicates
 from loom.info.aggregation import Aggregation
 from loom.info.index import Index
 from loom.info.model import Model
@@ -481,7 +481,7 @@ class Persistable(Model):
         return ExpressionDriver(cls.model_fields)
 
     @classmethod
-    def filter(cls: Type[PersistableType], filter: Filter = Filter()):
+    def filter(cls: Type[PersistableType], filter: QueryPredicates = QueryPredicates()):
         from loom.info.directive import LoadDirective
         return LoadDirective[PersistableType](cls).filter(filter)
 
