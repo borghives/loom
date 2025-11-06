@@ -82,4 +82,132 @@ def test_load_directive_skip():
     directive = MyPersistence.filter()
     directive.skip(10)
     pipeline = directive.get_pipeline_expr()
-    assert pipeline == [{"$skip": 10}]
+    
+def test_load_directive_group_by():
+    """Tests the group_by method of the LoadDirective."""
+
+    directive = MyPersistence.filter()
+    group_directive = directive.group_by("name").acc(
+        lm.fld("median_age_of_name").with_median("age")
+    )
+    pipeline = group_directive.get_pipeline_expr()
+    expected_pipeline =[
+        {
+            '$group': {
+                '_id': '$name',
+                'median_age_of_name': {
+                    '$median': {'input': '$age', 'method': 'approximate'}
+                }
+            }
+        }
+    ]
+    assert pipeline == expected_pipeline
+
+
+def test_load_directive_group_by_sum():
+    """Tests the group_by method of the LoadDirective with a sum accumulator."""
+
+    directive = MyPersistence.filter()
+    group_directive = directive.group_by("name").acc(
+        lm.fld("total_age").with_sum("age")
+    )
+    pipeline = group_directive.get_pipeline_expr()
+    expected_pipeline = [
+        {
+            '$group': {
+                '_id': '$name',
+                'total_age': {
+                    '$sum': '$age'
+                }
+            }
+        }
+    ]
+    assert pipeline == expected_pipeline
+
+
+def test_load_directive_group_by_avg():
+    """Tests the group_by method of the LoadDirective with an avg accumulator."""
+
+    directive = MyPersistence.filter()
+    group_directive = directive.group_by("name").acc(
+        lm.fld("avg_age").with_avg("age")
+    )
+    pipeline = group_directive.get_pipeline_expr()
+    expected_pipeline = [
+        {
+            '$group': {
+                '_id': '$name',
+                'avg_age': {
+                    '$avg': '$age'
+                }
+            }
+        }
+    ]
+    assert pipeline == expected_pipeline
+
+
+def test_load_directive_group_by_min():
+    """Tests the group_by method of the LoadDirective with a min accumulator."""
+
+    directive = MyPersistence.filter()
+    group_directive = directive.group_by("name").acc(
+        lm.fld("min_age").with_min("age")
+    )
+    pipeline = group_directive.get_pipeline_expr()
+    expected_pipeline = [
+        {
+            '$group': {
+                '_id': '$name',
+                'min_age': {
+                    '$min': '$age'
+                }
+            }
+        }
+    ]
+    assert pipeline == expected_pipeline
+
+
+def test_load_directive_group_by_max():
+    """Tests the group_by method of the LoadDirective with a max accumulator."""
+
+    directive = MyPersistence.filter()
+    group_directive = directive.group_by("name").acc(
+        lm.fld("max_age").with_max("age")
+    )
+    pipeline = group_directive.get_pipeline_expr()
+    expected_pipeline = [
+        {
+            '$group': {
+                '_id': '$name',
+                'max_age': {
+                    '$max': '$age'
+                }
+            }
+        }
+    ]
+    assert pipeline == expected_pipeline
+
+
+def test_load_directive_group_by_multiple_accumulators():
+    """Tests the group_by method of the LoadDirective with multiple accumulators."""
+
+    directive = MyPersistence.filter()
+    group_directive = directive.group_by("name").acc(
+        lm.fld("total_age").with_sum("age") |
+        lm.fld("avg_age").with_avg("age")
+    )
+    pipeline = group_directive.get_pipeline_expr()
+    expected_pipeline = [
+        {
+            '$group': {
+                '_id': '$name',
+                'total_age': {
+                    '$sum': '$age'
+                },
+                'avg_age': {
+                    '$avg': '$age'
+                }
+            }
+        }
+    ]
+    assert pipeline == expected_pipeline

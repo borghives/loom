@@ -10,6 +10,7 @@ import pandas as pd
 import polars as pl
 
 from loom.info.aggregation import AggregationStages
+from loom.info.expression import Expression, FieldPath, GroupAccumulators, GroupExpression
 from loom.info.filter import QueryPredicates
 from loom.info.sort_op import SortDesc, SortOp, SortAsc
 from loom.info.persistable import PersistableType
@@ -140,6 +141,11 @@ class LoadDirective(Generic[PersistableType]):
                 return result.get("count", 0)
         return 0
 
+    def group_by(self : "LoadDirective[PersistableType]", key: str | Expression) -> "GroupDirective[PersistableType]":
+        if isinstance(key, str):
+            key = FieldPath(key)
+        assert isinstance(key, Expression)
+        return GroupDirective[PersistableType](self, key)
     
     def agg(self : "LoadDirective[PersistableType]", aggregation: AggregationStages) -> "LoadDirective[PersistableType]":
         """
@@ -320,3 +326,16 @@ class LoadDirective(Generic[PersistableType]):
         flattened_pipelines =pipelines.express(self._persist_cls.get_mql_driver())
         assert isinstance(flattened_pipelines, list)
         return flattened_pipelines
+
+
+class GroupDirective(Generic[PersistableType]):
+    def __init__(self, base_directive: LoadDirective[PersistableType], key: Expression):
+        self._base_directive = base_directive
+        self.group_expression = GroupExpression(key)
+        
+
+    def acc(self : "GroupDirective[PersistableType]", accumulators: GroupAccumulators) -> LoadDirective[PersistableType]:
+        group_agg = AggregationStages().group(self.group_expression.with_acc(accumulators))
+        return self._base_directive.agg(group_agg)
+    
+    

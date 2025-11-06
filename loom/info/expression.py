@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Dict, Optional
 from pydantic.fields import FieldInfo
 
 from loom.info.model import NormalizeQueryInput
@@ -89,6 +89,23 @@ class FieldName(Expression):
 
     def express(self, driver: Optional[ExpressionDriver] = None):
         return driver.get_alias(self.repr_value) if driver else self.repr_value
+    
+class FieldPath(Expression):
+    """
+    An expression representing a field path used in aggregation expressions.
+
+    Field paths are prefixed with a `$` sign in MongoDB aggregation pipelines.
+    """
+    def __init__ (self, field_name: str ):
+        self.field_name = field_name
+
+    @property
+    def repr_value(self):
+        return f"${self.field_name}"
+
+    def express(self, driver: Optional[ExpressionDriver] = None):
+        field_alias = driver.get_alias(self.field_name) if driver else self.field_name
+        return f"${field_alias}"
         
 class LiteralInput(Expression):
     """
@@ -115,3 +132,69 @@ class LiteralInput(Expression):
         
         transformers = driver.get_transformers(self.linked_field_name)
         return coalesce(self.repr_value, transformers)
+    
+
+class AccOpExpression(Expression):
+    pass
+
+#output for field
+class GroupAccumulators(Expression):
+    """
+    An expression that represents a MongoDB query predicate (the part of a `find`
+    operation that selects documents).
+
+    Accumulator can be combined using with `|` operators.
+
+    ref: https://www.mongodb.com/docs/manual/reference/operator/aggregation/group/#std-label-accumulators-group
+    """
+    def __init__(self, accumulate: Optional[Dict[Expression, Expression]] = None) -> None:
+        self._value = accumulate if accumulate is not None else {}
+
+    @property
+    def repr_value(self):
+        return self._value
+    
+    def __or__(self, other):
+        """
+        Combines this filter with another
+        """
+        if other is None:
+            return self
+
+        if not isinstance(other, GroupAccumulators):
+            other = GroupAccumulators(other)
+
+        if self.is_empty():
+            return other
+        
+        if other.is_empty():
+            return self
+
+        self_clauses = self.repr_value
+        other_clauses = other.repr_value
+
+        assert isinstance(self_clauses, dict)
+        assert isinstance(other_clauses, dict)
+        combined = self_clauses | other_clauses
+                
+        return GroupAccumulators(combined)
+
+
+class GroupExpression(Expression):
+    def __init__(self, key: Expression | None):
+        self.key = key
+        self.accumulators : Optional[GroupAccumulators] = None
+
+    @property
+    def repr_value(self) -> dict:
+        group_expr  : dict = {"_id" : self.key}
+        if self.accumulators:
+            value = self.accumulators.repr_value
+            assert isinstance(value, dict)
+            group_expr.update(value)
+
+        return group_expr
+    
+    def with_acc(self, accumulators: GroupAccumulators) -> "GroupExpression":
+        self.accumulators = accumulators
+        return self

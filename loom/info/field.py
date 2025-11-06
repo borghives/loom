@@ -3,7 +3,8 @@ from enum import Enum
 from functools import wraps
 from typing import Optional
 
-from loom.info.expression import Expression, LiteralInput, FieldName
+from loom.info.acc_op import Avg, Max, Median, Min, Sum
+from loom.info.expression import Expression, FieldPath, GroupAccumulators, LiteralInput, FieldName
 from loom.info.filter import QueryPredicates
 from loom.info.query_op import (
     All,
@@ -171,8 +172,42 @@ class QueryableField:
     def is_none_or_missing(self) -> QueryPredicates:
         return QueryPredicates({self.get_query_name(): None})
     
+    def with_median(self, input: Expression | str) -> GroupAccumulators:
+        if isinstance(input, str):
+            input = FieldPath(input)
+        assert isinstance(input, Expression)
+        return self.accumulate( Median(input))
+    
+    def with_sum(self, input: Expression | str | int) -> GroupAccumulators:
+        if isinstance(input, str):
+            input = FieldPath(input)
+        assert isinstance(input, Expression)
+        return self.accumulate( Sum(input))
+    
+    def with_avg(self, input: Expression | str) -> GroupAccumulators:
+        if isinstance(input, str):
+            input = FieldPath(input)
+        assert isinstance(input, Expression)
+        return self.accumulate( Avg(input))
+    
+    def with_min(self, input: Expression | str) -> GroupAccumulators:
+        if isinstance(input, str):
+            input = FieldPath(input)
+        assert isinstance(input, Expression)
+        return self.accumulate( Min(input))
+    
+    def with_max(self, input: Expression | str) -> GroupAccumulators:
+        if isinstance(input, str):
+            input = FieldPath(input)
+        assert isinstance(input, Expression)
+        return self.accumulate( Max(input))
+    
+    def accumulate(self, exp: Expression):
+        return GroupAccumulators({self.get_query_name(): exp})
+    
     def predicate(self, query_op: QueryOpExpression) -> QueryPredicates:
         return QueryPredicates({self.get_query_name(): query_op})
+    
 
 
     
