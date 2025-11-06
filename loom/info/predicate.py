@@ -1,5 +1,6 @@
 from typing import Optional
 from loom.info.expression import Expression, ExpressionDriver
+from loom.info.util import coalesce
 
 class FieldName(Expression):
     def __init__ (self, field_name: str):
@@ -27,9 +28,3 @@ class PredicateInput(Expression):
         
         transformers = driver.get_transformers(self.field_name)
         return coalesce(self.repr_value, transformers)
-
-def coalesce(value, transformers: list):
-    """Applies a list of transformers sequentially to a value."""
-    for transformer in transformers:
-        value = transformer(value)
-    return value

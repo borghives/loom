@@ -24,7 +24,13 @@ from loom.info.query_op import (
 from loom.time.timeframing import TimeFrame
 
 def suppress_warning(func):
-    """suppress pylance error :-/ Not proud of myself!"""
+    """
+    A decorator to acknowledge and document the intentional override of a method
+    that may be flagged by static analysis tools like Pylance. This is used
+    for methods like `__eq__` and `__ne__` in `QueryableField`, where we are
+    intentionally changing the return type to build a query DSL, which deviates
+    from the typical signature of these methods.
+    """
     @wraps(func) 
     def wrapper(self, other):
         return func(self, other)

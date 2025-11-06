@@ -61,6 +61,18 @@ def validate_int_counter(value):
         return value
     return IntCounter(value)
 
+#: An annotated integer type for atomic increments in a `Persistable` model.
+#:
+#: This type uses `IntCounter` internally to track increments and works with
+#: the persistence layer to use MongoDB's `$inc` operator.
+#:
+#: Usage:
+#:   class MyModel(Persistable):
+#:       counter: IncrCounter
+#:
+#:   model = MyModel.from_id(...)
+#:   model.counter += 5
+#:   model.persist()  # This will use $inc to update the counter.
 IncrCounter = Annotated[int, 
     CoalesceOnIncr(collapse=lambda x: x.collapse()), 
     BeforeSetAttr(check_int_counter),

@@ -8,6 +8,7 @@ from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from pydantic import AfterValidator
 
+from loom.info.util import coalesce
 from loom.time.util import get_current_time, to_utc_aware
 
 
@@ -368,12 +369,6 @@ class InitializeValue(Refreshable):
 
     This is used within the model's `__init__` to apply a function to the value
     """
-
-def coalesce(value, transformers: list):
-    """Applies a list of transformers sequentially to a value."""
-    for transformer in transformers:
-        value = transformer(value)
-    return value
 
 #: An annotated string type that automatically converts the value to uppercase.
 StrUpper = Annotated[

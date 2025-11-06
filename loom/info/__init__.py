@@ -9,6 +9,7 @@ from loom.info.aggregation import Aggregation
 from loom.info.sort_op import SortAsc, SortDesc, SortOp
 from loom.info.query_op import Time
 from loom.info.op import to_int, to_upper, to_lower, to_date_alignment, to_double, sanitize_number, multiply, divide
+from loom.info.util import coalesce
 
 
 __all__ = [
@@ -43,5 +44,6 @@ __all__ = [
     "sanitize_number",
     "multiply",
     "divide",
+    "coalesce",
 
 ]
