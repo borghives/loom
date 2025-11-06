@@ -11,9 +11,7 @@ from pydantic import AfterValidator
 from loom.info.util import coalesce
 from loom.time.util import get_current_time, to_utc_aware
 
-
 ModelGen = TypeVar("ModelGen", bound="Model")
-
 
 class Model(ABC, BaseModel):
     """
