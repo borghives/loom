@@ -4,7 +4,17 @@ from pydantic.fields import FieldInfo
 
 from loom.info.model import NormalizeQueryInput
 
+
 class ExpressionDriver:
+    """
+    Handles the conversion of abstract `Expression` objects into concrete MongoDB queries.
+
+    This class is responsible for:
+    - Marshalling `Expression` objects into their MongoDB representation.
+    - Resolving field names to their database aliases.
+    - Applying any query-time value transformations associated with a model field.
+    """
+
     def __init__(self, model_fields: dict[str, FieldInfo]):
         self.model_fields = model_fields
 
@@ -32,7 +42,10 @@ class ExpressionDriver:
 
 class Expression(ABC):
     """
-    An representation that can be converted to a MongoDB expression.
+    An abstract representation of an object that can be converted into a MongoDB expression.
+
+    This serves as the base class for various query components, such as filters,
+    sort operators, and field predicates.
     """
 
     @property

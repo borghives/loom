@@ -4,6 +4,11 @@ from loom.info.expression import Expression, ExpressionDriver
 from loom.info.predicate import FieldName
 
 class SortOp(Expression):
+    """
+    An expression representing a MongoDB sort operation.
+
+    Sort operations can be combined using the `&` operator.
+    """
     def __init__(self, value: Optional[dict] = None) -> None:
         self._value = value
 

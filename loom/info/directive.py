@@ -121,7 +121,8 @@ class LoadDirective(Generic[PersistableType]):
         Args:
             project (dict): The project specification.
 
-        Returns
+        Returns:
+            LoadDirective: The `LoadDirective` object for chaining.
         """
         self._aggregation_expr = self._aggregation_expr.project(project)
         return self

@@ -4,6 +4,20 @@ A module for building MongoDB aggregation pipelines.
 This module provides the `Aggregation` class, a fluent builder for constructing
 complex MongoDB aggregation pipelines in a readable and chainable way.
 
+Example:
+    from loom.info.aggregation import Aggregation
+    from loom.info.filter import Filter
+    from loom.info.sort_op import SortDesc
+
+    pipeline = (
+        Aggregation()
+        .match(Filter({"status": "A"}))
+        .group({"_id": "$customer_id", "total": {"$sum": "$amount"}})
+        .sort(SortDesc("total"))
+        .limit(10)
+    )
+    
+    mongo_pipeline = pipeline.pipeline()
 """
 from typing import List, Optional
 from loom.info.sort_op import SortOp

@@ -37,6 +37,17 @@ def suppress_warning(func):
     return wrapper
 
 class QueryableField:
+    """
+    Provides a fluent interface for creating query filters for a specific model field.
+
+    Instances of this class are typically created and used through a `Persistable`
+    model's `q` attribute. It uses operator overloading (e.g., `__eq__`, `__gt__`)
+    to build `Filter` objects in a highly readable way.
+
+    Example:
+        # Assuming `MyModel` is a `Persistable` model
+        filter = MyModel.q.age > 30
+    """
     def __init__(self, name: str):
         self.name = name
 

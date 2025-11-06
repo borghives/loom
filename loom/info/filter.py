@@ -5,7 +5,12 @@ from loom.info.expression import Expression
 from loom.info.query_op import And, Or, QueryOpExpression
 
 class Filter(Expression):
-    """Filter is MongoDb Query Predicate Expression"""
+    """
+    An expression that represents a MongoDB query predicate (the part of a `find`
+    operation that selects documents).
+
+    Filters can be combined using logical `&` (and) and `|` (or) operators.
+    """
     def __init__(self, query: Optional[Union[dict, QueryOpExpression]] = None) -> None:
         self._value = query if query is not None else {}
 
