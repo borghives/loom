@@ -136,13 +136,13 @@ class LoadDirective(Generic[PersistableType]):
             int: The number of documents matching the filter.
         """
         self._aggregation_expr = self._aggregation_expr.count("count")
-        with self.exec_aggregate() as cursors:
+        with self.exec_agg() as cursors:
             for result in cursors:
                 return result.get("count", 0)
         return 0
 
     
-    def aggregation(self : "LoadDirective[PersistableType]", aggregation: Aggregation) -> "LoadDirective[PersistableType]":
+    def agg(self : "LoadDirective[PersistableType]", aggregation: Aggregation) -> "LoadDirective[PersistableType]":
         """
         Adds an aggregation pipeline to the query.
 
@@ -155,7 +155,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr |= aggregation
         return self
     
-    def exec_aggregate(self : "LoadDirective[PersistableType]", post_agg: Optional[Aggregation] = None):
+    def exec_agg(self : "LoadDirective[PersistableType]", post_agg: Optional[Aggregation] = None):
         """
         Performs an aggregation query on the model's collection.
 
@@ -170,7 +170,7 @@ class LoadDirective(Generic[PersistableType]):
         collection = p_cls.get_init_collection()
         return collection.aggregate(self.get_pipeline_expr(post_agg))
 
-    def load_aggregate(self : "LoadDirective[PersistableType]", post_agg: Optional[Aggregation] = None):
+    def load_agg(self : "LoadDirective[PersistableType]", post_agg: Optional[Aggregation] = None):
         """
         Executes an aggregation and returns the results as a list of models.
 
@@ -182,7 +182,7 @@ class LoadDirective(Generic[PersistableType]):
             list[Self]: A list of model instances.
         """
         p_cls = self._persist_cls
-        with self.exec_aggregate(post_agg) as cursors:
+        with self.exec_agg(post_agg) as cursors:
             return [p_cls.from_doc(doc) for doc in cursors]
     
     def load_one(self: "LoadDirective[PersistableType]"):
@@ -192,7 +192,7 @@ class LoadDirective(Generic[PersistableType]):
         Returns:
             Optional[Persistable]: An instance of the model, or `None` if no document is found.
         """
-        docs = self.load_aggregate(Aggregation().limit(1))
+        docs = self.load_agg(Aggregation().limit(1))
         return docs[0] if len(docs) > 0 else None
     
     def load_many(self: "LoadDirective[PersistableType]"):
@@ -202,7 +202,7 @@ class LoadDirective(Generic[PersistableType]):
         Returns:
             list[Persistable]: A list of loaded model instances.
         """
-        return self.load_aggregate()
+        return self.load_agg()
     
     def load_latest(self: "LoadDirective[PersistableType]", sort: SortOp = SortDesc("updated_time")):
         """
@@ -214,29 +214,29 @@ class LoadDirective(Generic[PersistableType]):
         Returns:
             Optional[Persistable]: An instance of the loaded document, or `None` if not found.
         """
-        docs = self.load_aggregate(Aggregation().sort(sort).limit(1))
+        docs = self.load_agg(Aggregation().sort(sort).limit(1))
         return docs[0] if len(docs) > 0 else None
     
-    async def exec_aggregate_async(self: "LoadDirective[PersistableType]", post_agg: Optional[Aggregation] = None):
+    async def exec_agg_async(self: "LoadDirective[PersistableType]", post_agg: Optional[Aggregation] = None):
         p_cls = self._persist_cls
         collection = await p_cls.get_init_collection_async()
         return await collection.aggregate(self.get_pipeline_expr(post_agg))
 
-    async def load_aggregate_async(self : "LoadDirective[PersistableType]", post_agg: Optional[Aggregation] = None):
+    async def load_agg_async(self : "LoadDirective[PersistableType]", post_agg: Optional[Aggregation] = None):
         p_cls = self._persist_cls
-        cursor = await self.exec_aggregate_async(post_agg)
+        cursor = await self.exec_agg_async(post_agg)
         async with cursor:
             return [p_cls.from_doc(doc) async for doc in cursor]
 
     async def load_one_async(self: "LoadDirective[PersistableType]"):
-        docs = await self.load_aggregate_async(Aggregation().limit(1))
+        docs = await self.load_agg_async(Aggregation().limit(1))
         return docs[0] if len(docs) > 0 else None
     
     async def load_many_async(self: "LoadDirective[PersistableType]"):
-        return await self.load_aggregate_async()
+        return await self.load_agg_async()
 
     async def load_latest_async(self: "LoadDirective[PersistableType]", sort: SortOp = SortDesc("updated_time")):
-        docs = await self.load_aggregate_async(Aggregation().sort(sort).limit(1))
+        docs = await self.load_agg_async(Aggregation().sort(sort).limit(1))
         return docs[0] if len(docs) > 0 else None
     
     def exists(self) -> bool:
@@ -246,11 +246,11 @@ class LoadDirective(Generic[PersistableType]):
         Returns:
             bool: `True` if a matching document exists, `False` otherwise.
         """
-        docs = self.load_aggregate(Aggregation().limit(1))
+        docs = self.load_agg(Aggregation().limit(1))
         return len(docs) > 0
 
     async def exists_async(self) -> bool:
-        docs = await self.load_aggregate_async(Aggregation().limit(1))
+        docs = await self.load_agg_async(Aggregation().limit(1))
         return len(docs) > 0
     
     def load_table(self, schema: Optional[Schema] = None) -> Table:
@@ -312,7 +312,7 @@ class LoadDirective(Generic[PersistableType]):
         Returns:
             pd.DataFrame: A pandas DataFrame containing the loaded data.
         """
-        with self.exec_aggregate() as cursors:
+        with self.exec_agg() as cursors:
             df = pd.DataFrame(cursors)
             return df
         

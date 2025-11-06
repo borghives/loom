@@ -9,7 +9,7 @@ def test_load_directive_count():
     mock_cursor.__enter__.return_value = iter([{'count': 5}])
 
     # Patch the exec_aggregate method to return the mock cursor
-    with patch.object(LoadDirective, 'exec_aggregate', return_value=mock_cursor):
+    with patch.object(LoadDirective, 'exec_agg', return_value=mock_cursor):
         directive = LoadDirective(MagicMock())
         count = directive.count()
         
@@ -24,7 +24,7 @@ def test_load_directive_count_no_result():
     mock_cursor.__enter__.return_value = iter([])
 
     # Patch the exec_aggregate method to return the mock cursor
-    with patch.object(LoadDirective, 'exec_aggregate', return_value=mock_cursor):
+    with patch.object(LoadDirective, 'exec_agg', return_value=mock_cursor):
         directive = LoadDirective(MagicMock())
         count = directive.count()
         
