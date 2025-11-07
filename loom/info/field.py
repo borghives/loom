@@ -163,8 +163,10 @@ class QueryableField:
     def is_true(self) -> QueryPredicates:
         return QueryPredicates({self.get_query_name(): True})
     
-    def is_exists(self) -> QueryPredicates:
-        return self.predicate(Exists(True))
+    def is_exists(self, exists: Optional[bool] = True) -> QueryPredicates:
+        if exists is None:
+            return QueryPredicates()
+        return self.predicate(Exists(exists))
     
     def is_not_exists(self) -> QueryPredicates:
         return self.predicate(Exists(False))
