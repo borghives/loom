@@ -1,7 +1,9 @@
 from typing import Optional
 
 import rich
+
 from loom.info.model import StrUpper
+from loom.info.op import multiply
 from loom.info.persistable import Persistable
 from pydantic import Field
 import loom as lm
@@ -81,7 +83,6 @@ def test_load_directive_skip():
 
     directive = MyPersistence.filter()
     directive.skip(10)
-    pipeline = directive.get_pipeline_expr()
     
 def test_load_directive_group_by():
     """Tests the group_by method of the LoadDirective."""
@@ -210,4 +211,52 @@ def test_load_directive_group_by_multiple_accumulators():
             }
         }
     ]
+    assert pipeline == expected_pipeline
+
+
+def test_load_directive_project():
+    """Tests the project method of the LoadDirective."""
+
+    directive = MyPersistence.filter()
+    directive.project(
+        lm.fld("new_name").with_(lm.pth("name"))
+    )
+    pipeline = directive.get_pipeline_expr()
+    expected_pipeline = [
+        {
+            '$project': {
+                'new_name': '$name'
+            }
+        }
+    ]
+    assert pipeline == expected_pipeline
+
+
+def test_load_directive_project_dict():
+    """Tests the project method of the LoadDirective with a dict."""
+
+    directive = MyPersistence.filter()
+    directive.project(
+        {'new_name': '$name'}
+    )
+    pipeline = directive.get_pipeline_expr()
+    expected_pipeline = [
+        {
+            '$project': {
+                'new_name': '$name'
+            }
+        }
+    ]
+    assert pipeline == expected_pipeline
+
+def test_load_directive_project_spec():
+    """Tests the project method of the LoadDirective with a dict."""
+
+    directive = MyPersistence.filter()
+    directive.project(
+        lm.fld("twice_age").with_(multiply(2, lm.pth("age")))
+    )
+    pipeline = directive.get_pipeline_expr()
+    expected_pipeline = [{'$project': {'twice_age': {'$multiply': [2, '$age']}}}]
+    rich.print(pipeline)
     assert pipeline == expected_pipeline

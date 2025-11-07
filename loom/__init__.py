@@ -6,7 +6,8 @@ from loom.info import (
     SortOp,
     TimeQuery,
     QueryableField,
-    Index
+    Index,
+    FieldPath
 )
 
 from loom.info.universal import access_secret
@@ -35,6 +36,7 @@ from loom.time import (
 )
 
 fld = QueryableField
+pth = FieldPath
 
 __all__ = [
     "AggregationStages",

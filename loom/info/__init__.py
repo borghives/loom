@@ -1,5 +1,6 @@
 from loom.info.filter import QueryPredicates
 from loom.info.persistable import Persistable, declare_persist_db
+from loom.info.expression import FieldPath
 from loom.info.index import Index
 from loom.info.atomic import IncrCounter
 from loom.info.model import Model, RefreshOnSet, CoalesceOnInsert, Collapsible, StrUpper, StrLower, TimeUpdated, TimeInserted, TimeNorm
@@ -16,6 +17,7 @@ __all__ = [
     "AggregationStages",
     "QueryPredicates",
     "QueryableField",
+    "FieldPath",
     "Persistable",
     "Index",
     "declare_persist_db",
