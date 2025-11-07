@@ -20,7 +20,7 @@ Example:
     mongo_pipeline = pipeline.pipeline()
 """
 from typing import List, Optional
-from loom.info.expression import Expression, GroupExpression
+from loom.info.expression import Expression, GroupExpression, FieldSpecification
 from loom.info.sort_op import SortOp
 from loom.info.filter import QueryPredicates
 from pyrsistent import pvector, PVector, PMap, freeze, thaw
@@ -146,7 +146,7 @@ class AggregationStages(Expression):
         """
         return AggregationStages(self.stages.append(freeze({"$replaceRoot": root})))
 
-    def project(self, project: dict) -> "AggregationStages":
+    def project(self, project: FieldSpecification | dict) -> "AggregationStages":
         """
         Adds a `$project` stage to the pipeline.
 
@@ -159,6 +159,7 @@ class AggregationStages(Expression):
         Returns:
             Aggregation: The `Aggregation` object for chaining.
         """
+
         return AggregationStages(self.stages.append(freeze({"$project": project})))
 
     def add_fields(self, fields: dict) -> "AggregationStages":

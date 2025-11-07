@@ -137,17 +137,8 @@ class LiteralInput(Expression):
 class AccOpExpression(Expression):
     pass
 
-#output for field
-class GroupAccumulators(Expression):
-    """
-    An expression that represents a MongoDB query predicate (the part of a `find`
-    operation that selects documents).
-
-    Accumulator can be combined using with `|` operators.
-
-    ref: https://www.mongodb.com/docs/manual/reference/operator/aggregation/group/#std-label-accumulators-group
-    """
-    def __init__(self, accumulate: Optional[Dict[Expression, Expression]] = None) -> None:
+class MapExpression(Expression) :
+    def __init__(self, accumulate: Optional[Dict] = None) -> None:
         self._value = accumulate if accumulate is not None else {}
 
     @property
@@ -161,8 +152,10 @@ class GroupAccumulators(Expression):
         if other is None:
             return self
 
-        if not isinstance(other, GroupAccumulators):
-            other = GroupAccumulators(other)
+        cls = self.__class__
+
+        if not isinstance(other, cls):
+            other = cls(other)
 
         if self.is_empty():
             return other
@@ -177,13 +170,36 @@ class GroupAccumulators(Expression):
         assert isinstance(other_clauses, dict)
         combined = self_clauses | other_clauses
                 
-        return GroupAccumulators(combined)
+        return cls(combined)
 
+# #output for field
+# class GroupAccumulators(MapExpression):
+#     """
+#     An expression that represents a MongoDB query predicate (the part of a `find`
+#     operation that selects documents).
+
+#     Accumulator can be combined using with `|` operators.
+
+#     ref: https://www.mongodb.com/docs/manual/reference/operator/aggregation/group/#std-label-accumulators-group
+#     """
+#     def __init__(self, accumulate: Optional[Dict] = None) -> None:
+#         super().__init__(accumulate)
+
+class FieldSpecification (MapExpression):
+    """
+    for group by:
+    ref: https://www.mongodb.com/docs/manual/reference/operator/aggregation/group/#std-label-accumulators-group
+
+    for project
+    ref: https://www.mongodb.com/docs/manual/reference/operator/aggregation/project/
+    """
+    def __init__(self, specification: Optional[Dict]) :
+        super().__init__(specification)
 
 class GroupExpression(Expression):
     def __init__(self, key: Expression | None):
         self.key = key
-        self.accumulators : Optional[GroupAccumulators] = None
+        self.accumulators : Optional[FieldSpecification] = None
 
     @property
     def repr_value(self) -> dict:
@@ -195,6 +211,7 @@ class GroupExpression(Expression):
 
         return group_expr
     
-    def with_acc(self, accumulators: GroupAccumulators) -> "GroupExpression":
+    def with_acc(self, accumulators: FieldSpecification) -> "GroupExpression":
         self.accumulators = accumulators
         return self
+    

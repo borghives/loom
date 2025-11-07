@@ -10,7 +10,7 @@ import pandas as pd
 import polars as pl
 
 from loom.info.aggregation import AggregationStages
-from loom.info.expression import Expression, FieldPath, GroupAccumulators, GroupExpression
+from loom.info.expression import Expression, FieldPath, GroupExpression, FieldSpecification
 from loom.info.filter import QueryPredicates
 from loom.info.sort_op import SortDesc, SortOp, SortAsc
 from loom.info.persistable import PersistableType
@@ -114,19 +114,6 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr = self._aggregation_expr.sample(sample)
         return self
     
-    def project(self : "LoadDirective[PersistableType]", project: dict) -> "LoadDirective[PersistableType]":
-        """
-        Adds a project stage to the aggregation pipeline.
-
-        Args:
-            project (dict): The project specification.
-
-        Returns:
-            LoadDirective: The `LoadDirective` object for chaining.
-        """
-        self._aggregation_expr = self._aggregation_expr.project(project)
-        return self
-    
 
     def count(self) -> int:
         """
@@ -140,6 +127,10 @@ class LoadDirective(Generic[PersistableType]):
             for result in cursors:
                 return result.get("count", 0)
         return 0
+
+    def project(self : "LoadDirective[PersistableType]", specification: FieldSpecification | dict) -> "LoadDirective[PersistableType]":
+        self._aggregation_expr = self._aggregation_expr.project(specification)
+        return self
 
     def group_by(self : "LoadDirective[PersistableType]", key: str | Expression) -> "GroupDirective[PersistableType]":
         if isinstance(key, str):
@@ -333,8 +324,7 @@ class GroupDirective(Generic[PersistableType]):
         self._base_directive = base_directive
         self.group_expression = GroupExpression(key)
         
-
-    def acc(self : "GroupDirective[PersistableType]", accumulators: GroupAccumulators) -> LoadDirective[PersistableType]:
+    def acc(self : "GroupDirective[PersistableType]", accumulators: FieldSpecification) -> LoadDirective[PersistableType]:
         group_agg = AggregationStages().group(self.group_expression.with_acc(accumulators))
         return self._base_directive.agg(group_agg)
     
