@@ -142,7 +142,7 @@ class LoadDirective(Generic[PersistableType]):
         
         if combined is not None:
             self._aggregation_expr = self._aggregation_expr.project(combined)
-            
+
         return self
 
     def group_by(self : "LoadDirective[PersistableType]", key: str | Expression) -> "GroupDirective[PersistableType]":
@@ -356,8 +356,18 @@ class GroupDirective(Generic[PersistableType]):
         self._base_directive = base_directive
         self.group_expression = GroupExpression(key)
         
-    def acc(self : "GroupDirective[PersistableType]", accumulators: FieldSpecification) -> LoadDirective[PersistableType]:
-        group_agg = AggregationStages().group(self.group_expression.with_acc(accumulators))
-        return self._base_directive.agg(group_agg)
+    def acc(self : "GroupDirective[PersistableType]", *accumulators: FieldSpecification) -> LoadDirective[PersistableType]:
+        combined = None
+        for accumulator in accumulators:
+            if combined is None:
+                combined = accumulator
+            else:
+                combined |= accumulator
+        
+        if combined is not None:
+            group_agg = AggregationStages().group(self.group_expression.with_acc(combined))
+            return self._base_directive.agg(group_agg)
+        
+        return self._base_directive
     
     
