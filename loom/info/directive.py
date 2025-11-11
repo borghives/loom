@@ -145,7 +145,7 @@ class LoadDirective(Generic[PersistableType]):
 
         return self
 
-    def group_by(self : "LoadDirective[PersistableType]", key: str | Expression) -> "GroupDirective[PersistableType]":
+    def group_by(self : "LoadDirective[PersistableType]", key: str | Expression | None) -> "GroupDirective[PersistableType]":
         if isinstance(key, str):
             key = FieldPath(key)
         assert isinstance(key, Expression)
@@ -352,7 +352,7 @@ class LoadDirective(Generic[PersistableType]):
 
 
 class GroupDirective(Generic[PersistableType]):
-    def __init__(self, base_directive: LoadDirective[PersistableType], key: Expression):
+    def __init__(self, base_directive: LoadDirective[PersistableType], key: Expression | None):
         self._base_directive = base_directive
         self.group_expression = GroupExpression(key)
         
