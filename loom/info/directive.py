@@ -128,8 +128,21 @@ class LoadDirective(Generic[PersistableType]):
                 return result.get("count", 0)
         return 0
 
-    def project(self : "LoadDirective[PersistableType]", specification: FieldSpecification | dict) -> "LoadDirective[PersistableType]":
-        self._aggregation_expr = self._aggregation_expr.project(specification)
+    def project(self : "LoadDirective[PersistableType]", *specifications: FieldSpecification | dict) -> "LoadDirective[PersistableType]":
+        combined = None
+        for specification in specifications:
+            if combined is None:
+                combined = specification
+            elif isinstance(combined, FieldSpecification):
+                assert isinstance(specification, FieldSpecification) 
+                combined |= specification
+            elif isinstance(combined, dict):
+                assert isinstance(specification, dict)
+                combined |= specification
+        
+        if combined is not None:
+            self._aggregation_expr = self._aggregation_expr.project(combined)
+            
         return self
 
     def group_by(self : "LoadDirective[PersistableType]", key: str | Expression) -> "GroupDirective[PersistableType]":
