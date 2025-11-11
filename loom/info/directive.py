@@ -1,4 +1,4 @@
-from typing import Generic, Optional, Type
+from typing import Generic, List, Optional, Type
 from pymongoarrow.api import ( #type: ignore
     Schema,  Table,
     aggregate_arrow_all,
@@ -213,6 +213,16 @@ class LoadDirective(Generic[PersistableType]):
         docs = self.load_agg(AggregationStages().sort(sort).limit(1))
         return docs[0] if len(docs) > 0 else None
     
+    def merge_into(self: "LoadDirective[PersistableType]", collection_name: str, on: List[str]):
+        self._aggregation_expr = self._aggregation_expr.merge({
+            "into": collection_name,
+            "on": on,
+            "whenMatched": "replace", #<replace|keepExisting|merge|fail|pipeline>, 
+            "whenNotMatched": "insert" #<insert|discard|fail> 
+        })
+        self.exec_agg()
+    
+
     async def exec_agg_async(self: "LoadDirective[PersistableType]", post_agg: Optional[AggregationStages] = None):
         p_cls = self._persist_cls
         collection = await p_cls.get_init_collection_async()
@@ -234,6 +244,15 @@ class LoadDirective(Generic[PersistableType]):
     async def load_latest_async(self: "LoadDirective[PersistableType]", sort: SortOp = SortDesc("updated_time")):
         docs = await self.load_agg_async(AggregationStages().sort(sort).limit(1))
         return docs[0] if len(docs) > 0 else None
+    
+    async def merge_into_async(self: "LoadDirective[PersistableType]", collection_name: str, on: List[str]):
+        self._aggregation_expr = self._aggregation_expr.merge({
+            "into": collection_name,
+            "on": on,
+            "whenMatched": "replace", #<replace|keepExisting|merge|fail|pipeline>, 
+            "whenNotMatched": "insert" #<insert|discard|fail> 
+        })
+        await self.exec_agg_async()
     
     def exists(self) -> bool:
         """
