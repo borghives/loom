@@ -26,7 +26,7 @@ def multiply(a, b) -> dict:
     return {"$multiply": [a, b]}
 
 
-def sanitize_number(expr) -> dict:
+def sanitize_number(expr, default: int = 0) -> dict:
     """
     Returns a MongoDB `$ifNull` operator structure to default null numbers to 0.
 
@@ -36,7 +36,7 @@ def sanitize_number(expr) -> dict:
     Returns:
         dict: A MongoDB `$ifNull` operator structure.
     """
-    return {"$ifNull": [expr, 0]}
+    return {"$ifNull": [expr, default]}
 
 
 def to_double(expr) -> dict:
