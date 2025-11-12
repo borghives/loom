@@ -1,6 +1,7 @@
 from typing import Optional
 
 from pymongo import InsertOne
+from pymongo.database import Database
 
 from pymongo.asynchronous.database import AsyncDatabase
 
@@ -147,6 +148,33 @@ class TimeSeriesLedgerModel(LedgerModel):
             )
         
         return getattr(cls, TIMESERIES_META_NAME)
+
+    @classmethod
+    def create_collection(cls) -> None:
+        db = cls.get_db(withAsync=False)
+        assert isinstance(db, Database)
+
+        collection_names = db.list_collection_names()
+        name = cls.get_db_collection_name()
+
+        timeseries = {
+            "timeField": "updated_time",
+        }
+
+        series_info = cls.get_timeseries_info()
+        granularity = series_info.get("granularity")
+        if granularity:
+            timeseries["granularity"] = granularity
+
+        metafield = series_info.get("metakey")
+        if metafield:
+            timeseries["metaField"] = metafield
+
+        ttl = series_info.get("ttl")
+        if name not in collection_names:
+            db.create_collection(
+                name, timeseries=timeseries, expireAfterSeconds=ttl
+            )
 
     @classmethod
     async def create_collection_async(cls) -> None:
