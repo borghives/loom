@@ -211,6 +211,9 @@ class QueryableField:
     def with_(self, spec : int | dict | Expression = 1) -> FieldSpecification:
         return FieldSpecification({self.get_query_name(): spec})
     
+    def with_out(self) -> FieldSpecification:
+        return self.with_(0)
+    
     def predicate(self, query_op: QueryOpExpression) -> QueryPredicates:
         return QueryPredicates({self.get_query_name(): query_op})
     
