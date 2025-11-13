@@ -6,11 +6,11 @@ from pymongo.database import Database
 from pymongo.asynchronous.database import AsyncDatabase
 
 from loom.info.model import CoalesceOnInsert, RefreshOnSet
-from loom.info.persistable import Persistable
+from loom.info.persistable import PersistableBase
 
 TIMESERIES_META_NAME = "_db_series_metadata"
 
-class LedgerModel(Persistable):
+class LedgerModel(PersistableBase):
     """
     Represents a non-destructive, append-only persistence model.
 
@@ -62,6 +62,25 @@ class LedgerModel(Persistable):
 
         self._has_update = False
         return True
+    
+    @classmethod
+    def aggregate_operations(cls, items: list, lazy: bool = False):
+        operations: list = []
+
+        persist_items = [
+            item 
+            for item in items
+            if isinstance(item, PersistableBase) and (item.should_persist or not lazy)
+        ]
+
+        for item in persist_items:
+            item.coalesce_fields_for(CoalesceOnInsert)
+            item.coalesce_fields_for(RefreshOnSet)  
+            insert_op = InsertOne(item.dump_doc())
+            operations.append(insert_op)
+
+        return operations
+
 
     @classmethod
     def persist_many(cls, items: list, lazy: bool = False) -> None:
@@ -77,39 +96,17 @@ class LedgerModel(Persistable):
                          Defaults to False.
         """
 
-        operations: list = []
-
-        persist_items = [
-            item 
-            for item in items
-            if isinstance(item, Persistable) and (item.should_persist or not lazy)
-        ]
-
-        for item in persist_items:
-            item.coalesce_fields_for(CoalesceOnInsert)
-            item.coalesce_fields_for(RefreshOnSet)  
-            insert_op = InsertOne(item.dump_doc())
-            operations.append(insert_op)
+        operations = cls.aggregate_operations(items, lazy)
+        if not operations or len(operations) == 0:
+            return
 
         collection = cls.get_init_collection()
         collection.bulk_write(operations)
 
     @classmethod
     async def persist_many_async(cls, items: list, lazy: bool = False) -> None:
-        operations: list = []
-        persist_items = [
-            item
-            for item in items
-            if isinstance(item, Persistable) and (item.should_persist or not lazy)
-        ]
-
-        for item in persist_items:
-            item.coalesce_fields_for(CoalesceOnInsert)
-            item.coalesce_fields_for(RefreshOnSet)
-            insert_op = InsertOne(item.dump_doc())
-            operations.append(insert_op)
-
-        if not operations:
+        operations = cls.aggregate_operations(items, lazy)
+        if not operations or len(operations) == 0:
             return
 
         collection = await cls.get_init_collection_async()

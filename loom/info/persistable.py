@@ -30,9 +30,9 @@ from loom.info.index import Index
 from loom.info.model import Model
 from loom.info.universal import get_local_db_client, get_remote_db_client
 
-PersistableType = TypeVar("PersistableType", bound="Persistable")
+PersistableType = TypeVar("PersistableType", bound="PersistableBase")
 
-class Persistable(Model):
+class PersistableBase(Model):
     """
     A mixin for Pydantic models providing MongoDB persistence capabilities.
 
@@ -50,15 +50,6 @@ class Persistable(Model):
         created_at (TimeInserted): A timestamp that is set once when the model
             is first inserted into the database.
     """
-
-    updated_time: TimeUpdated = Field(
-        description="Timestamp of the last update.", default=None
-    )
-    
-    created_at: TimeInserted = Field(
-        description="Entity Created Time (does not exist if entity has not been persisted)",
-        default=None,
-    )
 
     # --- Class State and Helpers ---
     _has_class_initialized : ClassVar[bool] = False
@@ -307,7 +298,7 @@ class Persistable(Model):
         persist_items = [
             item
             for item in items
-            if isinstance(item, Persistable) and (item.should_persist or not lazy)
+            if isinstance(item, PersistableBase) and (item.should_persist or not lazy)
         ]
 
         for item in persist_items:
@@ -387,7 +378,7 @@ class Persistable(Model):
         persist_items = [
             item
             for item in items
-            if isinstance(item, Persistable) and (item.should_persist or not lazy)
+            if isinstance(item, PersistableBase) and (item.should_persist or not lazy)
         ]
 
         for item in persist_items:
@@ -622,6 +613,16 @@ class Persistable(Model):
         retval = cls.get_db_collection(withAsync=True)
         assert isinstance(retval, AsyncCollection)
         return retval
+
+class Persistable(PersistableBase):
+    updated_time: TimeUpdated = Field(
+        description="Timestamp of the last update.", default=None
+    )
+    
+    created_at: TimeInserted = Field(
+        description="Entity Created Time (does not exist if entity has not been persisted)",
+        default=None,
+    )
 
 def declare_persist_db(
     collection_name: str,

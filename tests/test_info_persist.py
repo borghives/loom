@@ -10,13 +10,19 @@ from pydantic import Field
 from pymongo.errors import BulkWriteError
 from pymongo.collection import Collection
 
-from loom.info import Persistable, IncrCounter, declare_persist_db
+from loom.info import Persistable, PersistableBase, IncrCounter, declare_persist_db
 from loom.info.model import StrLower, StrUpper, CoalesceOnInsert, RefreshOnSet
 import loom as lm
 
 
 @declare_persist_db(db_name="test_db", collection_name="test_collection", version=1, test=True)
-class TestModel(Persistable):
+class TestModel(PersistableBase):
+    name: str
+    value: int
+    link_id: ObjectId | None = None
+
+@declare_persist_db(db_name="test_db", collection_name="test_collection", version=1, test=True)
+class TestModelWithDates(Persistable):
     name: str
     value: int
     link_id: ObjectId | None = None
@@ -101,7 +107,7 @@ class PersistableTest(unittest.TestCase):
 
     def test_should_persist_property(self):
         """Test the should_persist property logic."""
-        new_model = TestModel(name="new", value=1)
+        new_model = TestModelWithDates(name="new", value=1)
         self.assertTrue(new_model.should_persist)
 
         loaded_model = TestModel.from_doc({"_id": ObjectId(), "name": "loaded", "value": 2})
@@ -115,10 +121,10 @@ class PersistableTest(unittest.TestCase):
         fixed_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         
         # Directly modify the collapse function for the test
-        updated_time_transformer = TestModel.get_field_metadata("updated_time", RefreshOnSet)[0]
+        updated_time_transformer = TestModelWithDates.get_field_metadata("updated_time", RefreshOnSet)[0]
         updated_time_transformer.refresh = lambda x: fixed_time
 
-        model = TestModel(name="test", value=10)
+        model = TestModelWithDates(name="test", value=10)
         model.updated_time = None  # Ensure coalesce is triggered
 
         set_instr, _ = model.get_set_instruction()
@@ -133,12 +139,12 @@ class PersistableTest(unittest.TestCase):
         fixed_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         
         # Directly modify the refresh functions for the test
-        updated_time_transformer = TestModel.get_field_metadata("updated_time", RefreshOnSet)[0]
+        updated_time_transformer = TestModelWithDates.get_field_metadata("updated_time", RefreshOnSet)[0]
         updated_time_transformer.refresh = lambda x: fixed_time
-        created_at_transformer = TestModel.get_field_metadata("created_at", CoalesceOnInsert)[0]
+        created_at_transformer = TestModelWithDates.get_field_metadata("created_at", CoalesceOnInsert)[0]
         created_at_transformer.collapse = lambda : fixed_time
 
-        model = TestModel(name="test", value=10)
+        model = TestModelWithDates(name="test", value=10)
         model.id = None
         model.created_at = None
         model.updated_time = None

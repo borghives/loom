@@ -1,5 +1,5 @@
 from loom.info.filter import QueryPredicates
-from loom.info.persistable import Persistable, declare_persist_db
+from loom.info.persistable import Persistable, PersistableBase, declare_persist_db
 from loom.info.expression import FieldPath
 from loom.info.index import Index
 from loom.info.atomic import IncrCounter
@@ -19,6 +19,7 @@ __all__ = [
     "QueryableField",
     "FieldPath",
     "Persistable",
+    "PersistableBase",
     "Index",
     "declare_persist_db",
     "IncrCounter",
