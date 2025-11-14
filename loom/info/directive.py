@@ -245,18 +245,21 @@ class LoadDirective(Generic[PersistableType]):
         p_cls = self._persist_cls
         cursor = await self.exec_agg_async(post_agg)
         async with cursor:
-            return [p_cls.from_doc(doc) async for doc in cursor]
+            async for doc in cursor:
+                yield p_cls.from_doc(doc)
 
     async def load_one_async(self: "LoadDirective[PersistableType]"):
-        docs = await self.load_agg_async(AggregationStages().limit(1))
-        return docs[0] if len(docs) > 0 else None
+        async for doc in self.load_agg_async(AggregationStages().limit(1)):
+            return doc
+        return None
     
     async def load_many_async(self: "LoadDirective[PersistableType]"):
-        return await self.load_agg_async()
+        return self.load_agg_async()
 
     async def load_latest_async(self: "LoadDirective[PersistableType]", sort: SortOp = SortDesc("updated_time")):
-        docs = await self.load_agg_async(AggregationStages().sort(sort).limit(1))
-        return docs[0] if len(docs) > 0 else None
+        async for doc in self.load_agg_async(AggregationStages().sort(sort).limit(1)):
+            return doc
+        return None
     
     async def merge_into_async(self: "LoadDirective[PersistableType]", collection_name: str, on: List[str]):
         self._aggregation_expr = self._aggregation_expr.merge({
@@ -278,8 +281,8 @@ class LoadDirective(Generic[PersistableType]):
         return len(docs) > 0
 
     async def exists_async(self) -> bool:
-        docs = await self.load_agg_async(AggregationStages().limit(1))
-        return len(docs) > 0
+        doc = await self.load_one_async()
+        return doc is not None
     
     def load_table(self, schema: Optional[Schema] = None) -> Table:
         """
