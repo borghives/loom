@@ -254,7 +254,7 @@ class LoadDirective(Generic[PersistableType]):
         return None
     
     async def load_many_async(self: "LoadDirective[PersistableType]"):
-        return self.load_agg_async()
+        return [doc async for doc in self.load_agg_async()]
 
     async def load_latest_async(self: "LoadDirective[PersistableType]", sort: SortOp = SortDesc("updated_time")):
         async for doc in self.load_agg_async(AggregationStages().sort(sort).limit(1)):
