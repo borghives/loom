@@ -1,3 +1,8 @@
+from datetime import datetime
+from loom.time.timeframing import TimeFrame
+from loom.time.util import to_utc_aware
+
+
 def divide(numerator, denominator) -> dict:
     """
     Returns a MongoDB `$divide` operator structure.
@@ -111,3 +116,12 @@ def to_date_alignment(expr, hour: int) -> dict:
         raise ValueError("Hour must be between 0 and 23")
 
     return {"$toDate": {"$concat": [f"{expr}", f"T{hour:02}:00:00.000Z"]}}
+
+def m_timeframe(windowframe: TimeFrame) -> dict:
+    return m_period(windowframe.floor, windowframe.ceiling)
+
+def m_period(floor:datetime, ceiling:datetime) -> dict:
+    return  {
+                "$gte": to_utc_aware(floor),
+                "$lt": to_utc_aware(ceiling)
+    }
