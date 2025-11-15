@@ -1,11 +1,12 @@
 from typing import Optional
 
+from pydantic import Field
 from pymongo import InsertOne
 from pymongo.database import Database
 
 from pymongo.asynchronous.database import AsyncDatabase
 
-from loom.info.model import CoalesceOnInsert, RefreshOnSet
+from loom.info.model import CoalesceOnInsert, RefreshOnSet, TimeUpdated
 from loom.info.persistable import PersistableBase
 
 TIMESERIES_META_NAME = "_db_series_metadata"
@@ -123,6 +124,10 @@ class TimeSeriesLedgerModel(LedgerModel):
     collection optimized for data points recorded over time.
     """
 
+    updated_time: TimeUpdated = Field(
+        description="Timestamp of series", default=None
+    )
+    
     # --- Information on the timeseries the model ---
     @classmethod
     def get_timeseries_info(cls) -> dict:
