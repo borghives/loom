@@ -148,7 +148,7 @@ class LoadDirective(Generic[PersistableType]):
     def group_by(self : "LoadDirective[PersistableType]", key: str | Expression | None) -> "GroupDirective[PersistableType]":
         if isinstance(key, str):
             key = FieldPath(key)
-        assert isinstance(key, Expression)
+        
         return GroupDirective[PersistableType](self, key)
     
     def agg(self : "LoadDirective[PersistableType]", aggregation: AggregationStages) -> "LoadDirective[PersistableType]":
