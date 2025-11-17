@@ -7,6 +7,7 @@ from typing import Annotated, Optional, Type, TypeVar
 from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from pydantic import AfterValidator
+from pydantic.json_schema import SkipJsonSchema
 
 from loom.info.util import coalesce
 from loom.time.util import get_current_time, to_utc_aware
@@ -28,7 +29,7 @@ class Model(ABC, BaseModel):
             on first access if one is not already present.
     """
 
-    id: ObjectId | None = Field(
+    id: SkipJsonSchema[ObjectId | None] = Field(
         description="A universal id that this model entity can be linked with.",
         alias="_id",
         default=None,
