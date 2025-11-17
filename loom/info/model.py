@@ -5,14 +5,25 @@ import json
 from typing import Annotated, Optional, Type, TypeVar
 
 from bson import ObjectId
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, PlainSerializer, PrivateAttr, WithJsonSchema
 from pydantic import AfterValidator
-from pydantic.json_schema import SkipJsonSchema
 
 from loom.info.util import coalesce
 from loom.time.util import get_current_time, to_utc_aware
 
 ModelGen = TypeVar("ModelGen", bound="Model")
+
+PyObjectId = Annotated[
+    ObjectId,
+    # Check if input is string, convert to ObjectId. Otherwise allow existing ObjectId.
+    BeforeValidator(lambda x: ObjectId(x) if isinstance(x, str) else x),
+    
+    # Serialize ObjectId to string (Replaces json_encoders)
+    PlainSerializer(lambda x: str(x), return_type=str, when_used="json"),
+    
+    # Tells Pydantic: "In the JSON Schema, treat this type as a string"
+    WithJsonSchema({"type": "string", "examples": ["5eb7cf5a86d9755df3a6c593"]}),
+]
 
 class Model(ABC, BaseModel):
     """
@@ -29,7 +40,7 @@ class Model(ABC, BaseModel):
             on first access if one is not already present.
     """
 
-    id: SkipJsonSchema[ObjectId | None] = Field(
+    id: PyObjectId | None = Field(
         description="A universal id that this model entity can be linked with.",
         alias="_id",
         default=None,
