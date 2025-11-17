@@ -3,7 +3,7 @@ from loom.info.persistable import Persistable, PersistableBase, declare_persist_
 from loom.info.expression import FieldPath
 from loom.info.index import Index
 from loom.info.atomic import IncrCounter
-from loom.info.model import Model, RefreshOnSet, CoalesceOnInsert, Collapsible, StrUpper, StrLower, TimeUpdated, TimeInserted, TimeNorm
+from loom.info.model import Model, PyObjectId, RefreshOnSet, CoalesceOnInsert, Collapsible, StrUpper, StrLower, TimeUpdated, TimeInserted, TimeNorm
 from loom.info.field import QueryableField
 from loom.info.ledger import LedgerModel, TimeSeriesLedgerModel, declare_timeseries
 from loom.info.aggregation import AggregationStages
@@ -32,6 +32,7 @@ __all__ = [
     "StrUpper",
     "StrLower",
     "Model",
+    "PyObjectId",
     "LedgerModel",
     "TimeSeriesLedgerModel",
     "declare_timeseries",
