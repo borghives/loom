@@ -22,7 +22,8 @@ poetry add --group dev py-spy pytest
 git init
 echo "*/__pycache__/*.pyc
 .env
-.venv" > .gitignore
+.venv
+*.pyc" > .gitignore
 git add .
 git commit -m "Initial commit"
 gh repo create "$PROJECT_NAME" --private --source=. --remote=origin
