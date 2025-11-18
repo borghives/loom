@@ -22,7 +22,7 @@ PyObjectId = Annotated[
     PlainSerializer(lambda x: str(x), return_type=str, when_used="json"),
     
     # Tells Pydantic: "In the JSON Schema, treat this type as a string"
-    WithJsonSchema({"type": "string", "examples": ["5eb7cf5a86d9755df3a6c593"]}),
+    WithJsonSchema({"type": "string"}),
 ]
 
 class Model(ABC, BaseModel):
