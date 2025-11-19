@@ -10,6 +10,10 @@ It offers a pragmatic approach for framing complex reality model.
 -   **Promote simple, elegant code**: Prioritize clarity and simplicity over exhaustive features. We are willing to sacrifice capability for a simpler, more focused codebase. For example, Loom is intentionally built only for MongoDB to avoid the complexity of supporting multiple database paradigms. Supporting other databases would likely compromise this simplicity.
 -   **Make the safe way the easy way**: The framework guides developers away from common pitfalls, especially in data and time management. Though, it creates coding friction for unsafe practices, it does not build exhaustive guardrails at the cost of simplicity.
 
+## Documentation
+
+For detailed usage examples and comprehensive guides, see **[USAGE.md](USAGE.md)**.
+
 ## Why?
 
 Loom aims to minimize the cognitive load on developers. While Python offers endless ways to accomplish tasks, Loom provides a collection of harmonized approaches that follow our philosophy.
