@@ -129,7 +129,7 @@ class LoadDirective(Generic[PersistableType]):
         return 0
 
     def project(self : "LoadDirective[PersistableType]", *specifications: FieldSpecification | dict) -> "LoadDirective[PersistableType]":
-        combined = None
+        combined: Optional[FieldSpecification | dict] = None
         for specification in specifications:
             if combined is None:
                 combined = specification
@@ -360,7 +360,10 @@ class GroupDirective(Generic[PersistableType]):
         self.group_expression = GroupExpression(key)
         
     def acc(self : "GroupDirective[PersistableType]", *accumulators: FieldSpecification) -> LoadDirective[PersistableType]:
-        combined = None
+        if (accumulators is None or len(accumulators) == 0):
+            return self._base_directive
+        
+        combined: Optional[FieldSpecification] = None
         for accumulator in accumulators:
             if combined is None:
                 combined = accumulator

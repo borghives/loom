@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from pydantic.fields import FieldInfo
 
 from loom.info.model import NormalizeQueryInput
@@ -50,7 +50,7 @@ class Expression(ABC):
 
     @property
     @abstractmethod
-    def repr_value(self):
+    def repr_value(self) -> Any:
         pass
     
     def express(self, driver: Optional[ExpressionDriver] = None):

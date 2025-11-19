@@ -1,0 +1,35 @@
+project-includes = ["loom"]
+project-excludes = ["**/.[!/.]*", "**/tests"]
+search-path = ["."]
+site-package-path = [".venv/lib/python3.11/site-packages"]
+
+python-platform = "darwin"
+python-version = "3.11"
+python-interpreter-path = ".venv/bin/python3"
+
+replace-imports-with-any = [
+  "sympy.*",
+  "*.series",
+]
+ignore-errors-in-generated-code = true
+ignore-missing-source = true
+
+# disable `bad-assignment` and `invalid-argument` for the whole project
+[errors]
+bad-assignment = false
+invalid-argument = false
+
+[[sub-config]]
+# apply this to `loom/tests/file.py`
+matches = "loom/tests/file.py"
+
+# any unittest imports will by typed as `typing.Any`
+replace-imports-with-any = ["unittest.*"]
+
+[[sub-config]]
+# apply this config to all files in `loom`
+matches = "loom/**"
+
+# enable `assert-type` errors in `loom`
+[sub-config.errors]
+assert-type = true
