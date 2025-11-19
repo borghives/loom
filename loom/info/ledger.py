@@ -98,20 +98,16 @@ class LedgerModel(PersistableBase):
         """
 
         operations = cls.aggregate_operations(items, lazy)
-        if not operations or len(operations) == 0:
-            return
-
-        collection = cls.get_init_collection()
-        collection.bulk_write(operations)
+        if operations and len(operations) > 0:
+            collection = cls.get_init_collection()
+            collection.bulk_write(operations)
 
     @classmethod
-    async def persist_many_async(cls, items: list, lazy: bool = False) -> None:
+    async def persist_many_async(cls, items: list, lazy: bool = False):
         operations = cls.aggregate_operations(items, lazy)
-        if not operations or len(operations) == 0:
-            return
-
-        collection = await cls.get_init_collection_async()
-        await collection.bulk_write(operations)
+        if operations and len(operations) > 0:
+            collection = await cls.get_init_collection_async()
+            await collection.bulk_write(operations)
 
 
 class TimeSeriesLedgerModel(LedgerModel):
@@ -243,7 +239,7 @@ def declare_timeseries(
                     f"Invalid timeseries granularity {granularity}.  Must be one of seconds, minutes, or hours"
                 )
 
-        metadata = {}
+        metadata : dict = {}
         metadata["metakey"] = metakey
         metadata["granularity"] = granularity
         metadata["ttl"] = ttl

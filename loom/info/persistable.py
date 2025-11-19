@@ -286,7 +286,7 @@ class PersistableBase(Model):
         return True
     
     @classmethod
-    def persist_many(cls, items: list, lazy: bool = False):
+    def persist_many(cls, items: list, lazy: bool = False) -> None:
         """
         Saves multiple models to the database.
 
