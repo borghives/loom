@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Generic, List, Optional, Type
+from typing import Generic, List, Optional, Type, Self
 from pymongoarrow.api import ( #type: ignore
     Schema,  Table,
     aggregate_arrow_all,
@@ -39,7 +39,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr: AggregationStages = AggregationStages()
         self._persist_cls: Type[PersistableType] = persistable
 
-    def filter(self : "LoadDirective[PersistableType]", filter: QueryPredicates) -> "LoadDirective[PersistableType]":
+    def filter(self, filter: QueryPredicates) -> Self:
         """
         Adds a filter to the query.
 
@@ -52,7 +52,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr = self._aggregation_expr.match(filter)
         return self
 
-    def sort(self : "LoadDirective[PersistableType]", sort: Optional[SortOp | str], descending: bool = False) -> "LoadDirective[PersistableType]":
+    def sort(self, sort: Optional[SortOp | str], descending: bool = False) -> Self:
         """
         Adds a sort to the query.
 
@@ -75,7 +75,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr = self._aggregation_expr.sort(sort_op)
         return self
     
-    def skip(self : "LoadDirective[PersistableType]", skip: int) -> "LoadDirective[PersistableType]":
+    def skip(self, skip: int) -> Self:
         """
         Adds a skip to the query.
 
@@ -88,7 +88,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr = self._aggregation_expr.skip(skip)
         return self
     
-    def add_fields(self : "LoadDirective[PersistableType]", add_fields: dict) -> "LoadDirective[PersistableType]":
+    def add_fields(self, add_fields: dict) -> Self:
         """
         Adds an addFields stage to the aggregation pipeline.
 
@@ -101,7 +101,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr = self._aggregation_expr.add_fields(add_fields)
         return self
 
-    def limit(self : "LoadDirective[PersistableType]", limit: int) -> "LoadDirective[PersistableType]":
+    def limit(self, limit: int) -> Self:
         """
         Adds a limit to the query.
 
@@ -114,7 +114,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr = self._aggregation_expr.limit(limit)
         return self
     
-    def sample(self : "LoadDirective[PersistableType]", sample: int) -> "LoadDirective[PersistableType]":
+    def sample(self, sample: int) -> Self:
         """
         Adds a sample stage to the aggregation pipeline.
 
@@ -141,7 +141,7 @@ class LoadDirective(Generic[PersistableType]):
                 return result.get("count", 0)
         return 0
 
-    def project(self : "LoadDirective[PersistableType]", *specifications: FieldSpecification | dict) -> "LoadDirective[PersistableType]":
+    def project(self, *specifications: FieldSpecification | dict) -> Self:
         combined: Optional[FieldSpecification | dict] = None
         for specification in specifications:
             if combined is None:
@@ -158,13 +158,13 @@ class LoadDirective(Generic[PersistableType]):
 
         return self
 
-    def group_by(self : "LoadDirective[PersistableType]", key: str | Expression | None) -> "GroupDirective[PersistableType]":
+    def group_by(self, key: str | Expression | None) -> "GroupDirective[PersistableType]":
         if isinstance(key, str):
             key = FieldPath(key)
         
         return GroupDirective[PersistableType](self, key)
     
-    def agg(self : "LoadDirective[PersistableType]", aggregation: AggregationStages) -> "LoadDirective[PersistableType]":
+    def agg(self, aggregation: AggregationStages) -> Self:
         """
         Adds an aggregation pipeline to the query.
 
@@ -177,7 +177,7 @@ class LoadDirective(Generic[PersistableType]):
         self._aggregation_expr |= aggregation
         return self
     
-    def exec_agg(self : "LoadDirective[PersistableType]", post_agg: Optional[AggregationStages] = None):
+    def exec_agg(self, post_agg: Optional[AggregationStages] = None):
         """
         Performs an aggregation query on the model's collection.
 
@@ -192,7 +192,7 @@ class LoadDirective(Generic[PersistableType]):
         collection = p_cls.get_init_collection()
         return collection.aggregate(self.get_pipeline_expr(post_agg))
 
-    def load_agg(self : "LoadDirective[PersistableType]", post_agg: Optional[AggregationStages] = None):
+    def load_agg(self, post_agg: Optional[AggregationStages] = None):
         """
         Executes an aggregation and returns the results as a list of models.
 
@@ -207,7 +207,7 @@ class LoadDirective(Generic[PersistableType]):
         with self.exec_agg(post_agg) as cursors:
             return [p_cls.from_doc(doc) for doc in cursors]
     
-    def load_one(self: "LoadDirective[PersistableType]"):
+    def load_one(self):
         """
         Loads a single document from the database.
 
@@ -217,7 +217,7 @@ class LoadDirective(Generic[PersistableType]):
         docs = self.load_agg(AggregationStages().limit(1))
         return docs[0] if len(docs) > 0 else None
     
-    def load_many(self: "LoadDirective[PersistableType]"):
+    def load_many(self):
         """
         Loads multiple documents from the database.
 
@@ -226,7 +226,7 @@ class LoadDirective(Generic[PersistableType]):
         """
         return self.load_agg()
     
-    def load_latest(self: "LoadDirective[PersistableType]", sort: SortOp = SortDesc("updated_time")):
+    def load_latest(self, sort: SortOp = SortDesc("updated_time")):
         """
         Loads the most recently updated document from the database.
 
@@ -239,7 +239,7 @@ class LoadDirective(Generic[PersistableType]):
         docs = self.load_agg(AggregationStages().sort(sort).limit(1))
         return docs[0] if len(docs) > 0 else None
     
-    def merge_into(self: "LoadDirective[PersistableType]", collection_name: str, on: List[str], when_matched: WhenMatchedAction = WhenMatchedAction.REPLACE, when_not_matched: WhenNotMatchedAction = WhenNotMatchedAction.INSERT):
+    def merge_into(self, collection_name: str, on: List[str], when_matched: WhenMatchedAction = WhenMatchedAction.REPLACE, when_not_matched: WhenNotMatchedAction = WhenNotMatchedAction.INSERT):
         self._aggregation_expr = self._aggregation_expr.merge({
             "into": collection_name,
             "on": on,
@@ -249,32 +249,32 @@ class LoadDirective(Generic[PersistableType]):
         self.exec_agg()
     
 
-    async def exec_agg_async(self: "LoadDirective[PersistableType]", post_agg: Optional[AggregationStages] = None):
+    async def exec_agg_async(self, post_agg: Optional[AggregationStages] = None):
         p_cls = self._persist_cls
         collection = await p_cls.get_init_collection_async()
         return await collection.aggregate(self.get_pipeline_expr(post_agg))
 
-    async def load_agg_async(self : "LoadDirective[PersistableType]", post_agg: Optional[AggregationStages] = None):
+    async def load_agg_async(self, post_agg: Optional[AggregationStages] = None):
         p_cls = self._persist_cls
         cursor = await self.exec_agg_async(post_agg)
         async with cursor:
             async for doc in cursor:
                 yield p_cls.from_doc(doc)
 
-    async def load_one_async(self: "LoadDirective[PersistableType]"):
+    async def load_one_async(self):
         async for doc in self.load_agg_async(AggregationStages().limit(1)):
             return doc
         return None
     
-    async def load_many_async(self: "LoadDirective[PersistableType]"):
+    async def load_many_async(self):
         return [doc async for doc in self.load_agg_async()]
 
-    async def load_latest_async(self: "LoadDirective[PersistableType]", sort: SortOp = SortDesc("updated_time")):
+    async def load_latest_async(self, sort: SortOp = SortDesc("updated_time")):
         async for doc in self.load_agg_async(AggregationStages().sort(sort).limit(1)):
             return doc
         return None
     
-    async def merge_into_async(self: "LoadDirective[PersistableType]", collection_name: str, on: List[str], when_matched: WhenMatchedAction = WhenMatchedAction.REPLACE, when_not_matched: WhenNotMatchedAction = WhenNotMatchedAction.INSERT):
+    async def merge_into_async(self, collection_name: str, on: List[str], when_matched: WhenMatchedAction = WhenMatchedAction.REPLACE, when_not_matched: WhenNotMatchedAction = WhenNotMatchedAction.INSERT):
         self._aggregation_expr = self._aggregation_expr.merge({
             "into": collection_name,
             "on": on,

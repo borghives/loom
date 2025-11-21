@@ -1,4 +1,4 @@
-from typing import Generic, Iterator, Optional, TypeVar, Union
+from typing import Generic, Iterator, Optional, TypeVar, Union, Self
 from pydantic import Field
 from datetime import datetime
 from functools import total_ordering
@@ -214,7 +214,7 @@ class MomentWindow(Generic[T]):
         for i in range(len(self) - window_size + 1):
             yield MomentWindow[T](moments=self.moments[i:i + window_size], symbol=self.symbol)
 
-    def sliding_time_cone(self: 'MomentWindow[T]', past_size: int, future_size: int) -> Iterator[tuple['MomentWindow[T]', 'MomentWindow[T]']]:
+    def sliding_time_cone(self: Self, past_size: int, future_size: int) -> Iterator[tuple[Self, Self]]:
         """
         Generate sliding time cones of past and future moments.
 
@@ -234,7 +234,7 @@ class MomentWindow(Generic[T]):
             
             yield past_cone, future_cone
 
-    def get_moments(self: 'MomentWindow[T]', after: Optional[datetime] = None, before: Optional[datetime] = None) -> list[T]:
+    def get_moments(self: Self, after: Optional[datetime] = None, before: Optional[datetime] = None) -> list[T]:
         """
         Get moments within a specified time range.
 
