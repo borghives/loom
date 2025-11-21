@@ -124,9 +124,9 @@ oldest_users = User.filter()\
 For complex analytics, use the aggregation pipeline.
 
 ```python
-from loom.info import Aggregation
+from loom.info import AggregationStages
 
-pipeline = Aggregation().group({
+pipeline = AggregationStages().group({
     "_id": "$is_active",
     "avg_age": {"$avg": "$age"}
 })
