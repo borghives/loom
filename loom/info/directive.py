@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Generic, List, Optional, Type
 from pymongoarrow.api import ( #type: ignore
     Schema,  Table,
@@ -14,6 +15,18 @@ from loom.info.expression import Expression, FieldPath, GroupExpression, FieldSp
 from loom.info.filter import QueryPredicates
 from loom.info.sort_op import SortDesc, SortOp, SortAsc
 from loom.info.persistable import PersistableType
+
+class WhenMatchedAction(Enum):
+    REPLACE = "replace"
+    MERGE = "merge"
+    FAIL = "fail"
+    KEEP_EXISTING = "keepExisting"
+    PIPELINE = "pipeline"
+    
+class WhenNotMatchedAction(Enum):
+    INSERT = "insert"
+    DISCARD = "discard"
+    FAIL = "fail"
 
 class LoadDirective(Generic[PersistableType]):
     """
@@ -226,12 +239,12 @@ class LoadDirective(Generic[PersistableType]):
         docs = self.load_agg(AggregationStages().sort(sort).limit(1))
         return docs[0] if len(docs) > 0 else None
     
-    def merge_into(self: "LoadDirective[PersistableType]", collection_name: str, on: List[str]):
+    def merge_into(self: "LoadDirective[PersistableType]", collection_name: str, on: List[str], when_matched: WhenMatchedAction = WhenMatchedAction.REPLACE, when_not_matched: WhenNotMatchedAction = WhenNotMatchedAction.INSERT):
         self._aggregation_expr = self._aggregation_expr.merge({
             "into": collection_name,
             "on": on,
-            "whenMatched": "replace", #<replace|keepExisting|merge|fail|pipeline>, 
-            "whenNotMatched": "insert" #<insert|discard|fail> 
+            "whenMatched": when_matched.value,
+            "whenNotMatched": when_not_matched.value 
         })
         self.exec_agg()
     
@@ -261,12 +274,12 @@ class LoadDirective(Generic[PersistableType]):
             return doc
         return None
     
-    async def merge_into_async(self: "LoadDirective[PersistableType]", collection_name: str, on: List[str]):
+    async def merge_into_async(self: "LoadDirective[PersistableType]", collection_name: str, on: List[str], when_matched: WhenMatchedAction = WhenMatchedAction.REPLACE, when_not_matched: WhenNotMatchedAction = WhenNotMatchedAction.INSERT):
         self._aggregation_expr = self._aggregation_expr.merge({
             "into": collection_name,
             "on": on,
-            "whenMatched": "replace", #<replace|keepExisting|merge|fail|pipeline>, 
-            "whenNotMatched": "insert" #<insert|discard|fail> 
+            "whenMatched": when_matched.value, #<replace|keepExisting|merge|fail|pipeline>, 
+            "whenNotMatched": when_not_matched.value #<insert|discard|fail> 
         })
         await self.exec_agg_async()
     
