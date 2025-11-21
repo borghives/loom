@@ -1,6 +1,6 @@
 import sys
 import loom as lm
-from loom.info import Persistable, declare_persist_db, StrLower, TimeInserted, TimeUpdated, IncrCounter, LedgerModel, TimeSeriesLedgerModel, declare_timeseries, Aggregation
+from loom.info import Persistable, declare_persist_db, StrLower, TimeInserted, TimeUpdated, IncrCounter, LedgerModel, TimeSeriesLedgerModel, declare_timeseries, AggregationStages
 
 TEST_DB = "loom_usage_test_db"
 

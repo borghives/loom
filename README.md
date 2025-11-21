@@ -115,7 +115,7 @@ To start building a query, use the `filter()` or `aggregation()` class methods o
 directive = User.filter(lm.fld['age'] > 30)
 
 # Start a query with an aggregation
-directive = User.aggregation(lm.Aggregation().group({"_id": "$name", "sum_age": {"$sum": "$age"}}))
+directive = User.agg(lm.AggregationStages().group({"_id": "$name", "sum_age": {"$sum": "$age"}}))
 ```
 
 #### Building Queries
