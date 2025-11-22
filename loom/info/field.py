@@ -208,7 +208,10 @@ class QueryableField:
         assert isinstance(input, Expression)
         return self.with_( Max(input))
     
-    def with_(self, spec : int | dict | Expression = 1) -> FieldSpecification:
+    def with_(self, spec : int | dict | str |Expression = 1) -> FieldSpecification:
+        if isinstance(spec, str):
+            spec = FieldPath(spec)
+        assert isinstance(spec, Expression)
         return FieldSpecification({self.get_query_name(): spec})
     
     def with_out(self) -> FieldSpecification:
