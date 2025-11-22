@@ -1,6 +1,8 @@
+from loom.info.persistable_type import PersistableInterface
+from typing import Self
 import asyncio
 from typing import Any, ClassVar, List, Optional, Tuple, Type, TypeVar
-
+from loom.info.directive import LoadDirective
 import pandas as pd
 import polars as pl
 
@@ -29,8 +31,6 @@ from loom.info.aggregation import AggregationStages
 from loom.info.index import Index
 from loom.info.model import Model
 from loom.info.universal import get_local_db_client, get_remote_db_client
-
-PersistableType = TypeVar("PersistableType", bound="PersistableBase")
 
 class PersistableBase(Model):
     """
@@ -458,7 +458,7 @@ class PersistableBase(Model):
         return cls.filter(filter).load_one()
 
     @classmethod
-    async def from_id_async(cls: Type[PersistableType], id: ObjectId | str):
+    async def from_id_async(cls, id: ObjectId | str):
         if isinstance(id, str):
             if not ObjectId.is_valid(id):
                 return None
@@ -471,16 +471,7 @@ class PersistableBase(Model):
     def get_mql_driver(cls) -> ExpressionDriver:
         return ExpressionDriver(cls.model_fields)
 
-    @classmethod
-    def filter(cls: Type[PersistableType], filter: QueryPredicates = QueryPredicates()):
-        from loom.info.directive import LoadDirective
-        return LoadDirective[PersistableType](cls).filter(filter)
 
-    @classmethod
-    def agg(cls: Type[PersistableType], aggregation: AggregationStages = AggregationStages()):
-        from loom.info.directive import LoadDirective
-        return LoadDirective[PersistableType](cls).agg(aggregation)
-    
     # --- Database and Collection Configuration ---
     @classmethod
     def get_db_info(cls) -> dict:
@@ -613,6 +604,14 @@ class PersistableBase(Model):
         retval = cls.get_db_collection(withAsync=True)
         assert isinstance(retval, AsyncCollection)
         return retval
+
+    @classmethod
+    def filter(cls: Type[Self], filter: QueryPredicates = QueryPredicates()) -> LoadDirective[Self]:
+        return LoadDirective(cls).filter(filter)
+
+    @classmethod
+    def agg(cls: Type[Self], aggregation: AggregationStages = AggregationStages()) -> LoadDirective[Self]:
+        return LoadDirective(cls).agg(aggregation)
 
 class Persistable(PersistableBase):
     updated_time: TimeUpdated = Field(

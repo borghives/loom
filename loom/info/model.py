@@ -195,7 +195,7 @@ class Model(ABC, BaseModel):
         return [item for item in metadata if isinstance(item, hint_type)]
 
     @classmethod
-    def from_doc(cls: Type[ModelGen], doc: dict):
+    def from_doc(cls, doc: dict):
         """
         Creates a model instance from a MongoDB document.
 

@@ -14,7 +14,7 @@ from loom.info.aggregation import AggregationStages
 from loom.info.expression import Expression, FieldPath, GroupExpression, FieldSpecification
 from loom.info.filter import QueryPredicates
 from loom.info.sort_op import SortDesc, SortOp, SortAsc
-from loom.info.persistable import PersistableType
+from loom.info.persistable_type import PersistableType
 
 class WhenMatchedAction(Enum):
     REPLACE = "replace"
@@ -361,8 +361,10 @@ class LoadDirective(Generic[PersistableType]):
             return df
         
     def get_pipeline_expr(self, post_agg: Optional[AggregationStages] = None) -> list[dict]:
+
         pipelines = (self._aggregation_expr | post_agg)
-        flattened_pipelines =pipelines.express(self._persist_cls.get_mql_driver())
+        p_cls = self._persist_cls
+        flattened_pipelines =pipelines.express(p_cls.get_mql_driver())
         assert isinstance(flattened_pipelines, list)
         return flattened_pipelines
 
