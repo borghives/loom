@@ -149,7 +149,7 @@ class Exists(QueryOpExpression):
 
     @property
     def repr_value(self):
-        return {"exists": self._value}
+        return {"$exists": self._value}
 
 @dataclass
 class TimeQuery(QueryOpExpression):
