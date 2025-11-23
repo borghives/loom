@@ -1,5 +1,6 @@
 from typing import Optional
 
+from bson import ObjectId
 from pydantic import Field
 from pymongo import InsertOne
 from pymongo.database import Database
@@ -41,13 +42,17 @@ class LedgerModel(PersistableBase):
 
         collection = self.get_init_collection()
 
+        # LedgerModel is append-only, so we always generate a new ID
+        self.id = ObjectId()
+
         self.coalesce_fields_for(CoalesceOnInsert)
         self.coalesce_fields_for(RefreshOnSet)
         result = collection.insert_one(self.dump_doc())
         if result:
-            self._id = result.inserted_id
+            self.id = result.inserted_id
 
         self._has_update = False
+        self._original_hash_from_doc = self.hash_model()
         return True
 
     async def persist_async(self, lazy: bool = False) -> bool:
@@ -55,13 +60,18 @@ class LedgerModel(PersistableBase):
             return False
 
         collection = await self.get_init_collection_async()
+        
+        # LedgerModel is append-only, so we always generate a new ID
+        self.id = ObjectId()
+
         self.coalesce_fields_for(CoalesceOnInsert)
         self.coalesce_fields_for(RefreshOnSet)
         result = await collection.insert_one(self.dump_doc())
         if result:
-            self._id = result.inserted_id
+            self.id = result.inserted_id
 
         self._has_update = False
+        self._original_hash_from_doc = self.hash_model()
         return True
     
     @classmethod
@@ -75,12 +85,14 @@ class LedgerModel(PersistableBase):
         ]
 
         for item in persist_items:
+            # LedgerModel is append-only, so we always generate a new ID
+            item.id = ObjectId()
             item.coalesce_fields_for(CoalesceOnInsert)
             item.coalesce_fields_for(RefreshOnSet)  
             insert_op = InsertOne(item.dump_doc())
             operations.append(insert_op)
 
-        return operations
+        return operations, persist_items
 
 
     @classmethod
@@ -97,17 +109,25 @@ class LedgerModel(PersistableBase):
                          Defaults to False.
         """
 
-        operations = cls.aggregate_operations(items, lazy)
+        operations, persist_items = cls.aggregate_operations(items, lazy)
         if operations and len(operations) > 0:
             collection = cls.get_init_collection()
             collection.bulk_write(operations)
+            
+            for item in persist_items:
+                item._has_update = False
+                item._original_hash_from_doc = item.hash_model()
 
     @classmethod
     async def persist_many_async(cls, items: list, lazy: bool = False):
-        operations = cls.aggregate_operations(items, lazy)
+        operations, persist_items = cls.aggregate_operations(items, lazy)
         if operations and len(operations) > 0:
             collection = await cls.get_init_collection_async()
             await collection.bulk_write(operations)
+
+            for item in persist_items:
+                item._has_update = False
+                item._original_hash_from_doc = item.hash_model()
 
 
 class TimeSeriesLedgerModel(LedgerModel):
