@@ -210,6 +210,11 @@ def test_align_to_human_timeframe_offset():
         == PST.utcoffset(None).total_seconds()
     )
 
+def test_pretty_name():
+    """Tests pretty name."""
+    hour_frame = lm.HourlyFrame.create(moment=MOMENT)
+    pretty_name = hour_frame.get_pretty_name()
+    assert pretty_name == "Hourly"
 
 def test_align_to_human_timeframe_non_standard():
     """Tests that a non-standard interval returns a base TimeFrame."""

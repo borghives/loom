@@ -467,6 +467,11 @@ def align_to_human_timeframe(
         alignment_offset_seconds=alignment_offset_seconds,
     )
 
+def fit_timeframe(frame: TimeFrame) :
+    if (frame.get_pretty_name() == "Timeframe"):
+        return align_to_human_timeframe(frame.floor, frame.ceiling, frame.alignment_offset_seconds)
+    return frame
+        
 
 # -- Module-level Mappings --
 _RESOLUTION_TO_FRAME_CLASS_MAP: dict[TimeFrameResolution, type[TimeFrame]] = {

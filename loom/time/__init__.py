@@ -8,6 +8,7 @@ from loom.time.timeframing import (
     QuarterlyFrame,
     YearlyFrame,
     align_to_human_timeframe,
+    fit_timeframe,
 )
 
 from loom.time.util import (
@@ -51,5 +52,6 @@ __all__ = [
     "get_current_event_time",
     "align_to_human_timeframe",
     "pl_col_utc",
+    "fit_timeframe",
     
 ]
