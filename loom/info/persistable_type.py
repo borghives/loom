@@ -1,7 +1,7 @@
 
 from loom.info.expression import ExpressionDriver
 from pymongo.asynchronous.collection import AsyncCollection
-from typing import TypeVar, Protocol
+from typing import TypeVar, Protocol, Self
 from pymongo.collection import Collection
 
 class PersistableInterface(Protocol):
@@ -14,7 +14,7 @@ class PersistableInterface(Protocol):
         ...
     
     @classmethod
-    def from_doc(cls, doc: dict):
+    def from_doc(cls, doc: dict) -> Self:
         ...
 
     @classmethod

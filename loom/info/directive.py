@@ -192,7 +192,7 @@ class LoadDirective(Generic[PersistableType]):
         collection = p_cls.get_init_collection()
         return collection.aggregate(self.get_pipeline_expr(post_agg))
 
-    def load_agg(self, post_agg: Optional[AggregationStages] = None):
+    def load_agg(self, post_agg: Optional[AggregationStages] = None) -> list[PersistableType]:
         """
         Executes an aggregation and returns the results as a list of models.
 
@@ -201,13 +201,13 @@ class LoadDirective(Generic[PersistableType]):
                 append to the end just for this execution
 
         Returns:
-            list[Self]: A list of model instances.
+            list[PersistableType]: A list of model instances.
         """
         p_cls = self._persist_cls
         with self.exec_agg(post_agg) as cursors:
             return [p_cls.from_doc(doc) for doc in cursors]
     
-    def load_one(self):
+    def load_one(self) -> Optional[PersistableType]:
         """
         Loads a single document from the database.
 
@@ -217,16 +217,16 @@ class LoadDirective(Generic[PersistableType]):
         docs = self.load_agg(AggregationStages().limit(1))
         return docs[0] if len(docs) > 0 else None
     
-    def load_many(self):
+    def load_many(self) -> list[PersistableType]:
         """
         Loads multiple documents from the database.
 
         Returns:
-            list[Persistable]: A list of loaded model instances.
+            list[PersistableType]: A list of loaded model instances.
         """
         return self.load_agg()
     
-    def load_latest(self, sort: SortOp = SortDesc("updated_time")):
+    def load_latest(self, sort: SortOp = SortDesc("updated_time")) -> Optional[PersistableType]:
         """
         Loads the most recently updated document from the database.
 
@@ -261,12 +261,12 @@ class LoadDirective(Generic[PersistableType]):
             async for doc in cursor:
                 yield p_cls.from_doc(doc)
 
-    async def load_one_async(self):
+    async def load_one_async(self) -> Optional[PersistableType]:
         async for doc in self.load_agg_async(AggregationStages().limit(1)):
             return doc
         return None
     
-    async def load_many_async(self):
+    async def load_many_async(self) -> list[PersistableType]:
         return [doc async for doc in self.load_agg_async()]
 
     async def load_latest_async(self, sort: SortOp = SortDesc("updated_time")):
