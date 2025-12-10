@@ -1,6 +1,5 @@
 
 from enum import Enum
-from functools import wraps
 from typing import Optional
 
 from loom.info.acc_op import Avg, Max, Median, Min, Sum
@@ -23,19 +22,6 @@ from loom.info.query_op import (
     QueryOpExpression,
 )
 from loom.time.timeframing import TimeFrame
-
-def suppress_warning(func):
-    """
-    A decorator to acknowledge and document the intentional override of a method
-    that may be flagged by static analysis tools like Pylance. This is used
-    for methods like `__eq__` and `__ne__` in `QueryableField`, where we are
-    intentionally changing the return type to build a query DSL, which deviates
-    from the typical signature of these methods.
-    """
-    @wraps(func) 
-    def wrapper(self, other):
-        return func(self, other)
-    return wrapper
 
 class QueryableField:
     """
@@ -88,8 +74,7 @@ class QueryableField:
         input=self.normalize_literal_input(literal_input)
         return self.predicate(Lte(input)) 
 
-    @suppress_warning
-    def __eq__(self, input) -> QueryPredicates:
+    def __eq__(self, input) -> QueryPredicates: # type: ignore[override]
         if input is None:
             return QueryPredicates()
         
@@ -102,8 +87,7 @@ class QueryableField:
         input=self.normalize_literal_input(input)        
         return QueryPredicates({self.get_query_name(): input})
 
-    @suppress_warning
-    def __ne__(self, literal_input) -> QueryPredicates:
+    def __ne__(self, literal_input) -> QueryPredicates: # type: ignore[override]
         if literal_input is None:
             return QueryPredicates()
         
