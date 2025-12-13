@@ -309,7 +309,7 @@ class LoadDirective(Generic[PersistableType]):
         """
         p_cls = self._persist_cls
         collection = p_cls.get_init_collection()
-        return aggregate_arrow_all(collection, pipeline=self.get_pipeline_expr(), schema=schema)
+        return aggregate_arrow_all(collection, pipeline=self.get_pipeline_expr(), schema=Schema(schema) if schema else None)
     
     def load_dataframe(self, schema: Optional[Schema] = None) -> pd.DataFrame:
         """
@@ -323,9 +323,9 @@ class LoadDirective(Generic[PersistableType]):
         """
         p_cls = self._persist_cls
         collection = p_cls.get_init_collection()
-        return aggregate_pandas_all(collection, pipeline=self.get_pipeline_expr(), schema=schema)
+        return aggregate_pandas_all(collection, pipeline=self.get_pipeline_expr(), schema=Schema(schema) if schema else None)
 
-    def load_polars(self, schema: Optional[Schema] = None) -> pl.DataFrame | pl.Series:
+    def load_polars(self, schema: Optional[dict] = None) -> pl.DataFrame | pl.Series:
         """
         Loads data from a query into a polars DataFrame.
 
@@ -337,7 +337,7 @@ class LoadDirective(Generic[PersistableType]):
         """
         p_cls = self._persist_cls
         collection = p_cls.get_init_collection()
-        return aggregate_polars_all(collection, pipeline=self.get_pipeline_expr(), schema=schema)
+        return aggregate_polars_all(collection, pipeline=self.get_pipeline_expr(), schema=Schema(schema) if schema else None)
 
     def _load_dataframe_legacy(
         self,
