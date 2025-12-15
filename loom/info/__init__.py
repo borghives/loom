@@ -9,6 +9,7 @@ from loom.info.ledger import LedgerModel, TimeSeriesLedgerModel, declare_timeser
 from loom.info.aggregation import AggregationStages
 from loom.info.sort_op import SortAsc, SortDesc, SortOp
 from loom.info.query_op import TimeQuery
+from loom.info.directive import WhenNotMatchedAction, WhenMatchedAction
 from loom.info.op import to_int, to_upper, to_lower, to_date_alignment, to_double, sanitize_number, multiply, divide
 from loom.info.util import coalesce
 
@@ -49,5 +50,7 @@ __all__ = [
     "multiply",
     "divide",
     "coalesce",
+    "WhenNotMatchedAction",
+    "WhenMatchedAction",
 
 ]
