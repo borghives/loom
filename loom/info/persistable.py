@@ -320,7 +320,7 @@ class PersistableBase(Model):
         cls, dataframe: pd.DataFrame | pl.DataFrame | pyarrow.Table
     ):
         """
-        Inserts a pandas DataFrame into the database.
+        Inserts a DataFrame into the database.
 
         Note: to have RefreshOnDataframeInsert fields refresh, the columns must exist in the DataFrame.  
         Default columns to None if to have field trigger content.
@@ -352,6 +352,50 @@ class PersistableBase(Model):
                 raise
                 
         return
+
+    @classmethod
+    def upsert_dataframe(
+        cls, dataframe: pd.DataFrame | pl.DataFrame | pyarrow.Table,
+        on: list[str] = [],
+    ):
+        """
+        Upserts a DataFrame into the database.
+
+        Note: to have RefreshOnDataframeInsert fields refresh, the columns must exist in the DataFrame.  
+        Default columns to None if to have field trigger content.
+
+        Args:
+            dataframe (pd.DataFrame): The DataFrame to update or insert.
+            on (list[str]): The fields to use for upserting.
+        """
+
+        collection = cls.get_init_collection()
+
+        records : Optional[list] = None
+
+        if isinstance(dataframe, pd.DataFrame) and not dataframe.empty:
+            records = dataframe.to_dict("records")
+        elif isinstance(dataframe, pl.DataFrame) and not dataframe.is_empty():
+            records = dataframe.to_dicts()
+        elif isinstance(dataframe, pyarrow.Table) and dataframe.num_rows > 0:
+            records = dataframe.to_pylist()
+
+        if records is None or len(records) == 0:
+            return
+
+        operations: list = []
+
+        for record in records:
+            filter = {key: record[key] for key in on}
+            update = {"$set": record}
+            update_op = UpdateOne(
+                filter,
+                update,
+                upsert=True,
+            )
+            operations.append(update_op)
+                
+        collection.bulk_write(operations)
 
     async def persist_async(self, lazy: bool = False) -> bool:
         if lazy and not self.should_persist:
@@ -435,6 +479,50 @@ class PersistableBase(Model):
                 raise
                 
         return
+
+    @classmethod
+    async def upsert_dataframe_async(
+        cls, dataframe: pd.DataFrame | pl.DataFrame | pyarrow.Table,
+        on: list[str] = [],
+    ):
+        """
+        Upserts a DataFrame into the database.
+
+        Note: to have RefreshOnDataframeInsert fields refresh, the columns must exist in the DataFrame.  
+        Default columns to None if to have field trigger content.
+
+        Args:
+            dataframe (pd.DataFrame): The DataFrame to update or insert.
+            on (list[str]): The fields to use for upserting.
+        """
+
+        collection = await cls.get_init_collection_async()
+
+        records : Optional[list] = None
+
+        if isinstance(dataframe, pd.DataFrame) and not dataframe.empty:
+            records = dataframe.to_dict("records")
+        elif isinstance(dataframe, pl.DataFrame) and not dataframe.is_empty():
+            records = dataframe.to_dicts()
+        elif isinstance(dataframe, pyarrow.Table) and dataframe.num_rows > 0:
+            records = dataframe.to_pylist()
+
+        if records is None or len(records) == 0:
+            return
+
+        operations: list = []
+
+        for record in records:
+            filter = {key: record[key] for key in on}
+            update = {"$set": record}
+            update_op = UpdateOne(
+                filter,
+                update,
+                upsert=True,
+            )
+            operations.append(update_op)
+                
+        await collection.bulk_write(operations)
 
     @classmethod
     def from_id(cls, id: ObjectId | str):

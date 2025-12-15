@@ -268,6 +268,49 @@ class PersistableTest(unittest.TestCase):
         TestModel.insert_dataframe(df)
 
 
+    def test_upsert_dataframe(self):
+        """Test upserting a DataFrame."""
+        collection = TestModel.get_db_collection()
+        collection.delete_many({})
+
+        # 1. Insert initial data
+        TestModel(name="existing", value=1).persist()
+        TestModel(name="other", value=2).persist()
+
+        # 2. Prepare DataFrame for upsert
+        # "existing" will be updated (value 1 -> 10)
+        # "new" will be inserted
+        df = pd.DataFrame([
+            {"name": "existing", "value": 10},
+            {"name": "new", "value": 20}
+        ])
+
+        # 3. Perform Upsert
+        TestModel.upsert_dataframe(df, on=["name"])
+
+        # 4. Verify
+        # Check "existing" updated
+        existing = TestModel.filter(lm.fld("name") == "existing").load_one()
+        self.assertIsNotNone(existing)
+        self.assertEqual(existing.value, 10)
+
+        # Check "new" inserted
+        new_item = TestModel.filter(lm.fld("name") == "new").load_one()
+        self.assertIsNotNone(new_item)
+        self.assertEqual(new_item.value, 20)
+
+        # Check "other" remains untouched
+        other = TestModel.filter(lm.fld("name") == "other").load_one()
+        self.assertIsNotNone(other)
+        self.assertEqual(other.value, 2)
+
+        # Total count should be 3
+        self.assertEqual(collection.count_documents({}), 3)
+
+        # Clean up
+        collection.delete_many({})
+
+
     def test_insert_dataframe_ignores_duplicate_error(self):
         """Test that insert_dataframe handles and ignores duplicate key errors."""
         
