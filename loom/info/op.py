@@ -30,6 +30,19 @@ def multiply(a, b) -> dict:
     """
     return {"$multiply": [a, b]}
 
+def add(a, b) -> dict:
+    """
+    Returns a MongoDB `$add` operator structure.
+
+    Args:
+        a: The first number.
+        b: The second number.
+
+    Returns:
+        dict: A MongoDB `$add` operator structure.
+    """
+    return {"$add": [a, b]}
+
 
 def sanitize_number(expr, default: int = 0) -> dict:
     """
