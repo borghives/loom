@@ -64,7 +64,10 @@ class PdfValue(BaseModel):
         if std_dev > 0:
             scaled_data_points = (data_points - mean) / std_dev
         else:
-            scaled_data_points = data_points # All points are the same
+            # All points are the same (degenerate data).
+            # Return the value directly (mean == median in this case).
+            val = float(mean)
+            return PdfValue(left=val, right=val, peak=val, density=0, jittered=False)
 
         added_jitter = False
         try:
@@ -76,7 +79,7 @@ class PdfValue(BaseModel):
             # If the input data is degenerate (e.g., all points are the same),
             # gaussian_kde will fail. We add a tiny amount of random noise ("jitter")
             # to the data to make it non-degenerate and allow the calculation to proceed.
-            jitter = np.random.normal(0, 1e-6, size=scaled_data_points.shape)
+            jitter = np.random.normal(0, 1e-4, size=scaled_data_points.shape)
             data = scaled_data_points + jitter
             added_jitter = True
             try:

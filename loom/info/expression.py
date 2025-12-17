@@ -51,6 +51,13 @@ class Expression(ABC):
     @property
     @abstractmethod
     def repr_value(self) -> Any:
+        """
+        Returns the raw representation of the expression before final marshalling.
+        
+        This property should return the internal state of the expression as a
+        Python primitive (dict, list, value) that the `ExpressionDriver` will
+        recursively traverse and resolve (e.g. resolving `FieldName` to aliases).
+        """
         pass
     
     def express(self, driver: Optional[ExpressionDriver] = None):
