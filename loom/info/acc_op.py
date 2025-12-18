@@ -31,6 +31,17 @@ class Percentile(AccOpExpression):
             }
         }
 
+class ArrayElemAt(AccOpExpression):
+    def __init__(self, input: Expression, index: int) -> None:
+        self.input = input
+        self.index = index
+
+    @property
+    def repr_value(self):
+        return {
+            "$arrayElemAt": [self.input, self.index]
+        }
+
 class Sum(AccOpExpression):
     def __init__(self, input: Expression | int ) -> None:
         self.input = input
