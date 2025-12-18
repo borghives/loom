@@ -17,7 +17,7 @@ class Median(AccOpExpression):
         }
 
 class Percentile(AccOpExpression):
-    def __init__(self, input: Expression, p: list[float] = [0.25, 0.5, 0.75]) -> None:
+    def __init__(self, input: Expression, p: list[float]) -> None:
         self.input = input
         self.p = p
 

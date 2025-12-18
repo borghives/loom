@@ -168,7 +168,7 @@ class QueryableField:
         assert isinstance(input, Expression)
         return self.with_( Median(input))
 
-    def with_percentile(self, input: Expression | str, p: list[float] = [0.25, 0.5, 0.75]) -> FieldSpecification:
+    def with_percentile(self, input: Expression | str, p: list[float]) -> FieldSpecification:
         if isinstance(input, str):
             input = FieldPath(input)
         assert isinstance(input, Expression)
