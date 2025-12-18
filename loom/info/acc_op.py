@@ -31,6 +31,26 @@ class Percentile(AccOpExpression):
             }
         }
 
+class First(AccOpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$first": self.input
+        }
+
+class Last(AccOpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$last": self.input
+        }
+
 class ArrayElemAt(AccOpExpression):
     def __init__(self, input: Expression, index: int) -> None:
         self.input = input

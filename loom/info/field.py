@@ -1,4 +1,6 @@
 
+from loom.info.acc_op import Last
+from loom.info.acc_op import First
 from loom.info.acc_op import ArrayElemAt
 from enum import Enum
 from typing import Optional
@@ -180,6 +182,18 @@ class QueryableField:
             input = FieldPath(input)
         assert isinstance(input, Expression)
         return self.with_( ArrayElemAt(input, index))
+
+    def with_first(self, input: Expression | str) -> FieldSpecification:
+        if isinstance(input, str):
+            input = FieldPath(input)
+        assert isinstance(input, Expression)
+        return self.with_( First(input))
+    
+    def with_last(self, input: Expression | str) -> FieldSpecification:
+        if isinstance(input, str):
+            input = FieldPath(input)
+        assert isinstance(input, Expression)
+        return self.with_( Last(input))
     
     def with_sum(self, input: Expression | str | int) -> FieldSpecification:
         if isinstance(input, str):
