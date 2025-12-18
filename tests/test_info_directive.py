@@ -95,7 +95,9 @@ def test_load_directive_group_by():
     expected_pipeline =[
         {
             '$group': {
-                '_id': '$name',
+                '_id': {
+                    'name': '$name'
+                },
                 'median_age_of_name': {
                     '$median': {'input': '$age', 'method': 'approximate'}
                 }
@@ -116,7 +118,9 @@ def test_load_directive_group_by_sum():
     expected_pipeline = [
         {
             '$group': {
-                '_id': '$name',
+                '_id':  {
+                    'name': '$name'
+                },
                 'total_age': {
                     '$sum': '$age'
                 }
@@ -137,7 +141,9 @@ def test_load_directive_group_by_avg():
     expected_pipeline = [
         {
             '$group': {
-                '_id': '$name',
+                '_id': {
+                    'name': '$name'
+                },
                 'avg_age': {
                     '$avg': '$age'
                 }
@@ -158,7 +164,9 @@ def test_load_directive_group_by_min():
     expected_pipeline = [
         {
             '$group': {
-                '_id': '$name',
+                '_id': {
+                    'name': '$name'
+                },
                 'min_age': {
                     '$min': '$age'
                 }
@@ -179,7 +187,9 @@ def test_load_directive_group_by_max():
     expected_pipeline = [
         {
             '$group': {
-                '_id': '$name',
+                '_id': {
+                    'name': '$name'
+                },
                 'max_age': {
                     '$max': '$age'
                 }
@@ -201,7 +211,9 @@ def test_load_directive_group_by_multiple_accumulators():
     expected_pipeline = [
         {
             '$group': {
-                '_id': '$name',
+                '_id': {
+                    'name': '$name'
+                },
                 'total_age': {
                     '$sum': '$age'
                 },

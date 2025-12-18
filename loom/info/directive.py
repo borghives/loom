@@ -1,3 +1,4 @@
+from loom.info.field import QueryableField
 from enum import Enum
 from typing import Generic, List, Optional, Type, Self
 from pymongoarrow.api import ( #type: ignore
@@ -11,7 +12,7 @@ import pandas as pd
 import polars as pl
 
 from loom.info.aggregation import AggregationStages
-from loom.info.expression import Expression, FieldPath, GroupExpression, FieldSpecification
+from loom.info.expression import Expression, FieldName, FieldPath, GroupExpression, FieldSpecification
 from loom.info.filter import QueryPredicates
 from loom.info.sort_op import SortDesc, SortOp, SortAsc
 from loom.info.persistable_type import PersistableType
@@ -158,11 +159,15 @@ class LoadDirective(Generic[PersistableType]):
 
         return self
 
-    def group_by(self, key: str | Expression | None) -> "GroupDirective[PersistableType]":
-        if isinstance(key, str):
-            key = FieldPath(key)
+    def group_by(self, *keys: str | FieldSpecification | None) -> "GroupDirective[PersistableType]":
+        combined: FieldSpecification = FieldSpecification()
+        for key in keys:
+            if isinstance(key, str):
+                combined |= QueryableField(key).with_(key)
+            else:
+                combined |= key
         
-        return GroupDirective[PersistableType](self, key)
+        return GroupDirective[PersistableType](self, combined)
     
     def agg(self, aggregation: AggregationStages) -> Self:
         """

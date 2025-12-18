@@ -200,7 +200,7 @@ class FieldSpecification (MapExpression):
     for project
     ref: https://www.mongodb.com/docs/manual/reference/operator/aggregation/project/
     """
-    def __init__(self, specification: Optional[Dict]) :
+    def __init__(self, specification: Optional[Dict] = None) :
         super().__init__(specification)
 
 class GroupExpression(Expression):
