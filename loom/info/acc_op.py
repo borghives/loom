@@ -16,6 +16,21 @@ class Median(AccOpExpression):
             }
         }
 
+class Percentile(AccOpExpression):
+    def __init__(self, input: Expression, p: list[float] = [0.25, 0.5, 0.75]) -> None:
+        self.input = input
+        self.p = p
+
+    @property
+    def repr_value(self):
+        return {
+            "$percentile": {
+                "input": self.input,
+                "p": self.p,
+                "method": "approximate"
+            }
+        }
+
 class Sum(AccOpExpression):
     def __init__(self, input: Expression | int ) -> None:
         self.input = input

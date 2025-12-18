@@ -2,7 +2,7 @@
 from enum import Enum
 from typing import Optional
 
-from loom.info.acc_op import Avg, Max, Median, Min, Sum
+from loom.info.acc_op import Avg, Max, Median, Min, Sum, Percentile
 from loom.info.expression import Expression, FieldPath, FieldSpecification, LiteralInput, FieldName
 from loom.info.filter import QueryPredicates
 from loom.info.op import sanitize_number
@@ -167,6 +167,12 @@ class QueryableField:
             input = FieldPath(input)
         assert isinstance(input, Expression)
         return self.with_( Median(input))
+
+    def with_percentile(self, input: Expression | str, p: list[float] = [0.25, 0.5, 0.75]) -> FieldSpecification:
+        if isinstance(input, str):
+            input = FieldPath(input)
+        assert isinstance(input, Expression)
+        return self.with_( Percentile(input, p=p))
     
     def with_sum(self, input: Expression | str | int) -> FieldSpecification:
         if isinstance(input, str):
