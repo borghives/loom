@@ -268,7 +268,7 @@ class PersistableTest(unittest.TestCase):
         TestModel.insert_dataframe(df)
 
 
-    def test_upsert_dataframe(self):
+    def test_update_dataframe(self):
         """Test upserting a DataFrame."""
         collection = TestModel.get_db_collection()
         collection.delete_many({})
@@ -286,7 +286,7 @@ class PersistableTest(unittest.TestCase):
         ])
 
         # 3. Perform Upsert
-        TestModel.upsert_dataframe(df, on=["name"])
+        TestModel.update_dataframe(df, on=["name"], upsert=True)
 
         # 4. Verify
         # Check "existing" updated

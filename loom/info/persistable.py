@@ -354,9 +354,10 @@ class PersistableBase(Model):
         return
 
     @classmethod
-    def upsert_dataframe(
+    def update_dataframe(
         cls, dataframe: pd.DataFrame | pl.DataFrame | pyarrow.Table,
         on: list[str] = [],
+        upsert: bool = False,
     ):
         """
         Upserts a DataFrame into the database.
@@ -391,7 +392,7 @@ class PersistableBase(Model):
             update_op = UpdateMany(
                 filter,
                 update,
-                upsert=True,
+                upsert=upsert,
             )
             operations.append(update_op)
                 
@@ -481,9 +482,10 @@ class PersistableBase(Model):
         return
 
     @classmethod
-    async def upsert_dataframe_async(
+    async def update_dataframe_async(
         cls, dataframe: pd.DataFrame | pl.DataFrame | pyarrow.Table,
         on: list[str] = [],
+        upsert: bool = False,
     ):
         """
         Upserts a DataFrame into the database.
@@ -518,7 +520,7 @@ class PersistableBase(Model):
             update_op = UpdateMany(
                 filter,
                 update,
-                upsert=True,
+                upsert=upsert,
             )
             operations.append(update_op)
                 
