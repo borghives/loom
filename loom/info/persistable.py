@@ -1,7 +1,6 @@
-from loom.info.persistable_type import PersistableInterface
 from typing import Self
 import asyncio
-from typing import Any, ClassVar, List, Optional, Tuple, Type, TypeVar
+from typing import Any, ClassVar, List, Optional, Tuple, Type
 from loom.info.directive import LoadDirective
 import pandas as pd
 import polars as pl
@@ -9,7 +8,7 @@ import polars as pl
 from bson import ObjectId
 import pyarrow
 from pydantic import Field
-from pymongo import AsyncMongoClient, MongoClient, ReturnDocument, UpdateOne
+from pymongo import AsyncMongoClient, MongoClient, ReturnDocument, UpdateOne, UpdateMany
 from pymongo.collection import Collection
 from pymongo.database import Database
 from pymongo.errors import BulkWriteError
@@ -389,7 +388,7 @@ class PersistableBase(Model):
         for record in records:
             filter = {key: record[key] for key in on}
             update = {"$set": record}
-            update_op = UpdateOne(
+            update_op = UpdateMany(
                 filter,
                 update,
                 upsert=True,
@@ -516,7 +515,7 @@ class PersistableBase(Model):
         for record in records:
             filter = {key: record[key] for key in on}
             update = {"$set": record}
-            update_op = UpdateOne(
+            update_op = UpdateMany(
                 filter,
                 update,
                 upsert=True,
