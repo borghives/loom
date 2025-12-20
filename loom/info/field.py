@@ -198,7 +198,7 @@ class QueryableField:
     def with_sum(self, input: Expression | str | int) -> FieldSpecification:
         if isinstance(input, str):
             input = FieldPath(input)
-        assert isinstance(input, Expression)
+        
         return self.with_( Sum(input))
     
     def with_avg(self, input: Expression | str) -> FieldSpecification:
