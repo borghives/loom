@@ -132,10 +132,11 @@ class PersistableBase(Model):
 
     def self_filter(self) -> dict:
         """
-        Returns a filter to find the current document in the database by its ID.
+        Returns a filter to find the current document.
+        Defaults to using the `_id` field. Can be overridden to use other fields.
 
         Returns:
-            dict: A filter expression for finding the document by its `_id`.
+            dict: A filter expression for finding the document.
         """
         return {"_id": self.collapse_id()}
 
