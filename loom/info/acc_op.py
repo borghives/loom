@@ -1,3 +1,4 @@
+from typing import Optional
 from loom.info.expression import AccOpExpression, Expression
 
 # An accumulator operation that computes the accumulation value
@@ -101,3 +102,25 @@ class Max(AccOpExpression):
         return {
             "$max": self.input
         }
+
+
+class DateToString(AccOpExpression):
+    def __init__(self, input: Expression, format: str, timezone: Optional[str] = None) -> None:
+        self.input = input
+        self.format = format
+        self.timezone = timezone
+
+    @property
+    def repr_value(self):
+        date_to_string = {
+            "format": self.format,
+            "date": self.input,
+        }
+
+        if self.timezone:
+            date_to_string["timezone"] = self.timezone
+
+        return {
+            "$dateToString": date_to_string
+        }
+    

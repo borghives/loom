@@ -1,3 +1,4 @@
+import email.contentmanager
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Any
 from pydantic.fields import FieldInfo
@@ -202,6 +203,27 @@ class FieldSpecification (MapExpression):
     """
     def __init__(self, specification: Optional[Dict] = None) :
         super().__init__(specification)
+
+
+def combine_field_specifications(*specifications: FieldSpecification | dict):
+    combined: Optional[FieldSpecification | dict] = None
+    for specification in specifications:
+        if combined is None:
+            combined = specification
+        else:
+            if isinstance(combined, dict) and isinstance(specification, FieldSpecification):
+                combined = FieldSpecification(combined)
+            
+            if isinstance(combined, FieldSpecification):
+               if isinstance(specification, dict):
+                   specification = FieldSpecification(specification)
+               combined |= specification
+            elif isinstance(combined, dict):
+                assert isinstance(specification, dict)
+                combined |= specification
+                    
+    return combined
+
 
 class GroupExpression(Expression):
     def __init__(self, key: Expression | None):

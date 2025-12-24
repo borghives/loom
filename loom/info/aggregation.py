@@ -162,7 +162,7 @@ class AggregationStages(Expression):
 
         return AggregationStages(self.stages.append(freeze({"$project": project})))
 
-    def add_fields(self, fields: dict) -> "AggregationStages":
+    def add_fields(self, fields: FieldSpecification | dict) -> "AggregationStages":
         """
         Adds an `$addFields` stage to the pipeline.
 

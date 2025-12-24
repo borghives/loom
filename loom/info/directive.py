@@ -1,3 +1,4 @@
+from loom.info.expression import combine_field_specifications
 from loom.info.field import QueryableField
 from enum import Enum
 from typing import Generic, List, Optional, Type, Self
@@ -88,19 +89,6 @@ class LoadDirective(Generic[PersistableType]):
         """
         self._aggregation_expr = self._aggregation_expr.skip(skip)
         return self
-    
-    def add_fields(self, add_fields: dict) -> Self:
-        """
-        Adds an addFields stage to the aggregation pipeline.
-
-        Args:
-            add_fields (dict): The fields to add.
-
-        Returns:
-            LoadDirective: The `LoadDirective` object for chaining.
-        """
-        self._aggregation_expr = self._aggregation_expr.add_fields(add_fields)
-        return self
 
     def limit(self, limit: int) -> Self:
         """
@@ -142,17 +130,26 @@ class LoadDirective(Generic[PersistableType]):
                 return result.get("count", 0)
         return 0
 
+    def add_fields(self, *specifications: FieldSpecification | dict) -> Self:
+        """
+        Adds an addFields stage to the aggregation pipeline.
+
+        Args:
+            specifications (FieldSpecification | dict): The fields to add.
+
+        Returns:
+            LoadDirective: The `LoadDirective` object for chaining.
+        """
+
+        combined = combine_field_specifications(*specifications)
+        
+        if combined is not None:
+            self._aggregation_expr = self._aggregation_expr.add_fields(combined)
+
+        return self
+
     def project(self, *specifications: FieldSpecification | dict) -> Self:
-        combined: Optional[FieldSpecification | dict] = None
-        for specification in specifications:
-            if combined is None:
-                combined = specification
-            elif isinstance(combined, FieldSpecification):
-                assert isinstance(specification, FieldSpecification) 
-                combined |= specification
-            elif isinstance(combined, dict):
-                assert isinstance(specification, dict)
-                combined |= specification
+        combined = combine_field_specifications(*specifications)
         
         if combined is not None:
             self._aggregation_expr = self._aggregation_expr.project(combined)

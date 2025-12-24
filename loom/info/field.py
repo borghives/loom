@@ -1,4 +1,5 @@
 
+from loom.info.acc_op import DateToString
 from loom.info.acc_op import Last
 from loom.info.acc_op import First
 from loom.info.acc_op import ArrayElemAt
@@ -218,6 +219,12 @@ class QueryableField:
             input = FieldPath(input)
         assert isinstance(input, Expression)
         return self.with_( Max(input))
+    
+    def with_date_string(self, input: Expression | str, format: str, timezone: Optional[str] = None) -> FieldSpecification:
+        if isinstance(input, str):
+            input = FieldPath(input)
+        assert isinstance(input, Expression)
+        return self.with_( DateToString(input, format, timezone))
     
     def with_(self, spec : int | dict | str |Expression = 1) -> FieldSpecification:
         if isinstance(spec, str):
