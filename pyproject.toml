@@ -2,15 +2,16 @@
 name = "loom"
 version = "2.12.45"
 description = "A Python library for data analysis and persistence."
-authors = [
-    {name = "Ed Dao",email = "ed@intellogic.com"}
-]
-readme = "README.md"
+authors = [{ name = "Ed Dao", email = "ed@intellogic.com" }]
 requires-python = ">=3.11,<4.0"
+readme = "README.md"
 license = "MIT"
-keywords = ["data", "analysis", "mongodb", "persistence"]
-homepage = "https://github.com/borghives/loom"
-repository = "https://github.com/borghives/loom"
+keywords = [
+    "data",
+    "analysis",
+    "mongodb",
+    "persistence",
+]
 dependencies = [
     "pydantic (>=2.11.7,<3.0.0)",
     "pyrsistent (>=0.20.0,<0.21.0)",
@@ -25,27 +26,25 @@ dependencies = [
     "pymongoarrow (>=1.10.0,<2.0.0)",
     "polars (>=1.25.0,<2.0.0)",
 ]
+repository = "https://github.com/borghives/loom"
+homepage = "https://github.com/borghives/loom"
+
+[project.urls]
+Homepage = "https://github.com/borghives/loom"
+Repository = "https://github.com/borghives/loom"
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry]
-name = "loom"
-description = "A Python library for data analysis and persistence."
-authors = ["Ed Dao <ed@intellogic.com>"]
-license = "MIT"
-readme = "README.md"
-homepage = "https://github.com/borghives/loom"
-repository = "https://github.com/borghives/loom"
-keywords = ["data", "analysis", "mongodb", "persistence"]
-
-[tool.poetry.group.dev.dependencies]
-py-spy = "^0.4.1"
-pytest = "^8.4.2"
-pandas-stubs = "^2.3.2.250827"
-faker = "^37.8.0"
-rich = "^14.1.0"
-scipy-stubs = "^1.16.2.3"
-pyarrow-stubs = "^20.0.0.20250928"
-pytest-asyncio = "^1.2.0"
+[dependency-groups]
+dev = [
+    "py-spy>=0.4.1,<0.5",
+    "pytest>=8.4.2,<9",
+    "pandas-stubs>=2.3.2.250827,<3",
+    "faker>=37.8.0,<38",
+    "rich>=14.1.0,<15",
+    "scipy-stubs>=1.16.2.3,<2",
+    "pyarrow-stubs>=20.0.0.20250928,<21",
+    "pytest-asyncio>=1.2.0,<2",
+]

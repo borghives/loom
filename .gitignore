@@ -10,3 +10,4 @@ reference_material
 .vscode.bak
 .python-version
 poetry.lock
+uv.lock
