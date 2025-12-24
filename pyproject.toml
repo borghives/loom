@@ -48,3 +48,8 @@ dev = [
     "pyarrow-stubs>=20.0.0.20250928,<21",
     "pytest-asyncio>=1.2.0,<2",
 ]
+
+[tool.uv.workspace]
+members = [
+    "temp_uv_check/test_proj",
+]

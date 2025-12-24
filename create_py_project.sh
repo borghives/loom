@@ -8,15 +8,13 @@ fi
 
 PROJECT_NAME=$1
 
-# 1. Create a New Project with Poetry
-poetry new "$PROJECT_NAME" --flat
+# 1. Create a New Project with uv
+uv init "$PROJECT_NAME"
 cd "$PROJECT_NAME" || exit
 
-# 2. Configure Poetry and Install Dependencies
-poetry config virtualenvs.in-project true
-poetry install
-poetry add pydantic pyrsistent rich
-poetry add --group dev py-spy pytest
+# 2. Configure and Install Dependencies
+uv add pydantic pyrsistent rich
+uv add --dev py-spy pytest
 
 # 3. Initialize Git and Create a Repository on GitHub
 git init
