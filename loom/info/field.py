@@ -1,4 +1,5 @@
 
+from loom.info.acc_op import ToInt
 from loom.info.acc_op import DateToString
 from loom.info.acc_op import Last
 from loom.info.acc_op import First
@@ -220,11 +221,14 @@ class QueryableField:
         assert isinstance(input, Expression)
         return self.with_( Max(input))
     
-    def with_date_string(self, input: Expression | str, format: str, timezone: Optional[str] = None) -> FieldSpecification:
+    def with_date_string(self, input: Expression | str, format: str, to_int: bool = False, timezone: Optional[str] = None) -> FieldSpecification:
         if isinstance(input, str):
             input = FieldPath(input)
         assert isinstance(input, Expression)
-        return self.with_( DateToString(input, format, timezone))
+        expr = DateToString(input, format, timezone)
+        if to_int:
+            expr = ToInt(expr)
+        return self.with_( expr)
     
     def with_(self, spec : int | dict | str |Expression = 1) -> FieldSpecification:
         if isinstance(spec, str):

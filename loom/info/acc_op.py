@@ -103,6 +103,45 @@ class Max(AccOpExpression):
             "$max": self.input
         }
 
+class ToInt(AccOpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$toInt": self.input
+        }
+
+class ToDouble(AccOpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$toDouble": self.input
+        }
+
+class ToLong(AccOpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$toLong": self.input
+        }
+
+class ToDecimal(AccOpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$toDecimal": self.input
+        }
 
 class DateToString(AccOpExpression):
     def __init__(self, input: Expression, format: str, timezone: Optional[str] = None) -> None:
