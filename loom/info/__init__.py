@@ -1,6 +1,6 @@
 from loom.info.filter import QueryPredicates
 from loom.info.persistable import Persistable, PersistableBase, declare_persist_db
-from loom.info.expression import FieldPath
+from loom.info.expression import FieldPath, LiteralInput
 from loom.info.index import Index
 from loom.info.atomic import IncrCounter
 from loom.info.model import Model, PyObjectId, RefreshOnSet, CoalesceOnInsert, Collapsible, StrUpper, StrLower, TimeUpdated, TimeInserted, TimeNorm
@@ -52,5 +52,5 @@ __all__ = [
     "coalesce",
     "WhenNotMatchedAction",
     "WhenMatchedAction",
-
+    "LiteralInput",
 ]

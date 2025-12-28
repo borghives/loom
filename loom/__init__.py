@@ -7,7 +7,8 @@ from loom.info import (
     TimeQuery,
     QueryableField,
     Index,
-    FieldPath
+    FieldPath,
+    LiteralInput,
 )
 
 from loom.info.universal import access_secret
@@ -37,6 +38,7 @@ from loom.time import (
 
 fld = QueryableField
 pth = FieldPath
+lit = LiteralInput
 
 __all__ = [
     "AggregationStages",
@@ -68,7 +70,9 @@ __all__ = [
     "align_to_human_timeframe",
 
     "fld",
+    "lit",
     "SortOp",
     "SortAsc",
     "SortDesc",
+    "pth",
 ]
