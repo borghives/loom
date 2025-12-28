@@ -262,6 +262,40 @@ class PersistableBase(Model):
 
         return update_instr
 
+    @classmethod
+    def write_bulk_unordered(cls, operations: list, chunk_size: int = 100):
+        if not operations:
+            return
+
+        collection = cls.get_init_collection()
+        
+        for i in range(0, len(operations), chunk_size):
+            chunk = operations[i:i + chunk_size]
+            try:
+                collection.bulk_write(chunk, ordered=False)
+            except BulkWriteError as bwe:
+                # If there are errors other than duplicate key (11000), re-raise the original exception.
+                # This preserves the full error context for the caller to handle.
+                if any(error['code'] != 11000 for error in bwe.details['writeErrors']):
+                    raise
+
+    @classmethod
+    async def write_bulk_unordered_async(cls, operations: list, chunk_size: int = 100):
+        if not operations:
+            return
+
+        collection = await cls.get_init_collection_async()
+        
+        for i in range(0, len(operations), chunk_size):
+            chunk = operations[i:i + chunk_size]
+            try:
+                await collection.bulk_write(chunk, ordered=False)
+            except BulkWriteError as bwe:
+                # If there are errors other than duplicate key (11000), re-raise the original exception.
+                # This preserves the full error context for the caller to handle.
+                if any(error['code'] != 11000 for error in bwe.details['writeErrors']):
+                    raise
+
     # --- Persistence Methods ---
     def persist(self, lazy: bool = False) -> bool:
         """
@@ -316,14 +350,7 @@ class PersistableBase(Model):
             )
             operations.append(update_op)
 
-        collection = cls.get_init_collection()
-        try:
-            collection.bulk_write(operations, ordered=False)
-        except BulkWriteError as bwe:
-            # If there are errors other than duplicate key (11000), re-raise the original exception.
-            # This preserves the full error context for the caller to handle.
-            if any(error['code'] != 11000 for error in bwe.details['writeErrors']):
-                raise
+        cls.write_bulk_unordered(operations)
 
         for item in persist_items:
             item.on_after_persist()
@@ -409,13 +436,7 @@ class PersistableBase(Model):
             )
             operations.append(update_op)
         
-        try:
-            collection.bulk_write(operations, ordered=False)
-        except BulkWriteError as bwe:
-            # If there are errors other than duplicate key (11000), re-raise the original exception.
-            # This preserves the full error context for the caller to handle.
-            if any(error['code'] != 11000 for error in bwe.details['writeErrors']):
-                raise
+        cls.write_bulk_unordered(operations)
 
     async def persist_async(self, lazy: bool = False) -> bool:
         if lazy and not self.should_persist:
@@ -436,6 +457,7 @@ class PersistableBase(Model):
 
         self.on_after_persist(result, update_instr)
         return True
+
 
     @classmethod
     async def persist_many_async(cls, items: list, lazy: bool = False):
@@ -458,15 +480,7 @@ class PersistableBase(Model):
         if not operations or len(operations) == 0:
             return
 
-        collection = await cls.get_init_collection_async()
-
-        try:
-            await collection.bulk_write(operations, ordered=False)
-        except BulkWriteError as bwe:
-            # If there are errors other than duplicate key (11000), re-raise the original exception.
-            # This preserves the full error context for the caller to handle.
-            if any(error['code'] != 11000 for error in bwe.details['writeErrors']):
-                raise
+        await cls.write_bulk_unordered_async(operations)
 
         for item in persist_items:
             item.on_after_persist()
@@ -526,8 +540,6 @@ class PersistableBase(Model):
             on (list[str]): The fields to use for upserting.
         """
 
-        collection = await cls.get_init_collection_async()
-
         records : Optional[list] = None
 
         if isinstance(dataframe, pd.DataFrame) and not dataframe.empty:
@@ -552,13 +564,7 @@ class PersistableBase(Model):
             )
             operations.append(update_op)
         
-        try:
-            await collection.bulk_write(operations, ordered=False)
-        except BulkWriteError as bwe:
-            # If there are errors other than duplicate key (11000), re-raise the original exception.
-            # This preserves the full error context for the caller to handle.
-            if any(error['code'] != 11000 for error in bwe.details['writeErrors']):
-                raise
+        await cls.write_bulk_unordered_async(operations)
 
     @classmethod
     def from_id(cls, id: ObjectId | str):
