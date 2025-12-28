@@ -139,11 +139,19 @@ class PersistableBase(Model):
         """
         return {"_id": self.collapse_id()}
 
-    def on_after_persist(self, result_doc: Optional[Any] = None):
+    def on_after_persist(self, result_doc: Optional[Any] = None, update_instruction: Optional[dict] = None):
         self._has_update = False
         if result_doc:
             # Update the current object with the values from the database
             self.__dict__.update(self.from_doc(result_doc).__dict__)
+        elif update_instruction is not None:
+            # Update the current object with the values from the update instruction
+            if "$set" in update_instruction:
+                self.__dict__.update(update_instruction["$set"])
+            if "$setOnInsert" in update_instruction:
+                self.__dict__.update(update_instruction["$setOnInsert"])
+            
+
         
         self._original_hash_from_doc = self.hash_model()
 
@@ -161,10 +169,7 @@ class PersistableBase(Model):
             Tuple[dict, list]: A tuple containing the `$setOnInsert` dictionary
             and a list of the fields included in the operation.
         """
-        model_version = self.get_model_code_version()
         set_on_insert_op: dict = {}
-        if model_version is not None:
-            set_on_insert_op["version"] = model_version
 
         for field, transformers in self.get_fields_with_metadata(
             CoalesceOnInsert
@@ -272,16 +277,16 @@ class PersistableBase(Model):
         collection = self.get_init_collection()
 
         filter = self.self_filter()
-        update = self.get_update_instruction()
+        update_instr = self.get_update_instruction()
 
         result = collection.find_one_and_update(
             filter,
-            update,
+            update_instr,
             upsert=True,
             return_document=ReturnDocument.AFTER,
         )
 
-        self.on_after_persist(result)
+        self.on_after_persist(result, update_instr)
 
         return True
     
@@ -405,16 +410,16 @@ class PersistableBase(Model):
         collection = await self.get_init_collection_async()
 
         filter_ = self.self_filter()
-        update = self.get_update_instruction()
+        update_instr = self.get_update_instruction()
 
         result = await collection.find_one_and_update(
             filter_,
-            update,
+            update_instr,
             upsert=True,
             return_document=ReturnDocument.AFTER,
         )
 
-        self.on_after_persist(result)
+        self.on_after_persist(result, update_instr)
         return True
 
     @classmethod
