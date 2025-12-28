@@ -276,6 +276,7 @@ class PersistableBase(Model):
 
         collection = self.get_init_collection()
 
+        self.collapse_id()
         filter = self.self_filter()
         update_instr = self.get_update_instruction()
 
@@ -307,6 +308,7 @@ class PersistableBase(Model):
         ]
 
         for item in persist_items:
+            item.collapse_id()
             update_op = UpdateOne(
                 item.self_filter(),
                 item.get_update_instruction(),
@@ -409,6 +411,7 @@ class PersistableBase(Model):
 
         collection = await self.get_init_collection_async()
 
+        self.collapse_id()
         filter_ = self.self_filter()
         update_instr = self.get_update_instruction()
 
@@ -432,6 +435,7 @@ class PersistableBase(Model):
         ]
 
         for item in persist_items:
+            item.collapse_id()
             update_op = UpdateOne(
                 item.self_filter(),
                 item.get_update_instruction(),
