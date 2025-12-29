@@ -1,7 +1,71 @@
+from typing import Optional
+from loom.info.expression import Expression
 from datetime import datetime
 from loom.time.timeframing import TimeFrame
 from loom.time.util import to_utc_aware
 
+class OpExpression(Expression):
+    pass
+
+class ToInt(OpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$toInt": self.input
+        }
+
+class ToDouble(OpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$toDouble": self.input
+        }
+
+class ToLong(OpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$toLong": self.input
+        }
+
+class ToDecimal(OpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$toDecimal": self.input
+        }
+
+class DateToString(OpExpression):
+    def __init__(self, input: Expression, format: str, timezone: Optional[str] = None) -> None:
+        self.input = input
+        self.format = format
+        self.timezone = timezone
+
+    @property
+    def repr_value(self):
+        date_to_string = {
+            "format": self.format,
+            "date": self.input,
+        }
+
+        if self.timezone:
+            date_to_string["timezone"] = self.timezone
+
+        return {
+            "$dateToString": date_to_string
+        }
 
 def divide(numerator, denominator) -> dict:
     """
