@@ -1,6 +1,6 @@
 [project]
 name = "loom"
-version = "2.12.54"
+version = "2.12.55"
 description = "A Python library for data analysis and persistence."
 authors = [{ name = "Ed Dao", email = "ed@intellogic.com" }]
 requires-python = ">=3.11,<4.0"

@@ -280,7 +280,7 @@ class PersistableBase(Model):
                     raise
 
     @classmethod
-    async def write_bulk_unordered_async(cls, operations: list, chunk_size: int = 200):
+    async def write_bulk_unordered_async(cls, operations: list, chunk_size: int = 10):
         if not operations:
             return
 
