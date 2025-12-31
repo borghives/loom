@@ -172,6 +172,31 @@ polars_df = User.filter().load_polars()
 table = User.filter().load_table()
 ```
 
+#### Fluent Aggregation
+
+Loom provides a fluent interface for aggregations, allowing you to group, accumulate, and project data without writing raw MongoDB aggregation pipelines.
+
+```python
+# Calculate sales statistics by region and category
+SalesData.filter(
+    lm.fld('status') == "completed"
+).group_by(
+    'region', 'product_category'
+).acc(
+    lm.fld('total_revenue').with_sum('amount'),
+    lm.fld('avg_rating').with_avg('rating'),
+    lm.fld('latest_sale').with_max('time')
+).project(
+    lm.fld('region').with_('_id.region'),
+    lm.fld('category').with_('_id.product_category'),
+    lm.fld('revenue').with_('total_revenue'),
+    lm.fld('rating').with_('avg_rating'),
+    lm.fld('last_active').with_('latest_sale')
+).sort(
+    lm.SortDesc('revenue')
+).limit(10).load_dataframe()
+```
+
 ### Automatic Field Behaviors
 
 Loom uses Python's `Annotated` type to attach special behaviors to your model fields, reducing boilerplate and ensuring consistency.

@@ -131,7 +131,7 @@ class PersistableBase(Model):
 
     def self_filter(self) -> dict:
         """
-        Returns a filter to find the current document.
+        Returns a filter to find the current document.  This filter MUST be unique to the document.
         Defaults to using the `_id` field. Can be overridden to use other fields.
 
         Returns:
