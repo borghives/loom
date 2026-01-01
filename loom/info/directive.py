@@ -265,7 +265,6 @@ class LoadDirective(Generic[PersistableType]):
     async def load_one_async(self) -> Optional[PersistableType]:
         async for doc in self.load_agg_async(AggregationStages().limit(1)):
             return doc
-        return None
     
     async def load_many_async(self) -> list[PersistableType]:
         return [doc async for doc in self.load_agg_async()]
@@ -273,7 +272,6 @@ class LoadDirective(Generic[PersistableType]):
     async def load_latest_async(self, sort: SortOp = SortDesc("updated_time")):
         async for doc in self.load_agg_async(AggregationStages().sort(sort).limit(1)):
             return doc
-        return None
     
     async def merge_into_async(self, collection_name: str, on: List[str], when_matched: WhenMatchedAction = WhenMatchedAction.REPLACE, when_not_matched: WhenNotMatchedAction = WhenNotMatchedAction.INSERT):
         self._aggregation_expr = self._aggregation_expr.merge({
