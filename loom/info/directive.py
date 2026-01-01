@@ -128,7 +128,6 @@ class LoadDirective(Generic[PersistableType]):
         with self.exec_agg() as cursors:
             for result in cursors:
                 return result.get("count", 0)
-        return 0
 
     def add_fields(self, *specifications: FieldSpecification | dict) -> Self:
         """
