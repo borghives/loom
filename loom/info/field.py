@@ -1,4 +1,6 @@
 
+from loom.info.op import Abs
+from loom.info.op import Add
 from loom.info.op import Subtract
 from enum import Enum
 from typing import Optional
@@ -227,6 +229,24 @@ class QueryableField:
             input2 = FieldPath(input2)
         assert isinstance(input2, Expression)
         return self.with_( Subtract(input1, input2))
+
+    def with_add(self, input1: Expression | str, input2: Expression | str) -> FieldSpecification:
+        if isinstance(input1, str):
+            input1 = FieldPath(input1)
+        assert isinstance(input1, Expression)
+        if isinstance(input2, str):
+            input2 = FieldPath(input2)
+        assert isinstance(input2, Expression)
+        return self.with_( Add(input1, input2))
+
+    def with_loss(self, input1: Expression | str, input2: Expression | str) -> FieldSpecification:
+        if isinstance(input1, str):
+            input1 = FieldPath(input1)
+        assert isinstance(input1, Expression)
+        if isinstance(input2, str):
+            input2 = FieldPath(input2)
+        assert isinstance(input2, Expression)
+        return self.with_( Abs(Subtract(input1, input2)))
 
     def with_date_string(self, input: Expression | str, format: str, to_int: bool = False, timezone: Optional[str] = None) -> FieldSpecification:
         if isinstance(input, str):

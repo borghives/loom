@@ -47,6 +47,16 @@ class ToDecimal(OpExpression):
             "$toDecimal": self.input
         }
 
+class Abs(OpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$abs": self.input
+        }
+
 class Subtract(OpExpression):
     def __init__(self, input1: Expression, input2: Expression) -> None:
         self.input1 = input1
@@ -56,6 +66,17 @@ class Subtract(OpExpression):
     def repr_value(self):
         return {
             "$subtract": [self.input1, self.input2]
+        }
+
+class Add(OpExpression):
+    def __init__(self, input1: Expression, input2: Expression) -> None:
+        self.input1 = input1
+        self.input2 = input2
+
+    @property
+    def repr_value(self):
+        return {
+            "$add": [self.input1, self.input2]
         }
 
 class DateToString(OpExpression):
