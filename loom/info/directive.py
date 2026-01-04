@@ -158,6 +158,15 @@ class LoadDirective(Generic[PersistableType]):
 
         return self
 
+    def lookup(self, foreign_collection: str, local_field: str, foreign_field: str, to_field: str = "result") -> Self:
+        self._aggregation_expr = self._aggregation_expr.lookup(
+            foreignCollection=foreign_collection, 
+            localField=local_field, 
+            foreignField=foreign_field, 
+            toField=to_field
+        )
+        return self
+
     def group_by(self, *keys: str | FieldSpecification | None) -> "GroupDirective[PersistableType]":
         combined: FieldSpecification = FieldSpecification()
         for key in keys:
