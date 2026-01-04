@@ -168,96 +168,48 @@ class QueryableField:
         return self.with_(sanitize_number(FieldPath(self.name), default=default))
 
     def with_median(self, input: Expression | str) -> FieldSpecification:
-        if isinstance(input, str):
-            input = FieldPath(input)
-        assert isinstance(input, Expression)
-        return self.with_( Median(input))
+        return self.with_( Median.of(input))
 
     def with_percentile(self, input: Expression | str, p: list[float]) -> FieldSpecification:
-        if isinstance(input, str):
-            input = FieldPath(input)
-        assert isinstance(input, Expression)
-        return self.with_( Percentile(input, p=p))
+        return self.with_( Percentile.of(input, p=p))
 
     def with_elem_at(self, input: Expression | str, index: int) -> FieldSpecification:
-        if isinstance(input, str):
-            input = FieldPath(input)
-        assert isinstance(input, Expression)
-        return self.with_( ArrayElemAt(input, index))
+        return self.with_( ArrayElemAt.of(input, index))
 
     def with_first(self, input: Expression | str) -> FieldSpecification:
-        if isinstance(input, str):
-            input = FieldPath(input)
-        assert isinstance(input, Expression)
-        return self.with_( First(input))
+        return self.with_( First.of(input))
     
     def with_last(self, input: Expression | str) -> FieldSpecification:
-        if isinstance(input, str):
-            input = FieldPath(input)
-        assert isinstance(input, Expression)
-        return self.with_( Last(input))
+        return self.with_( Last.of(input))
     
-    def with_sum(self, input: Expression | str | int) -> FieldSpecification:
-        if isinstance(input, str):
-            input = FieldPath(input)
-        
-        return self.with_( Sum(input))
+    def with_sum(self, input: Expression | str | int) -> FieldSpecification:        
+        return self.with_( Sum.of(input))
     
     def with_avg(self, input: Expression | str) -> FieldSpecification:
-        if isinstance(input, str):
-            input = FieldPath(input)
-        assert isinstance(input, Expression)
-        return self.with_( Avg(input))
+        return self.with_( Avg.of(input))
     
     def with_min(self, input: Expression | str) -> FieldSpecification:
-        if isinstance(input, str):
-            input = FieldPath(input)
-        assert isinstance(input, Expression)
-        return self.with_( Min(input))
+        return self.with_( Min.of(input))
     
     def with_max(self, input: Expression | str) -> FieldSpecification:
-        if isinstance(input, str):
-            input = FieldPath(input)
-        assert isinstance(input, Expression)
-        return self.with_( Max(input))
+        return self.with_( Max.of(input))
 
     def with_subtract(self, input1: Expression | str, input2: Expression | str) -> FieldSpecification:
-        if isinstance(input1, str):
-            input1 = FieldPath(input1)
-        assert isinstance(input1, Expression)
-        if isinstance(input2, str):
-            input2 = FieldPath(input2)
-        assert isinstance(input2, Expression)
-        return self.with_( Subtract(input1, input2))
+        return self.with_( Subtract.of(input1, input2))
 
     def with_add(self, input1: Expression | str, input2: Expression | str) -> FieldSpecification:
-        if isinstance(input1, str):
-            input1 = FieldPath(input1)
-        assert isinstance(input1, Expression)
-        if isinstance(input2, str):
-            input2 = FieldPath(input2)
-        assert isinstance(input2, Expression)
-        return self.with_( Add(input1, input2))
+        return self.with_( Add.of(input1, input2))
 
     def with_loss(self, input1: Expression | str, input2: Expression | str) -> FieldSpecification:
-        if isinstance(input1, str):
-            input1 = FieldPath(input1)
-        assert isinstance(input1, Expression)
-        if isinstance(input2, str):
-            input2 = FieldPath(input2)
-        assert isinstance(input2, Expression)
-        return self.with_( Abs(Subtract(input1, input2)))
+        return self.with_( Abs(Subtract.of(input1, input2)))
 
     def with_date_string(self, input: Expression | str, format: str, to_int: bool = False, timezone: Optional[str] = None) -> FieldSpecification:
-        if isinstance(input, str):
-            input = FieldPath(input)
-        assert isinstance(input, Expression)
-        expr = DateToString(input, format, timezone)
+        expr = DateToString.of(input, format=format, timezone=timezone)
         if to_int:
-            expr = ToInt(expr)
-        return self.with_( expr)
+            expr = ToInt.of(expr)
+        return self.with_(expr)
     
-    def with_(self, spec : int | dict | str |Expression = 1) -> FieldSpecification:
+    def with_(self, spec : int | dict | str | Expression = 1) -> FieldSpecification:
         if isinstance(spec, str):
             spec = FieldPath(spec)
         return FieldSpecification({self.get_query_name(): spec})

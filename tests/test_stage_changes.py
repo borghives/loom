@@ -1,11 +1,7 @@
-
-from typing import Optional
-from loom.info.model import StrUpper
 from loom.info.persistable import Persistable
-from pydantic import Field
 import loom as lm
-from loom.info.acc_op import DateToString
-from loom.info.expression import FieldSpecification
+from loom.info.op import DateToString
+
 
 class MyPersistence(Persistable):
     name: str

@@ -1,3 +1,4 @@
+from typing import List
 import email.contentmanager
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Any
@@ -140,10 +141,34 @@ class LiteralInput(Expression):
         
         transformers = driver.get_transformers(self.linked_field_name)
         return coalesce(self.repr_value, transformers)
-    
+
+def to_expr(input: Expression | str | int) -> Expression:
+    if isinstance(input, str):
+        return FieldPath(input)
+    if isinstance(input, int):
+        return LiteralInput(input)
+    assert isinstance(input, Expression)
+    return input
+
+class OpExpression(Expression):
+    @classmethod
+    def of(cls, *inputs: Expression | str | int, **kwargs) -> "OpExpression":
+        """
+        Creates an instance of this class from a list of expressions or strings.
+        """
+        input_exprs = [to_expr(input) for input in inputs]
+        return cls(*input_exprs, **kwargs)
+
+         
 
 class AccOpExpression(Expression):
-    pass
+    @classmethod
+    def of(cls, *inputs: Expression | str | int, **kwargs) -> "AccOpExpression":
+        """
+        Creates an instance of this class from a list of expressions or strings.
+        """
+        input_exprs = [to_expr(input) for input in inputs]
+        return cls(*input_exprs, **kwargs)
 
 class MapExpression(Expression) :
     def __init__(self, accumulate: Optional[Dict] = None) -> None:

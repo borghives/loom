@@ -3,9 +3,8 @@ from loom.info.expression import Expression
 from datetime import datetime
 from loom.time.timeframing import TimeFrame
 from loom.time.util import to_utc_aware
+from loom.info.expression import OpExpression
 
-class OpExpression(Expression):
-    pass
 
 class ToInt(OpExpression):
     def __init__(self, input: Expression) -> None:
@@ -84,7 +83,7 @@ class DateToString(OpExpression):
         self.input = input
         self.format = format
         self.timezone = timezone
-
+        
     @property
     def repr_value(self):
         date_to_string = {

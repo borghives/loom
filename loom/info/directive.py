@@ -129,6 +129,9 @@ class LoadDirective(Generic[PersistableType]):
             for result in cursors:
                 return result.get("count", 0)
 
+        return 0  # type: ignore
+    
+
     def add_fields(self, *specifications: FieldSpecification | dict) -> Self:
         """
         Adds an addFields stage to the aggregation pipeline.
