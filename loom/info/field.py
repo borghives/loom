@@ -214,6 +214,9 @@ class QueryableField:
             spec = FieldPath(spec)
         return FieldSpecification({self.get_query_name(): spec})
     
+    def with_one(self) -> FieldSpecification:
+        return self.with_(1)
+
     def with_out(self) -> FieldSpecification:
         return self.with_(0)
     
