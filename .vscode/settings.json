@@ -1,0 +1,12 @@
+{
+    "cSpell.words": [
+        "dunder",
+        "Superpos"
+    ],
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.pyrefly.disabledLanguageServices": {},
+}

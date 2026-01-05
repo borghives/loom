@@ -6,8 +6,6 @@
 .venv
 reference_material
 .DS_Store
-.vscode
-.vscode.bak
 .python-version
 poetry.lock
 uv.lock
