@@ -102,4 +102,63 @@ class Max(AccOpExpression):
         return {
             "$max": self.input
         }
-    
+
+class AddToSet(AccOpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$addToSet": self.input
+        }
+
+class Push(AccOpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$push": self.input
+        }
+
+class StdDevPop(AccOpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$stdDevPop": self.input
+        }
+
+class StdDevSamp(AccOpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$stdDevSamp": self.input
+        }
+
+class Count(AccOpExpression):
+    def __init__(self) -> None:
+        pass
+
+    @property
+    def repr_value(self):
+        return {
+            "$count": {}
+        }
+
+class MergeObjects(AccOpExpression):
+    def __init__(self, input: Expression) -> None:
+        self.input = input
+
+    @property
+    def repr_value(self):
+        return {
+            "$mergeObjects": self.input
+        }

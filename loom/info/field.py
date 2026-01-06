@@ -1,4 +1,10 @@
 
+from loom.info.acc_op import Push
+from loom.info.acc_op import AddToSet
+from loom.info.acc_op import MergeObjects
+from loom.info.acc_op import StdDevSamp
+from loom.info.acc_op import StdDevPop
+from loom.info.acc_op import Count
 from loom.info.op import Abs
 from loom.info.op import Add
 from loom.info.op import Subtract
@@ -173,6 +179,36 @@ class QueryableField:
     def with_percentile(self, input: Expression | str, p: list[float]) -> FieldSpecification:
         return self.with_( Percentile.of(input, p=p))
 
+    def with_avg(self, input: Expression | str) -> FieldSpecification:
+        return self.with_( Avg.of(input))
+    
+    def with_min(self, input: Expression | str) -> FieldSpecification:
+        return self.with_( Min.of(input))
+    
+    def with_max(self, input: Expression | str) -> FieldSpecification:
+        return self.with_( Max.of(input))
+    
+    def with_count(self) -> FieldSpecification:
+        return self.with_( Count())
+    
+    def with_std_dev_pop(self, input: Expression | str) -> FieldSpecification:
+        return self.with_( StdDevPop.of(input))
+    
+    def with_std_dev_samp(self, input: Expression | str) -> FieldSpecification:
+        return self.with_( StdDevSamp.of(input))
+    
+    def with_merge_objects(self, input: Expression | str) -> FieldSpecification:
+        return self.with_( MergeObjects.of(input))
+    
+    def with_add_to_set(self, input: Expression | str) -> FieldSpecification:
+        return self.with_( AddToSet.of(input))
+    
+    def with_push(self, input: Expression | str) -> FieldSpecification:
+        return self.with_( Push.of(input))
+    
+    def with_sum(self, input: Expression | str | int) -> FieldSpecification:        
+        return self.with_( Sum.of(input))
+    
     def with_elem_at(self, input: Expression | str, index: int) -> FieldSpecification:
         return self.with_( ArrayElemAt.of(input, index))
 

@@ -12,9 +12,7 @@ class ToInt(OpExpression):
 
     @property
     def repr_value(self):
-        return {
-            "$toInt": self.input
-        }
+        return {"$toInt": self.input}
 
 class ToDouble(OpExpression):
     def __init__(self, input: Expression) -> None:
@@ -22,9 +20,7 @@ class ToDouble(OpExpression):
 
     @property
     def repr_value(self):
-        return {
-            "$toDouble": self.input
-        }
+        return {"$toDouble": self.input}
 
 class ToLong(OpExpression):
     def __init__(self, input: Expression) -> None:
@@ -32,9 +28,7 @@ class ToLong(OpExpression):
 
     @property
     def repr_value(self):
-        return {
-            "$toLong": self.input
-        }
+        return {"$toLong": self.input}
 
 class ToDecimal(OpExpression):
     def __init__(self, input: Expression) -> None:
@@ -42,9 +36,7 @@ class ToDecimal(OpExpression):
 
     @property
     def repr_value(self):
-        return {
-            "$toDecimal": self.input
-        }
+        return {"$toDecimal": self.input}
 
 class Abs(OpExpression):
     def __init__(self, input: Expression) -> None:
@@ -52,9 +44,7 @@ class Abs(OpExpression):
 
     @property
     def repr_value(self):
-        return {
-            "$abs": self.input
-        }
+        return {"$abs": self.input}
 
 class Subtract(OpExpression):
     def __init__(self, input1: Expression, input2: Expression) -> None:
@@ -63,9 +53,7 @@ class Subtract(OpExpression):
 
     @property
     def repr_value(self):
-        return {
-            "$subtract": [self.input1, self.input2]
-        }
+        return {"$subtract": [self.input1, self.input2]}
 
 class Add(OpExpression):
     def __init__(self, input1: Expression, input2: Expression) -> None:
@@ -74,9 +62,7 @@ class Add(OpExpression):
 
     @property
     def repr_value(self):
-        return {
-            "$add": [self.input1, self.input2]
-        }
+        return {"$add": [self.input1, self.input2]}
 
 class DateToString(OpExpression):
     def __init__(self, input: Expression, format: str, timezone: Optional[str] = None) -> None:
@@ -86,17 +72,12 @@ class DateToString(OpExpression):
         
     @property
     def repr_value(self):
-        date_to_string = {
-            "format": self.format,
-            "date": self.input,
-        }
+        date_to_string = {"format": self.format, "date": self.input}
 
         if self.timezone:
             date_to_string["timezone"] = self.timezone
 
-        return {
-            "$dateToString": date_to_string
-        }
+        return {"$dateToString": date_to_string}
 
 
 def _date_op_repr(op: str, date: Expression, timezone: Optional[Expression] = None):
