@@ -263,6 +263,31 @@ class PersistableBase(Model):
         return update_instr
 
     @classmethod
+    def convert_dataframe_to_records(cls, dataframe: pd.DataFrame | pl.DataFrame | pyarrow.Table) -> Optional[list]:
+        records : Optional[list[dict]] = None
+
+        if isinstance(dataframe, pd.DataFrame) and not dataframe.empty:
+            records = dataframe.to_dict("records")
+        elif isinstance(dataframe, pl.DataFrame) and not dataframe.is_empty():
+            records = dataframe.to_dicts()
+        elif isinstance(dataframe, pyarrow.Table) and dataframe.num_rows > 0:
+            records = dataframe.to_pylist()
+
+        if records is None or len(records) == 0:
+            return None
+
+        id_fields = cls.get_fields_with_base_type(ObjectId)
+        if (len(id_fields) > 0):
+            for record in records:
+                for field in id_fields:
+                    if field in record:
+                        input = record[field]
+                        if (input is not None):
+                            record[field] = ObjectId(input)
+
+        return records
+
+    @classmethod
     def write_bulk_unordered(cls, operations: list, chunk_size: int = 10):
         if not operations:
             return
@@ -371,14 +396,7 @@ class PersistableBase(Model):
 
         collection = cls.get_init_collection()
 
-        records : Optional[list] = None
-
-        if isinstance(dataframe, pd.DataFrame) and not dataframe.empty:
-            records = dataframe.to_dict("records")
-        elif isinstance(dataframe, pl.DataFrame) and not dataframe.is_empty():
-            records = dataframe.to_dicts()
-        elif isinstance(dataframe, pyarrow.Table) and dataframe.num_rows > 0:
-            records = dataframe.to_pylist()
+        records = cls.convert_dataframe_to_records(dataframe)
 
         if records is None or len(records) == 0:
             return
@@ -412,14 +430,7 @@ class PersistableBase(Model):
 
         collection = cls.get_init_collection()
 
-        records : Optional[list] = None
-
-        if isinstance(dataframe, pd.DataFrame) and not dataframe.empty:
-            records = dataframe.to_dict("records")
-        elif isinstance(dataframe, pl.DataFrame) and not dataframe.is_empty():
-            records = dataframe.to_dicts()
-        elif isinstance(dataframe, pyarrow.Table) and dataframe.num_rows > 0:
-            records = dataframe.to_pylist()
+        records = cls.convert_dataframe_to_records(dataframe)
 
         if records is None or len(records) == 0:
             return
@@ -501,14 +512,7 @@ class PersistableBase(Model):
 
         collection = await cls.get_init_collection_async()
 
-        records : Optional[list] = None
-
-        if isinstance(dataframe, pd.DataFrame) and not dataframe.empty:
-            records = dataframe.to_dict("records")
-        elif isinstance(dataframe, pl.DataFrame) and not dataframe.is_empty():
-            records = dataframe.to_dicts()
-        elif isinstance(dataframe, pyarrow.Table) and dataframe.num_rows > 0:
-            records = dataframe.to_pylist()
+        records = cls.convert_dataframe_to_records(dataframe)
 
         if records is None or len(records) == 0:
             return
@@ -540,14 +544,7 @@ class PersistableBase(Model):
             on (list[str]): The fields to use for upserting.
         """
 
-        records : Optional[list] = None
-
-        if isinstance(dataframe, pd.DataFrame) and not dataframe.empty:
-            records = dataframe.to_dict("records")
-        elif isinstance(dataframe, pl.DataFrame) and not dataframe.is_empty():
-            records = dataframe.to_dicts()
-        elif isinstance(dataframe, pyarrow.Table) and dataframe.num_rows > 0:
-            records = dataframe.to_pylist()
+        records = cls.convert_dataframe_to_records(dataframe)
 
         if records is None or len(records) == 0:
             return

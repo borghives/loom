@@ -20,12 +20,14 @@ class TestModel(PersistableBase):
     name: str
     value: int
     link_id: ObjectId | None = None
+    
 
 @declare_persist_db(db_name="test_db", collection_name="test_collection", version=1, test=True)
-class TestModelWithDates(Persistable):
+class TestModelWithLinkId(Persistable):
     name: str
     value: int
     link_id: ObjectId | None = None
+    link2_id: ObjectId = Field(description="An incrementing integer counter", default=ObjectId())
 
 @declare_persist_db(collection_name="test_inc_collection", db_name="test_db", test=True)
 class TestIncModel(Persistable):
@@ -107,7 +109,7 @@ class PersistableTest(unittest.TestCase):
 
     def test_should_persist_property(self):
         """Test the should_persist property logic."""
-        new_model = TestModelWithDates(name="new", value=1)
+        new_model = TestModelWithLinkId(name="new", value=1)
         self.assertTrue(new_model.should_persist)
 
         loaded_model = TestModel.from_doc({"_id": ObjectId(), "name": "loaded", "value": 2})
@@ -121,10 +123,10 @@ class PersistableTest(unittest.TestCase):
         fixed_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         
         # Directly modify the collapse function for the test
-        updated_time_transformer = TestModelWithDates.get_field_metadata("updated_time", RefreshOnSet)[0]
+        updated_time_transformer = TestModelWithLinkId.get_field_metadata("updated_time", RefreshOnSet)[0]
         updated_time_transformer.refresh = lambda x: fixed_time
 
-        model = TestModelWithDates(name="test", value=10)
+        model = TestModelWithLinkId(name="test", value=10)
         model.updated_time = None  # Ensure coalesce is triggered
 
         set_instr, _ = model.get_set_instruction()
@@ -139,12 +141,12 @@ class PersistableTest(unittest.TestCase):
         fixed_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         
         # Directly modify the refresh functions for the test
-        updated_time_transformer = TestModelWithDates.get_field_metadata("updated_time", RefreshOnSet)[0]
+        updated_time_transformer = TestModelWithLinkId.get_field_metadata("updated_time", RefreshOnSet)[0]
         updated_time_transformer.refresh = lambda x: fixed_time
-        created_at_transformer = TestModelWithDates.get_field_metadata("created_at", CoalesceOnInsert)[0]
+        created_at_transformer = TestModelWithLinkId.get_field_metadata("created_at", CoalesceOnInsert)[0]
         created_at_transformer.collapse = lambda : fixed_time
 
-        model = TestModelWithDates(name="test", value=10)
+        model = TestModelWithLinkId(name="test", value=10)
         model.id = None
         model.created_at = None
         model.updated_time = None
@@ -266,6 +268,24 @@ class PersistableTest(unittest.TestCase):
 
         df = pd.DataFrame({"name": ["df_user1"], "value": [10], "updated_time": [None]})
         TestModel.insert_dataframe(df)
+
+    def test_insert_dataframe_with_objectid(self):
+        """Test inserting a pandas DataFrame."""
+        link_id = ObjectId()
+        link2_id = ObjectId()
+        df = pd.DataFrame({"name": ["df_user1_with_link"], "value": [10], "updated_time": [None], "link_id": [link_id], "link2_id": [link2_id]})
+        
+        TestModelWithLinkId.insert_dataframe(df)
+
+        loaded_model = TestModelWithLinkId.filter(lm.fld("link_id") == link_id).load_one()
+
+        self.assertIsNotNone(loaded_model)
+        self.assertEqual(loaded_model.name, "df_user1_with_link")
+        self.assertEqual(loaded_model.value, 10)
+        self.assertEqual(loaded_model.link_id, link_id)
+        self.assertEqual(loaded_model.link2_id, link2_id)
+
+
 
 
     def test_update_dataframe(self):

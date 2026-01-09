@@ -1,3 +1,4 @@
+from loom.info.util import get_base_type
 from abc import ABC
 from datetime import datetime
 import hashlib
@@ -146,6 +147,17 @@ class Model(ABC, BaseModel):
             bool: `True` if the document has an `ObjectId`, `False` otherwise.
         """
         return self.id is not None and ObjectId.is_valid(str(self.id))
+
+    @classmethod
+    def get_fields_with_base_type(cls, base_type) -> list[str]:
+        retval :list[str] = []
+        for key, field in cls.model_fields.items():
+            annotation = field.annotation
+            if get_base_type(annotation) is base_type:
+                retval.append(key)
+
+        return retval
+        
 
     @classmethod
     def get_fields_with_metadata(cls, meta_type) -> dict[str, list]:
