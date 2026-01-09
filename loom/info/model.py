@@ -149,12 +149,14 @@ class Model(ABC, BaseModel):
         return self.id is not None and ObjectId.is_valid(str(self.id))
 
     @classmethod
-    def get_fields_with_base_type(cls, base_type) -> list[str]:
+    def get_fields_with_base_type(cls, base_type: type, include_aliases: bool = False) -> list[str]:
         retval :list[str] = []
         for key, field in cls.model_fields.items():
             annotation = field.annotation
             if get_base_type(annotation) is base_type:
                 retval.append(key)
+                if include_aliases and field.alias is not None and field.alias != key:
+                    retval.append(field.alias)
 
         return retval
         

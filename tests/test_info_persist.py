@@ -273,13 +273,19 @@ class PersistableTest(unittest.TestCase):
         """Test inserting a pandas DataFrame."""
         link_id = ObjectId()
         link2_id = ObjectId()
-        df = pd.DataFrame({"name": ["df_user1_with_link"], "value": [10], "updated_time": [None], "link_id": [link_id], "link2_id": [link2_id]})
+        df = pd.DataFrame({"_id": [ObjectId()], "name": ["df_user1_with_link"], "value": [10], "updated_time": [None], "link_id": [link_id], "link2_id": [link2_id]})
         
         TestModelWithLinkId.insert_dataframe(df)
 
         loaded_model = TestModelWithLinkId.filter(lm.fld("link_id") == link_id).load_one()
 
         self.assertIsNotNone(loaded_model)
+        self.assertIsInstance(loaded_model, TestModelWithLinkId)
+        self.assertIsInstance(loaded_model.link_id, ObjectId)
+        self.assertIsInstance(loaded_model.link2_id, ObjectId)
+        self.assertIsInstance(loaded_model.id, ObjectId)
+        
+
         self.assertEqual(loaded_model.name, "df_user1_with_link")
         self.assertEqual(loaded_model.value, 10)
         self.assertEqual(loaded_model.link_id, link_id)
