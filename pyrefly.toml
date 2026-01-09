@@ -1,7 +1,7 @@
 project-includes = ["loom"]
 project-excludes = ["**/.[!/.]*", "**/tests"]
 search-path = ["."]
-site-package-path = [".venv/lib/python3.11/site-packages"]
+site-package-path = [".venv/lib/python3.12/site-packages"]
 
 python-platform = "darwin"
 python-version = "3.12"
