@@ -276,7 +276,7 @@ class PersistableBase(Model):
         if records is None or len(records) == 0:
             return None
 
-        id_fields = cls.get_fields_with_base_type(ObjectId)
+        id_fields = cls.get_fields_with_base_type(ObjectId, include_aliases=True)
         if (len(id_fields) > 0):
             for record in records:
                 for field in id_fields:
