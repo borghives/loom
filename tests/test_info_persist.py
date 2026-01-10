@@ -244,24 +244,6 @@ class PersistableTest(unittest.TestCase):
         new_model = TestModel(name="new", value=2)
         self.assertTrue(new_model.persist(lazy=True))
 
-
-    def test_persist_many(self):
-        """Test persisting multiple model instances."""
-
-        items = [
-            TestModel(name="item1", value=1),
-            TestModel.from_doc({"_id": ObjectId(), "name": "item2", "value": 2}),
-            TestModel.from_doc({"_id": ObjectId(), "name": "item3", "value": 3}),
-        ]
-        items[2].value = 33
-        items[2].mark_updated()
-
-        TestModel.persist_many(items, lazy=True)
-
-
-        self.assertFalse(items[0].has_update)
-        self.assertFalse(items[2].has_update)
-
     def test_insert_dataframe(self):
         """Test inserting a pandas DataFrame."""
 

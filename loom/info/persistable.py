@@ -1,3 +1,7 @@
+from loom.info.persist_operation import InsertOneOperation
+from loom.info.persist_operation import UpdateOneOperation
+from loom.info.persist_operation import PersistOperation
+from pymongo.errors import DuplicateKeyError
 from typing import Self
 import asyncio
 from typing import Any, ClassVar, List, Optional, Tuple, Type
@@ -137,22 +141,15 @@ class PersistableBase(Model):
         Returns:
             dict: A filter expression for finding the document.
         """
-        return {"_id": self.collapse_id()}
+        if self.is_entangled():
+            return {"_id": self.id}
+        else:
+            return {}
 
-    def on_after_persist(self, result_doc: Optional[Any] = None, update_instruction: Optional[dict] = None):
+    def on_after_persist(self, result_doc: dict):
         self._has_update = False
-        if result_doc:
-            # Update the current object with the values from the database
-            self.__dict__.update(self.from_doc(result_doc).__dict__)
-        elif update_instruction is not None:
-            # Update the current object with the values from the update instruction
-            if "$set" in update_instruction:
-                self.__dict__.update(update_instruction["$set"])
-            if "$setOnInsert" in update_instruction:
-                self.__dict__.update(update_instruction["$setOnInsert"])
-            
-
-        
+        # Update the current object with the values from the database
+        self.__dict__.update(self.from_doc(result_doc).__dict__)
         self._original_hash_from_doc = self.hash_model()
 
 
@@ -321,7 +318,93 @@ class PersistableBase(Model):
                 if any(error['code'] != 11000 for error in bwe.details['writeErrors']):
                     raise
 
+    def handle_duplicate_key_error(self, dke: DuplicateKeyError):
+        """
+        Handles a duplicate key error.
+
+        Args:
+            dke (DuplicateKeyError): The duplicate key error to handle.
+        """
+        raise dke
+
     # --- Persistence Methods ---
+    def create_persist_operation(self) -> PersistOperation:
+        filter = self.self_filter()
+        update_instr = self.get_update_instruction()
+
+        if len(filter) > 0:
+            return UpdateOneOperation(filter=filter, update=update_instr, upsert=True)
+        
+        if "$set" in update_instr:
+            insert_doc = update_instr["$set"]
+            if "$setOnInsert" in update_instr:
+                insert_doc.update(update_instr["$setOnInsert"])
+            if "$inc" in update_instr:
+                for key, value in update_instr["$inc"].items():
+                    insert_doc[key] = insert_doc.get(key, 0) + value 
+                
+            return InsertOneOperation(document=insert_doc)
+
+        raise ValueError("Invalid update instruction", update_instr)
+    
+    def execute(self, operation: PersistOperation):
+        collection = self.get_init_collection()
+        
+        if isinstance(operation, UpdateOneOperation):
+            result = collection.find_one_and_update(
+                operation.filter,
+                operation.update,
+                upsert=operation.upsert,
+                return_document=ReturnDocument.AFTER,
+            )
+
+            if result is None:
+                result = {}
+                update_instruction = self.get_update_instruction()
+                if update_instruction:
+                    # Update the current object with the values from the update instruction
+                    if "$set" in update_instruction:
+                        result.update(update_instruction["$set"])
+                    if "$setOnInsert" in update_instruction:
+                        result.update(update_instruction["$setOnInsert"])
+            return result
+
+        elif isinstance(operation, InsertOneOperation):
+            insert_result = collection.insert_one(operation.document)
+            operation.document['_id'] = insert_result.inserted_id
+            return operation.document
+
+        raise ValueError("Invalid operation", operation)
+
+    async def execute_async(self, operation: PersistOperation):
+        collection = await self.get_init_collection_async()
+        
+        if isinstance(operation, UpdateOneOperation):
+            result = await collection.find_one_and_update(
+                operation.filter,
+                operation.update,
+                upsert=True,
+                return_document=ReturnDocument.AFTER,
+            )
+
+            if result is None:
+                result = {}
+                update_instruction = self.get_update_instruction()
+                if update_instruction:
+                    # Update the current object with the values from the update instruction
+                    if "$set" in update_instruction:
+                        result.update(update_instruction["$set"])
+                    if "$setOnInsert" in update_instruction:
+                        result.update(update_instruction["$setOnInsert"])
+            return result
+
+        elif isinstance(operation, InsertOneOperation):
+            insert_result = await collection.insert_one(operation.document)
+            operation.document['_id'] = insert_result.inserted_id
+            return operation.document
+
+        raise ValueError("Invalid operation", operation)
+        
     def persist(self, lazy: bool = False) -> bool:
         """
         Saves the model to the database.
@@ -333,52 +416,30 @@ class PersistableBase(Model):
         if lazy and not self.should_persist:
             return False
 
-        collection = self.get_init_collection()
+        persist_operation = self.create_persist_operation()
 
-        self.collapse_id()
-        filter = self.self_filter()
-        update_instr = self.get_update_instruction()
-
-        result = collection.find_one_and_update(
-            filter,
-            update_instr,
-            upsert=True,
-            return_document=ReturnDocument.AFTER,
-        )
-
-        self.on_after_persist(result, update_instr)
-
+        try:
+            result = self.execute(persist_operation)
+            self.on_after_persist(result)
+        except DuplicateKeyError as dke:
+            self.handle_duplicate_key_error(dke)
+            return False
+        
         return True
-    
-    @classmethod
-    def persist_many(cls, items: list, lazy: bool = False) -> None:
-        """
-        Saves multiple models to the database.
 
-        Args:
-            items (list): A list of models to save.
-        """
-        operations: list = []
+    async def persist_async(self, lazy: bool = False) -> bool:
+        if lazy and not self.should_persist:
+            return False
 
-        persist_items = [
-            item
-            for item in items
-            if isinstance(item, PersistableBase) and (item.should_persist or not lazy)
-        ]
-
-        for item in persist_items:
-            item.collapse_id()
-            update_op = UpdateOne(
-                item.self_filter(),
-                item.get_update_instruction(),
-                upsert=True,
-            )
-            operations.append(update_op)
-
-        cls.write_bulk_unordered(operations)
-
-        for item in persist_items:
-            item.on_after_persist()
+        persist_operation = self.create_persist_operation()
+        try:
+            result = await self.execute_async(persist_operation)
+            self.on_after_persist(result)
+        except DuplicateKeyError as dke:
+            self.handle_duplicate_key_error(dke)
+            return False
+        
+        return True
 
     @classmethod
     def insert_dataframe(
@@ -448,53 +509,6 @@ class PersistableBase(Model):
             operations.append(update_op)
         
         cls.write_bulk_unordered(operations)
-
-    async def persist_async(self, lazy: bool = False) -> bool:
-        if lazy and not self.should_persist:
-            return False
-
-        collection = await self.get_init_collection_async()
-
-        self.collapse_id()
-        filter_ = self.self_filter()
-        update_instr = self.get_update_instruction()
-
-        result = await collection.find_one_and_update(
-            filter_,
-            update_instr,
-            upsert=True,
-            return_document=ReturnDocument.AFTER,
-        )
-
-        self.on_after_persist(result, update_instr)
-        return True
-
-
-    @classmethod
-    async def persist_many_async(cls, items: list, lazy: bool = False):
-        operations: list = []
-        persist_items = [
-            item
-            for item in items
-            if isinstance(item, PersistableBase) and (item.should_persist or not lazy)
-        ]
-
-        for item in persist_items:
-            item.collapse_id()
-            update_op = UpdateOne(
-                item.self_filter(),
-                item.get_update_instruction(),
-                upsert=True,
-            )
-            operations.append(update_op)
-
-        if not operations or len(operations) == 0:
-            return
-
-        await cls.write_bulk_unordered_async(operations)
-
-        for item in persist_items:
-            item.on_after_persist()
 
     @classmethod
     async def insert_dataframe_async(
