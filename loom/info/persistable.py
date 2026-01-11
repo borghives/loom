@@ -443,7 +443,7 @@ class PersistableBase(Model):
 
     @classmethod
     def insert_dataframe(
-        cls, dataframe: pd.DataFrame | pl.DataFrame | pyarrow.Table
+        cls, dataframe: pd.DataFrame | pl.DataFrame | pyarrow.Table, chunk_size: int = 1000
     ):
         """
         Inserts a DataFrame into the database.
@@ -462,13 +462,48 @@ class PersistableBase(Model):
         if records is None or len(records) == 0:
             return
 
-        try:
-            collection.insert_many(records, ordered=False)  # ordered false so that a duplicate key error won't stop the insert of many
-        except BulkWriteError as bwe:
-            # If there are errors other than duplicate key (11000), re-raise the original exception.
-            # This preserves the full error context for the caller to handle.
-            if any(error['code'] != 11000 for error in bwe.details['writeErrors']):
-                raise
+        for i in range(0, len(records), chunk_size):
+            chunk = records[i:i + chunk_size]
+            try:
+                collection.insert_many(chunk, ordered=False)  # ordered false so that a duplicate key error won't stop the insert of many
+            except BulkWriteError as bwe:
+                # If there are errors other than duplicate key (11000), re-raise the original exception.
+                # This preserves the full error context for the caller to handle.
+                if any(error['code'] != 11000 for error in bwe.details['writeErrors']):
+                    raise
+                
+        return
+
+    @classmethod
+    async def insert_dataframe_async(
+        cls, dataframe: pd.DataFrame | pl.DataFrame | pyarrow.Table, chunk_size: int = 1000
+    ):
+        """
+        Inserts a pandas DataFrame into the database.
+
+        Note: to have RefreshOnDataframeInsert fields refresh, the columns must exist in the DataFrame.  
+        Default columns to None if to have field trigger content.
+
+        Args:
+            dataframe (pd.DataFrame): The DataFrame to insert.
+        """
+
+        collection = await cls.get_init_collection_async()
+
+        records = cls.convert_dataframe_to_records(dataframe)
+
+        if records is None or len(records) == 0:
+            return
+
+        for i in range(0, len(records), chunk_size):
+            chunk = records[i:i + chunk_size]
+            try:
+                await collection.insert_many(chunk, ordered=False)  # ordered false so that a duplicate key error won't stop the insert of many
+            except BulkWriteError as bwe:
+                # If there are errors other than duplicate key (11000), re-raise the original exception.
+                # This preserves the full error context for the caller to handle.
+                if any(error['code'] != 11000 for error in bwe.details['writeErrors']):
+                    raise
                 
         return
 
@@ -510,36 +545,6 @@ class PersistableBase(Model):
         
         cls.write_bulk_unordered(operations)
 
-    @classmethod
-    async def insert_dataframe_async(
-        cls, dataframe: pd.DataFrame | pl.DataFrame | pyarrow.Table
-    ):
-        """
-        Inserts a pandas DataFrame into the database.
-
-        Note: to have RefreshOnDataframeInsert fields refresh, the columns must exist in the DataFrame.  
-        Default columns to None if to have field trigger content.
-
-        Args:
-            dataframe (pd.DataFrame): The DataFrame to insert.
-        """
-
-        collection = await cls.get_init_collection_async()
-
-        records = cls.convert_dataframe_to_records(dataframe)
-
-        if records is None or len(records) == 0:
-            return
-
-        try:
-            await collection.insert_many(records, ordered=False)  # ordered false so that a duplicate key error won't stop the insert of many
-        except BulkWriteError as bwe:
-            # If there are errors other than duplicate key (11000), re-raise the original exception.
-            # This preserves the full error context for the caller to handle.
-            if any(error['code'] != 11000 for error in bwe.details['writeErrors']):
-                raise
-                
-        return
 
     @classmethod
     async def update_dataframe_async(
