@@ -9,3 +9,4 @@ reference_material
 .python-version
 poetry.lock
 uv.lock
+.hypothesis

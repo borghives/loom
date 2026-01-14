@@ -20,7 +20,7 @@ class Spread(BaseModel):
         Calculates spread metrics from a numpy array of data points.
         """
 
-        data_points = data_points[~np.isnan(data_points)]
+        data_points = data_points[np.isfinite(data_points)]
 
         if len(data_points) == 0:
             return cls(value_25p=0, value_50p=0, value_75p=0, std_dev=0, mean=0)

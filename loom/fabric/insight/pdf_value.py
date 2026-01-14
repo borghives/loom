@@ -56,11 +56,18 @@ class PdfValue(BaseModel):
         data_points_nan = np.isnan(data_points)
         if (data_points_nan.sum() > 0):
             print(f"data_points has NaN with {data_points_nan.sum()} nan out of {len(data_points_nan)}")
-            data_points = data_points[~data_points_nan]
+            
+        data_points = data_points[np.isfinite(data_points)]
 
         # --- Scaling to prevent overflow ---
         mean = np.mean(data_points)
         std_dev = np.std(data_points)
+        
+        if not np.isfinite(mean) or not np.isfinite(std_dev):
+             # Overflow occurred
+             val = 0.0
+             return PdfValue(left=val, right=val, peak=val, density=0, jittered=False)
+
         if std_dev > 0:
             scaled_data_points = (data_points - mean) / std_dev
         else:

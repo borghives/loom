@@ -47,6 +47,7 @@ dev = [
     "scipy-stubs>=1.16.2.3,<2",
     "pyarrow-stubs>=20.0.0.20250928,<21",
     "pytest-asyncio>=1.2.0,<2",
+    "hypothesis>=6.150.2",
 ]
 
 [tool.uv.workspace]
