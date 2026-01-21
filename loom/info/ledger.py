@@ -168,39 +168,31 @@ class TimeSeriesLedgerModel(LedgerModel):
         return getattr(cls, TIMESERIES_META_NAME)
 
     @classmethod
-    def create_collection(cls) -> None:
-        db = cls.get_db(withAsync=False)
-        assert isinstance(db, Database)
+    def initialize_model(cls):
+        if cls._has_class_initialized:
+            return
 
-        collection_names = db.list_collection_names()
-        name = cls.get_db_collection_name()
-
-        timeseries = {
-            "timeField": "updated_time",
-        }
-
-        series_info = cls.get_timeseries_info()
-        granularity = series_info.get("granularity")
-        if granularity:
-            timeseries["granularity"] = granularity
-
-        metafield = series_info.get("metakey")
-        if metafield:
-            timeseries["metaField"] = metafield
-
-        ttl = series_info.get("ttl")
-        if name not in collection_names:
-            db.create_collection(
-                name, timeseries=timeseries, expireAfterSeconds=ttl
-            )
+        driver = cls.get_model_driver()
+        driver.create_collection(**cls._create_parameters())
+        driver.create_index()
+        cls._has_class_initialized = True
 
     @classmethod
-    async def create_collection_async(cls) -> None:
-        db = cls.get_db(withAsync=True)
-        assert isinstance(db, AsyncDatabase)
+    async def initialize_model_async(cls):
+        if cls._has_class_initialized:
+            return
+        
+        async with cls._init_lock:
+            if cls._has_class_initialized:
+                return
+            
+            driver = cls.get_model_driver()
+            await driver.create_collection_async(**cls._create_parameters())
+            await driver.create_index_async()
+            cls._has_class_initialized = True
 
-        collection_names = await db.list_collection_names()
-        name = cls.get_db_collection_name()
+    @classmethod
+    def _create_parameters(cls) -> dict:
 
         timeseries = {
             "timeField": "updated_time",
@@ -216,10 +208,7 @@ class TimeSeriesLedgerModel(LedgerModel):
             timeseries["metaField"] = metafield
 
         ttl = series_info.get("ttl")
-        if name not in collection_names:
-            await db.create_collection(
-                name, timeseries=timeseries, expireAfterSeconds=ttl
-            )
+        return {"timeseries": timeseries, "expireAfterSeconds": ttl}
             
 def declare_timeseries(
     metakey: Optional[str] = None,
