@@ -14,7 +14,7 @@ class TestLedgerModel(LedgerModel):
 
 class LedgerPersistTest(unittest.TestCase):
     def setUp(self):
-        self.collection = TestLedgerModel.get_db_collection()
+        self.collection = TestLedgerModel.get_init_collection()
         self.collection.delete_many({})
 
     def tearDown(self):

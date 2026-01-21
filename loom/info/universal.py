@@ -1,12 +1,10 @@
 from enum import Enum
 import getpass
 import os
-import threading
 from typing import Optional
 from bson import ObjectId
 from google.cloud import secretmanager
 import keyring
-from pymongo import AsyncMongoClient, MongoClient
 
 from dotenv import load_dotenv
 
@@ -123,107 +121,3 @@ def set_secret(
             return
 
     raise Exception("Unknown secret manager")
-
-
-# TLV Thread Local Variable
-thread_data = threading.local()
-
-def get_client_cache(key: str, withAsync: bool = False) -> Optional[MongoClient | AsyncMongoClient]:
-    return getattr(thread_data, f"{key}/{'async' if withAsync else 'synchronous'}", None)
-
-def set_client_cache(key: str, value: MongoClient | AsyncMongoClient, withAsync: bool = False):
-    setattr(thread_data, f"{key}/{'async' if withAsync else 'synchronous'}", value)
-
-
-def get_local_db_client(
-    uri: Optional[str] = None, 
-    secret_name: Optional[str] = None,
-    withAsync: bool = False
-) -> MongoClient | AsyncMongoClient:
-    """
-    Gets a thread-local MongoDB client for the local database.
-
-    Args:
-        uri (str, optional): The URI of the local database. If a secret is used,
-            this should be a format string (e.g., "mongodb+srv://<user>:%s@host/").
-            Defaults to the value of the `MONGODB_LOCAL_URI` environment
-            variable or `"mongodb://localhost:27017/"`.
-        secret_name (str, optional): The name of the secret for the local
-            database. Defaults to the value of the `MONGODB_LOCAL_SECRET`
-            environment variable.
-
-    Returns:
-        pymongo.MongoClient: A thread-local MongoDB client.
-    """
-
-    mongodb_uri = uri or os.getenv("MONGODB_LOCAL_URI") or LOCAL_MONGODB_CLIENT_URI
-    mongodb_uri = mongodb_uri.strip()
-
-    if (mongodb_uri is None) or (len(mongodb_uri) == 0):
-        raise Exception("MONGODB_LOCAL_URI is empty or not set")
-
-    secret_id = secret_name or os.getenv("MONGODB_LOCAL_SECRET")
-    if (secret_id is not None) and (len(secret_id) > 0):
-        full_mongodb_uri = mongodb_uri % access_secret(secret_id)
-    else:
-        # for local db, allow for non authenticated access
-        # this is not allowed in remote db
-        full_mongodb_uri = mongodb_uri
-
-    db_client = get_client_cache("local_db_client", withAsync=withAsync)
-    if db_client is None:
-        db_client = AsyncMongoClient(full_mongodb_uri, tz_aware=True) if withAsync else MongoClient(full_mongodb_uri, tz_aware=True)
-        set_client_cache("local_db_client", db_client, withAsync=withAsync)
-
-    return db_client
-
-def get_remote_db_client(
-    uri: Optional[str] = None,
-    secret_name: Optional[str] = None,
-    client_name: str = "default",
-    withAsync: bool = False
-) -> MongoClient | AsyncMongoClient:
-    """
-    Gets a thread-local MongoDB client for the remote database.
-
-    Args:
-        uri (str, optional): The URI of the remote database. If a secret is used,
-            this should be a format string (e.g., "mongodb+srv://<user>:%s@host/").
-            Defaults to the value of the `MONGODB_URI` environment variable.
-        secret_name (str, optional): The name of the secret containing the remote
-            database password. Defaults to the value of the `MONGODB_SECRET`
-            environment variable.
-        client_name (str, optional): The name of the client. Defaults to "default".
-            Used to manage multiple remote clients.
-
-    Returns:
-        MongoClient: A thread-local MongoDB client.
-    """
-
-    secret_id = secret_name or os.getenv("MONGODB_SECRET")
-    if (secret_id is None) or (len(secret_id) == 0):
-        raise Exception(
-            '''
-            MONGODB_SECRET is not set for remote client.  For safety reason there should 
-            always be a secret part to the remote database uri.  You might try to by pass 
-            this little friction, but I implore you to reconsider.  Extend the access_secret 
-            function to support a secret manager of your choice.
-            '''
-        )
-
-    mongodb_uri = uri or os.getenv("MONGODB_URI")
-    if mongodb_uri is None:
-        raise Exception("MONGODB_URI not set for remote client")
-
-    mongodb_uri = mongodb_uri.strip()
-
-    if len(mongodb_uri) == 0:
-        raise Exception("MONGODB_URI is empty")
-
-    db_client = get_client_cache(f"remote_{client_name}", withAsync=withAsync)
-    if db_client is None:
-        full_mongodb_uri = mongodb_uri % access_secret(secret_id)
-        db_client = AsyncMongoClient(full_mongodb_uri, tz_aware=True) if withAsync else MongoClient(full_mongodb_uri, tz_aware=True)
-        set_client_cache(f"remote_{client_name}", db_client, withAsync=withAsync)
-
-    return db_client

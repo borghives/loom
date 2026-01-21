@@ -239,7 +239,7 @@ class LoadDirective(Generic[PersistableType]):
         """
         return self.load_agg()
     
-    def load_latest(self, sort: SortOp = SortDesc("updated_time")) -> Optional[PersistableType]:
+    def load_top(self, sort: SortOp = SortDesc("updated_time")) -> Optional[PersistableType]:
         """
         Loads the most recently updated document from the database.
 
@@ -281,7 +281,7 @@ class LoadDirective(Generic[PersistableType]):
     async def load_many_async(self) -> list[PersistableType]:
         return [doc async for doc in self.load_agg_async()]
 
-    async def load_latest_async(self, sort: SortOp = SortDesc("updated_time")):
+    async def load_top_async(self, sort: SortOp = SortDesc("updated_time")):
         async for doc in self.load_agg_async(AggregationStages().sort(sort).limit(1)):
             return doc
     

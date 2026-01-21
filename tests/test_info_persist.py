@@ -188,7 +188,7 @@ class PersistableTest(unittest.TestCase):
         model.persist()
 
         # 2. Check the database for the initial state
-        collection = TestIncModel.get_db_collection()
+        collection = TestIncModel.get_init_collection()
         assert collection is not None
         assert isinstance(collection, Collection)
         db_data = collection.find_one(model.self_filter())
@@ -278,7 +278,7 @@ class PersistableTest(unittest.TestCase):
 
     def test_update_dataframe(self):
         """Test upserting a DataFrame."""
-        collection = TestModel.get_db_collection()
+        collection = TestModel.get_init_collection()
         collection.delete_many({})
 
         # 1. Insert initial data
@@ -332,7 +332,7 @@ class PersistableTest(unittest.TestCase):
 
     def test_load_dataframe(self):
         """Test loading data into a pandas DataFrame."""
-        collection = TestModel.get_db_collection()
+        collection = TestModel.get_init_collection()
         collection.delete_many({})
 
         df = pd.DataFrame([
@@ -354,7 +354,7 @@ class PersistableTest(unittest.TestCase):
 
 class TestLoadDirective(unittest.TestCase):
     def setUp(self):
-        self.collection = TestModel.get_db_collection()
+        self.collection = TestModel.get_init_collection()
         self.collection.delete_many({})
         TestModel(name="Alice", value=30).persist()
         TestModel(name="Bob", value=40).persist()
@@ -376,7 +376,7 @@ class TestLoadDirective(unittest.TestCase):
         self.assertEqual(len(users), 2)
 
     def test_load_latest(self):
-        latest_user = cast(TestModel, TestModel.filter(lm.fld('name') == "Charlie").load_latest())
+        latest_user = cast(TestModel, TestModel.filter(lm.fld('name') == "Charlie").load_top())
         self.assertIsNotNone(latest_user)
         self.assertEqual(latest_user.name, "Charlie")
 
@@ -410,7 +410,7 @@ class TestNormModel(Persistable):
 
 class TestNormalizeQueryInput(unittest.TestCase):
     def setUp(self):
-        self.collection = TestNormModel.get_db_collection()
+        self.collection = TestNormModel.get_init_collection()
         self.collection.delete_many({})
         TestNormModel(name="test", description="UPPER", notes="lower").persist()
 

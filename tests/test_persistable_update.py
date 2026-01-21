@@ -14,7 +14,7 @@ class TestUpdateModel(Persistable):
 
 class TestPersistableUpdate(unittest.TestCase):
     def setUp(self):
-        self.collection = TestUpdateModel.get_db_collection()
+        self.collection = TestUpdateModel.get_init_collection()
         self.collection.delete_many({})
 
     def tearDown(self):

@@ -12,7 +12,7 @@ from loom.info.query_op import TimeQuery
 from loom.info.directive import WhenNotMatchedAction, WhenMatchedAction
 from loom.info.op import to_int, to_upper, to_lower, to_date_alignment, to_double, sanitize_number, multiply, divide
 from loom.info.util import coalesce
-
+from loom.info.db_client import DbClientFactory, LocalClientFactory, RemoteClientFactory
 
 __all__ = [
     "AggregationStages",
@@ -53,4 +53,7 @@ __all__ = [
     "WhenNotMatchedAction",
     "WhenMatchedAction",
     "LiteralInput",
+    "DbClientFactory",
+    "LocalClientFactory",
+    "RemoteClientFactory",
 ]

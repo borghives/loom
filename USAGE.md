@@ -70,7 +70,7 @@ Load documents using `from_id` or the query API.
 user = User.from_id("64f8a...")
 
 # Load one matching a filter
-user = User.filter(lm.fld['email'] == "alice@example.com").load_one()
+user = User.filter(lm.fld('email') == "alice@example.com").load_one()
 ```
 
 ### Update
@@ -87,7 +87,7 @@ user.persist() # Only updates the 'age' and 'updated_time' fields
 For `IncrCounter` fields, use the `+=` operator. Loom translates this into a MongoDB `$inc` operation.
 
 ```python
-stats = UserStats.filter(lm.fld['user_id'] == user.id).load_one()
+stats = UserStats.filter(lm.fld('user_id') == user.id).load_one()
 stats.login_count += 1
 stats.persist() # Executes {$inc: {login_count: 1}}
 ```
@@ -98,12 +98,12 @@ Loom offers a fluent API for building queries, similar to Polars or Django.
 
 ### Basic Filtering
 
-Use `Model.filter()` to start a query. Access fields using `lm.fld['field_name']`.
+Use `Model.filter()` to start a query. Access fields using `lm.fld('field_name')`.
 
 ```python
 # Find active users older than 25
 users = User.filter(
-    (lm.fld['age'] > 25) & (lm.fld['is_active'] == True)
+    (lm.fld('age') > 25) & (lm.fld('is_active') == True)
 ).load_many()
 ```
 
@@ -192,7 +192,7 @@ Loom integrates seamlessly with Pandas, Polars, and PyArrow for high-performance
 
 ```python
 # Load as Pandas DataFrame
-df = User.filter(lm.fld['age'] > 20).load_dataframe()
+df = User.filter(lm.fld('age') > 20).load_dataframe()
 
 # Load as Polars DataFrame
 pdf = User.filter().load_polars()

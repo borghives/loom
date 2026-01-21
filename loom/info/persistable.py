@@ -1,6 +1,7 @@
-from loom.info.persist_operation import InsertOneOperation
-from loom.info.persist_operation import UpdateOneOperation
-from loom.info.persist_operation import PersistOperation
+from loom.info.db_driver import MongoDbModelDriver
+from loom.info.db_client import LocalClientFactory
+from loom.info.db_client import DbClientFactory
+from loom.info.persist_operation import InsertOneOperation, UpdateOneOperation, PersistOperation
 from pymongo.errors import DuplicateKeyError
 from typing import Self
 import asyncio
@@ -12,13 +13,11 @@ import polars as pl
 from bson import ObjectId
 import pyarrow
 from pydantic import Field
-from pymongo import AsyncMongoClient, MongoClient, ReturnDocument, UpdateOne, UpdateMany
-from pymongo.collection import Collection
-from pymongo.database import Database
-from pymongo.errors import BulkWriteError
 
-from pymongo.asynchronous.database import AsyncDatabase
+from pymongo import ReturnDocument, UpdateMany
+from pymongo.collection import Collection
 from pymongo.asynchronous.collection import AsyncCollection
+from pymongo.errors import BulkWriteError
 
 from loom.info.expression import ExpressionDriver
 from loom.info.field import QueryableField
@@ -33,7 +32,6 @@ from loom.info.filter import QueryPredicates
 from loom.info.aggregation import AggregationStages
 from loom.info.index import Index
 from loom.info.model import Model
-from loom.info.universal import get_local_db_client, get_remote_db_client
 
 class PersistableBase(Model):
     """
@@ -59,34 +57,20 @@ class PersistableBase(Model):
     _init_lock : ClassVar[asyncio.Lock] = asyncio.Lock()
 
     @classmethod
+    def get_model_driver(cls) -> MongoDbModelDriver:
+        retval = getattr(cls, "_db_model_driver", None)
+        assert(retval is not None)
+        return retval
+
+    @classmethod
     def initialize_model(cls):
         if cls._has_class_initialized:
             return
 
-        cls.create_collection()
-        cls.create_index()
+        driver = cls.get_model_driver()
+        driver.create_collection()
+        driver.create_index()
         cls._has_class_initialized = True
-
-    @classmethod
-    def create_collection(cls):
-        db = cls.get_db()
-        assert isinstance(db, Database)
-        collection_names = db.list_collection_names()
-        name = cls.get_db_collection_name()
-
-        if name not in collection_names:
-            db.create_collection(name)
-
-    @classmethod
-    def create_index(cls):
-        db_info = cls.get_db_info()
-        indexes = db_info.get("index")
-        if indexes and len(indexes) > 0:
-            collection = cls.get_db_collection(withAsync=False)
-            assert isinstance(collection, Collection)
-            for index in indexes:
-                assert isinstance(index, Index)
-                collection.create_index(**index.to_dict())
 
     @classmethod
     async def initialize_model_async(cls):
@@ -97,30 +81,24 @@ class PersistableBase(Model):
             if cls._has_class_initialized:
                 return
             
-            await cls.create_collection_async()
-            await cls.create_index_async()
+            driver = cls.get_model_driver()
+            await driver.create_collection_async()
+            await driver.create_index_async()
             cls._has_class_initialized = True
+    
+    @classmethod
+    def get_init_collection(cls) -> Collection:
+        cls.initialize_model()
+        retval = cls.get_model_driver().get_db_collection(with_async=False)
+        assert(isinstance(retval, Collection))
+        return retval
 
     @classmethod
-    async def create_collection_async(cls):
-        db = cls.get_db(withAsync=True)
-        assert isinstance(db, AsyncDatabase)
-        collection_names = await db.list_collection_names()
-        name = cls.get_db_collection_name()
-
-        if name not in collection_names:
-            await db.create_collection(name)
-
-    @classmethod
-    async def create_index_async(cls):
-        db_info = cls.get_db_info()
-        indexes = db_info.get("index")
-        if indexes and len(indexes) > 0:
-            collection = cls.get_db_collection(withAsync=True)
-            assert isinstance(collection, AsyncCollection)
-            for index in indexes:
-                assert isinstance(index, Index)
-                await collection.create_index(**index.to_dict())
+    async def get_init_collection_async(cls) -> AsyncCollection:
+        await cls.initialize_model_async()
+        retval = cls.get_model_driver().get_db_collection(with_async=True)
+        assert(isinstance(retval, AsyncCollection))
+        return retval
 
     # --- Instance State and Helpers ---
     @property
@@ -619,137 +597,6 @@ class PersistableBase(Model):
 
 
     # --- Database and Collection Configuration ---
-    @classmethod
-    def get_db_info(cls) -> dict:
-        """
-        Gets the database metadata dictionary for the model.
-
-        This metadata is expected to be set by a `@declare_persist_db` decorator
-        on the model class.
-
-        Returns:
-            dict: The database information for the model.
-
-        Raises:
-            Exception: If the class is not decorated with `@declare_persist_db`.
-        """
-        if not hasattr(cls, "_db_metadata"):
-            raise Exception(
-                f"Class {cls.__name__} is not decorated with @declare_persist_db"
-            )
-
-        return getattr(cls, "_db_metadata")
-
-    @classmethod
-    def get_db_name(cls) -> str:
-        """
-        Gets the name of the MongoDB database for the model.
-
-        Returns:
-            str: The name of the MongoDB database.
-
-        Raises:
-            ValueError: If `db_name` is not defined in the metadata.
-        """
-        db_info = cls.get_db_info()
-        name = db_info.get("db_name")
-        if not name:
-            raise ValueError(
-                f"Class {cls.__name__} does not have db_name defined in @declare_persist_db"
-            )
-        return name
-
-    @classmethod
-    def get_db_collection_name(cls) -> str:
-        """
-        Gets the name of the MongoDB collection for the model.
-
-        Returns:
-            str: The name of the MongoDB collection.
-
-        Raises:
-            ValueError: If `collection_name` is not defined in the metadata.
-        """
-        db_info = cls.get_db_info()
-        name = db_info.get("collection_name")
-        if not name:
-            raise ValueError(
-                f"Class {cls.__name__} does not have collection_name defined in @declare_persist_db"
-            )
-        return name
-
-    @classmethod
-    def get_db_client(cls, withAsync: bool = False) -> MongoClient | AsyncMongoClient:
-        """
-        Gets the appropriate MongoDB client for the model (local or remote).
-
-        Returns:
-            MongoClient: The MongoDB client instance.
-        """
-        if cls.is_remote_db():
-            return get_remote_db_client(withAsync=withAsync)
-        else:
-            return get_local_db_client(withAsync=withAsync)
-        
-    @classmethod
-    def get_db(cls, withAsync: bool = False) -> Database | AsyncDatabase:
-        """
-        Gets the MongoDB database object for the model.
-
-        Returns:
-            Database: The `pymongo.database.Database` instance.
-        """
-        client = cls.get_db_client(withAsync)
-        db_name = cls.get_db_name()
-        return client[db_name]
-
-    @classmethod
-    def get_db_collection(cls, withAsync: bool = False) -> Collection | AsyncCollection:
-        """
-        Gets the MongoDB collection object for the model.
-
-        Returns:
-            Collection: The `pymongo.collection.Collection` instance.
-        """
-        client_database = cls.get_db(withAsync)
-        collection_name = cls.get_db_collection_name()
-        return client_database[collection_name]
-    
-    @classmethod
-    def get_init_collection(cls) -> Collection:
-        cls.initialize_model()
-        retval = cls.get_db_collection(withAsync=False)
-        assert isinstance(retval, Collection)
-        return retval
-
-    @classmethod
-    def is_remote_db(cls) -> bool:
-        """
-        Checks if the model is configured to use a remote database.
-
-        Returns:
-            bool: `True` if the model uses a remote database, `False` otherwise.
-        """
-        db_info = cls.get_db_info()
-        return db_info.get("remote_db", False)
-
-    @classmethod
-    def get_model_code_version(cls) -> Optional[int]:
-        """
-        Gets the version of the model schema, if defined in the metadata.
-
-        Returns:
-            Optional[int]: The version number of the model.
-        """
-        db_info = cls.get_db_info()
-        return db_info.get("version")
-    
-    @classmethod
-    async def get_init_collection_async(cls) -> AsyncCollection:
-        await cls.initialize_model_async()
-        retval = cls.get_db_collection(withAsync=True)
-        assert isinstance(retval, AsyncCollection)
-        return retval
 
     @classmethod
     def filter(cls: Type[Self], filter: QueryPredicates = QueryPredicates()) -> LoadDirective[Self]:
@@ -772,7 +619,7 @@ class Persistable(PersistableBase):
 def declare_persist_db(
     collection_name: str,
     db_name: str,
-    remote_db: bool = False,
+    client_factory: DbClientFactory = LocalClientFactory(),
     version: Optional[int] = None,
     index: Optional[List[Index]] = None,
     test: bool = False,
@@ -784,24 +631,20 @@ def declare_persist_db(
     Args:
         collection_name (str): The name of the MongoDB collection.
         db_name (str): The name of the MongoDB database.
-        remote_db (bool, optional): Whether the database is remote. Defaults
-            to `False`.
-        version (Optional[int], optional): The version of the model. Defaults
-            to `None`.
+        client_factory (DbClientFactory, optional): The client factory to use for the database. Defaults to `LocalDbClientFactory()`.
         test (bool, optional): Whether the model is a test model. Defaults
             to `False`.
     """
 
     def decorator(cls):
-        final_collection_name = f"{collection_name}_test" if test else collection_name
-
-        cls._db_metadata = {
-            "collection_name": final_collection_name,
-            "db_name": db_name,
-            "remote_db": remote_db,
-            "version": version,
-            "index": index,
-        }
+        cls._db_model_driver = MongoDbModelDriver(
+            collection_name=collection_name,
+            db_name=db_name,
+            client_factory=client_factory,
+            version=version,
+            index=index,
+            test=test,
+        )
         return cls
 
     return decorator
