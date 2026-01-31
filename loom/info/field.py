@@ -169,6 +169,9 @@ class QueryableField:
     
     def is_none_or_missing(self) -> QueryPredicates:
         return QueryPredicates({self.get_query_name(): None})
+
+    def is_not_none_or_missing(self) -> QueryPredicates:
+        return QueryPredicates({self.get_query_name(): {"$ne": None}})
     
     def with_sane_num(self, default: int = 0) -> FieldSpecification:
         return self.with_(sanitize_number(FieldPath(self.name), default=default))
