@@ -488,7 +488,7 @@ class PersistableBase(Model):
     @classmethod
     def update_dataframe(
         cls, dataframe: pd.DataFrame | pl.DataFrame | pyarrow.Table,
-        on: list[str] = [],
+        on: list[str],
         upsert: bool = False,
     ):
         """
@@ -527,7 +527,7 @@ class PersistableBase(Model):
     @classmethod
     async def update_dataframe_async(
         cls, dataframe: pd.DataFrame | pl.DataFrame | pyarrow.Table,
-        on: list[str] = [],
+        on: list[str],
         upsert: bool = False,
     ):
         """
