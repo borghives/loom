@@ -72,19 +72,19 @@ class PersistableBase(Model):
         driver.create_index()
         cls._has_class_initialized = True
 
-    @classmethod
-    async def initialize_model_async(cls):
-        if cls._has_class_initialized:
-            return
+    # @classmethod
+    # async def initialize_model_async(cls):
+    #     if cls._has_class_initialized:
+    #         return
         
-        async with cls._init_lock:
-            if cls._has_class_initialized:
-                return
+    #     async with cls._init_lock:
+    #         if cls._has_class_initialized:
+    #             return
             
-            driver = cls.get_model_driver()
-            await driver.create_collection_async()
-            await driver.create_index_async()
-            cls._has_class_initialized = True
+    #         driver = cls.get_model_driver()
+    #         await driver.create_collection_async()
+    #         await driver.create_index_async()
+    #         cls._has_class_initialized = True
     
     @classmethod
     def get_init_collection(cls) -> Collection:
@@ -95,7 +95,7 @@ class PersistableBase(Model):
 
     @classmethod
     async def get_init_collection_async(cls) -> AsyncCollection:
-        await cls.initialize_model_async()
+        cls.initialize_model()
         retval = cls.get_model_driver().get_db_collection(with_async=True)
         assert(isinstance(retval, AsyncCollection))
         return retval
