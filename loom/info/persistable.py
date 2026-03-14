@@ -54,7 +54,7 @@ class PersistableBase(Model):
 
     # --- Class State and Helpers ---
     _has_class_initialized : ClassVar[bool] = False
-    _init_lock : ClassVar[asyncio.Lock] = asyncio.Lock()
+    _init_lock : ClassVar[Optional[asyncio.Lock]] = None
 
     @classmethod
     def get_model_driver(cls) -> MongoDbModelDriver:
@@ -72,19 +72,22 @@ class PersistableBase(Model):
         driver.create_index()
         cls._has_class_initialized = True
 
-    # @classmethod
-    # async def initialize_model_async(cls):
-    #     if cls._has_class_initialized:
-    #         return
+    @classmethod
+    async def initialize_model_async(cls):
+        if cls._has_class_initialized:
+            return
         
-    #     async with cls._init_lock:
-    #         if cls._has_class_initialized:
-    #             return
+        if cls._init_lock is None:
+            cls._init_lock = asyncio.Lock()
+        
+        async with cls._init_lock:
+            if cls._has_class_initialized:
+                return
             
-    #         driver = cls.get_model_driver()
-    #         await driver.create_collection_async()
-    #         await driver.create_index_async()
-    #         cls._has_class_initialized = True
+            driver = cls.get_model_driver()
+            await driver.create_collection_async()
+            await driver.create_index_async()
+            cls._has_class_initialized = True
     
     @classmethod
     def get_init_collection(cls) -> Collection:
@@ -95,7 +98,7 @@ class PersistableBase(Model):
 
     @classmethod
     async def get_init_collection_async(cls) -> AsyncCollection:
-        cls.initialize_model()
+        await cls.initialize_model_async()
         retval = cls.get_model_driver().get_db_collection(with_async=True)
         assert(isinstance(retval, AsyncCollection))
         return retval

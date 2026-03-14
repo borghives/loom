@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional
 
 from bson import ObjectId
@@ -182,6 +183,9 @@ class TimeSeriesLedgerModel(LedgerModel):
         if cls._has_class_initialized:
             return
         
+        if cls._init_lock is None:
+            cls._init_lock = asyncio.Lock()
+            
         async with cls._init_lock:
             if cls._has_class_initialized:
                 return

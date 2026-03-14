@@ -65,14 +65,14 @@ class MongoDbModelDriver:
         else:
             return client_factory.get_client()
         
-    def get_db(self, withAsync: bool = False) -> Database | AsyncDatabase:
+    def get_db(self, with_async: bool = False) -> Database | AsyncDatabase:
         """
         Gets the MongoDB database object for the model.
 
         Returns:
             Database: The `pymongo.database.Database` instance.
         """
-        client = self.get_db_client(withAsync)
+        client = self.get_db_client(with_async)
         db_name = self.get_db_name()
         return client[db_name]
 
@@ -98,7 +98,7 @@ class MongoDbModelDriver:
             db.create_collection(name, **kvargs)
 
     async def create_collection_async(self, **kvargs):
-        db = self.get_db(withAsync=True)
+        db = self.get_db(with_async=True)
         assert isinstance(db, AsyncDatabase)
         collection_names = await db.list_collection_names()
         name = self.get_db_collection_name()
