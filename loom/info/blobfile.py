@@ -69,6 +69,15 @@ class BlobFileModel(PersistableBase):
             return None
 
     @classmethod
+    def from_filename(cls, filename: str, version: int = -1):
+        out = cls.load_version(filename=filename, version=version)
+        if out is None:
+            return None
+        
+        return cls.from_gridout(out)
+
+
+    @classmethod
     def get_gridfs(cls):
         driver = cls.get_model_driver()
         assert(isinstance(driver, MongoDbGridFSDriver))
