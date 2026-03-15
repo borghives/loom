@@ -39,9 +39,14 @@ class MongoDbModelDriver:
         Raises:
             ValueError: If `collection_name` is not defined in the metadata.
         """
+        name = f"{self.collection_name}"
+        if self.version is not None:
+            name = f"{name}_v{self.version}"
+
         if self.test:
-            return f"{self.collection_name}_test"
-        return self.collection_name
+            name = f"{name}_test"
+
+        return name
 
     def get_client_factory(self) -> DbClientFactory:
         """
