@@ -11,6 +11,7 @@ from loom.info.db_fs_driver import MongoDbGridFSDriver
 from loom.info.db_client import LocalClientFactory
 from loom.info.db_client import DbClientFactory
 from loom.info.index import Index
+import gridfs
 
 class BlobFileModel(PersistableBase):
     filename: str       = Field(default="")
@@ -59,9 +60,13 @@ class BlobFileModel(PersistableBase):
         return out
             
     @classmethod
-    def load_version(cls, filename: str, version: int):
+    def load_version(cls, filename: str, version: int) -> Optional[gridfs.GridOut]:
         fs=cls.get_gridfs()
-        return fs.get_version(filename=filename, version=version)
+
+        try:
+            return fs.get_version(filename=filename, version=version)
+        except gridfs.errors.NoFile:
+            return None
 
     @classmethod
     def get_gridfs(cls):
