@@ -1,4 +1,5 @@
 from loom.info.universal import access_secret
+import asyncio
 import threading
 import os
 from pymongo import AsyncMongoClient, MongoClient
@@ -17,7 +18,9 @@ class DbClientFactory(ABC):
     
     def get_client_async(self) -> AsyncMongoClient:
         client_uri = self.get_client_uri()
-        cache_key = f"{type(self).__name__}+{hash(client_uri)}+async"
+
+        loop_id = id(asyncio.get_running_loop()) if asyncio.get_event_loop().is_running() else 0
+        cache_key = f"{type(self).__name__}+{hash(client_uri)}+async+{loop_id}"
         db_client = getattr(self._t_client_cache_data, cache_key, None)
         if db_client is None:
             db_client = AsyncMongoClient(self.get_client_uri(), tz_aware=True)

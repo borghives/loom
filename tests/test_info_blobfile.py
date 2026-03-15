@@ -43,7 +43,7 @@ class TestBlobFile(unittest.TestCase):
         
         # Read it back using gridfs
         fs = blob.get_gridfs()
-        out = fs.get(blob.id)
+        out = fs.open_download_stream(blob.id)
         self.assertEqual(out.read(), b"hello world")
         self.assertEqual(out.filename, "test.txt")
 
@@ -54,16 +54,16 @@ class TestBlobFile(unittest.TestCase):
         self.assertTrue(result)
         self.assertIsNotNone(blob.id)
 
-        out = blob.pull_file()
-        self.assertEqual(out.read(), b"metadata content")
+        in_content = blob.open_read_file()
+        self.assertEqual(in_content.read(), b"metadata content")
 
         fs = SampleBlobModel.get_gridfs()
-        out = fs.get(blob.id)
-        self.assertEqual(out.read(), b"metadata content")
-        self.assertEqual(out.filename, "meta_test.txt")
-        self.assertIsNotNone(out.metadata)
-        self.assertEqual(out.metadata["author"], "bot")
-        self.assertEqual(out.metadata["topic"], "testing")
+        in_content2 = fs.open_download_stream(blob.id)
+        self.assertEqual(in_content2.read(), b"metadata content")
+        self.assertEqual(in_content2.filename, "meta_test.txt")
+        self.assertIsNotNone(in_content2.metadata)
+        self.assertEqual(in_content2.metadata["author"], "bot")
+        self.assertEqual(in_content2.metadata["topic"], "testing")
 
         recall = SampleBlobModel.from_id(blob.id)
         self.assertIsNotNone(recall.metadata)
@@ -72,8 +72,8 @@ class TestBlobFile(unittest.TestCase):
 
         # Test that get_file updates an empty model instance
         empty_blob = SampleBlobModel(filename="meta_test.txt")
-        out_empty = empty_blob.pull_file()
-        self.assertEqual(out_empty.read(), b"metadata content")
+        in_content_empty = empty_blob.open_read_file()
+        self.assertEqual(in_content_empty.read(), b"metadata content")
         self.assertEqual(empty_blob.id, blob.id)
         self.assertIsNotNone(empty_blob.metadata)
         self.assertEqual(empty_blob.metadata.author, "bot")
@@ -104,6 +104,49 @@ class TestBlobFile(unittest.TestCase):
         
         out_latest = SampleBlobModel.load_version("versioned.txt", -1)
         self.assertEqual(out_latest.read(), b"v2")
+
+
+class TestAsyncBlobFile(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        collection = await SampleBlobModel.get_init_collection_async()
+        from pymongo.asynchronous.collection import AsyncCollection
+        assert isinstance(collection, AsyncCollection)
+        await collection.delete_many({})
         
+        db = SampleBlobModel.get_model_driver().get_db(with_async=True)
+        from pymongo.asynchronous.database import AsyncDatabase
+        assert isinstance(db, AsyncDatabase)
+        await db["test_blob_collection.chunks"].delete_many({})
+
+    async def test_persist_async(self):
+        blob = SampleBlobModel(filename="async_test.txt", content=b"hello async world")
+        result = await blob.persist_async()
+        self.assertTrue(result)
+        self.assertIsNotNone(blob.id)
+
+        # Read it back using gridfs
+        fs = SampleBlobModel.get_gridfs_async()
+        out = await fs.open_download_stream(blob.id)
+        content = await out.read()
+        self.assertEqual(content, b"hello async world")
+        self.assertEqual(out.filename, "async_test.txt")
+
+    async def test_open_read_file_async(self):
+        meta = SampleMetadata(author="async_bot", topic="async_testing")
+        blob = SampleBlobModel(filename="async_meta_test.txt", content=b"async metadata content", metadata=meta)
+        result = await blob.persist_async()
+        self.assertTrue(result)
+        self.assertIsNotNone(blob.id)
+
+        empty_blob = SampleBlobModel(filename="async_meta_test.txt")
+        out_empty = await empty_blob.open_read_file_async()
+        content = await out_empty.read()
+        
+        self.assertEqual(content, b"async metadata content")
+        self.assertEqual(empty_blob.id, blob.id)
+        self.assertIsNotNone(empty_blob.metadata)
+        self.assertEqual(empty_blob.metadata.author, "async_bot")
+        self.assertEqual(empty_blob.metadata.topic, "async_testing")
+
 if __name__ == "__main__":
     unittest.main()

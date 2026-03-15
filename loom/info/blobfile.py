@@ -46,25 +46,47 @@ class BlobFileModel(PersistableBase):
             'metadata'  : getattr(gridout, 'metadata', None),
         })
 
-    def pull_file(self):
-        fs=self.get_gridfs()
+    def open_read_file(self):
+        fs = self.get_gridfs()
 
-        if (self.is_entangled()):
-            out = fs.get(self.collapse_id())
+        if self.is_entangled():
+            input = fs.open_download_stream(self.collapse_id())
         else:
-            out = fs.get_last_version(filename=self.filename)
+            input = fs.open_download_stream_by_name(self.filename, revision=-1)
 
-        updated_model = self.from_gridout(out)
+        updated_model = self.from_gridout(input)
         self.__dict__.update(updated_model.__dict__)
         
-        return out
+        return input
+
+    async def open_read_file_async(self):
+        fs = self.get_gridfs_async()
+
+        if self.is_entangled():
+            input = await fs.open_download_stream(self.collapse_id())
+        else:
+            input = await fs.open_download_stream_by_name(self.filename, revision=-1)
+
+        updated_model = self.from_gridout(input)
+        self.__dict__.update(updated_model.__dict__)
+        
+        return input
             
     @classmethod
-    def load_version(cls, filename: str, version: int) -> Optional[gridfs.GridOut]:
-        fs=cls.get_gridfs()
+    def load_version(cls, filename: str, version: int = -1):
+        fs = cls.get_gridfs()
 
         try:
-            return fs.get_version(filename=filename, version=version)
+            return fs.open_download_stream_by_name(filename=filename, revision=version)
+        except gridfs.errors.NoFile:
+            return None
+
+    @classmethod
+    async def load_version_async(cls, filename: str, version: int = -1):
+        fs = cls.get_gridfs_async()
+
+        try:
+            return await fs.open_download_stream_by_name(filename=filename, revision=version)
         except gridfs.errors.NoFile:
             return None
 
@@ -76,12 +98,17 @@ class BlobFileModel(PersistableBase):
         
         return cls.from_gridout(out)
 
-
     @classmethod
     def get_gridfs(cls):
         driver = cls.get_model_driver()
         assert(isinstance(driver, MongoDbGridFSDriver))
         return driver.get_gridfs()
+
+    @classmethod
+    def get_gridfs_async(cls):
+        driver = cls.get_model_driver()
+        assert(isinstance(driver, MongoDbGridFSDriver))
+        return driver.get_gridfs_async()
         
     def persist(self, lazy: bool = False):
         metadata_doc = self.dump_metadata()
@@ -92,9 +119,28 @@ class BlobFileModel(PersistableBase):
 
         filename = self.get_filename()
         
-        fs=self.get_gridfs()
-        id = fs.put(buffer, filename=filename, metadata=metadata_doc)
-        if (id):
+        fs = self.get_gridfs()
+        id = fs.upload_from_stream(filename, buffer, metadata=metadata_doc)
+        if id:
+            self.id = id
+
+        return True
+
+    async def persist_async(self, lazy: bool = False):
+        metadata_doc = self.dump_metadata()
+
+        buffer = self.dump_buffer()
+        if hasattr(buffer, 'seek'):
+            buffer.seek(0)
+
+        filename = self.get_filename()
+        
+        fs = self.get_gridfs_async()
+        
+        # GridFSBucket requires bytes or text stream, checking if an async method must be used
+        # PyMongo AsyncGridFSBucket allows passing standard sync streams that yield bytes.
+        id = await fs.upload_from_stream(filename, buffer, metadata=metadata_doc)
+        if id:
             self.id = id
 
         return True
