@@ -13,6 +13,7 @@ class PerfTimer:
         self.count: int = 0
         self.depth: int = depth
         self._start_time: Optional[float] = None
+        self.description: str = ""
     
     def start(self):
         self._start_time = time.perf_counter()
@@ -74,7 +75,7 @@ class PerfTimer:
             percentage = (self.total_time / parent_total) * 100
             percentage_str = f" ({percentage:.1f}%)"
 
-        retval = f"\n{prefix}{name_str} -> {self.count} times in {duration_str}{percentage_str}"
+        retval = f"\n{prefix}{name_str}:{self.description} -> {self.count} times in {duration_str}{percentage_str}"
 
         if len(self.child_timers):
             # Sort children by total_time descending to show heaviest hitters first
