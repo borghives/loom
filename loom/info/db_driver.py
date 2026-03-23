@@ -5,7 +5,7 @@ from loom.info.db_client import DbClientFactory
 from loom.info.index import Index
 from dataclasses import dataclass
 
-from pymongo import MongoClient, AsyncMongoClient
+from pymongo import MongoClient, AsyncMongoClient, errors
 from pymongo.database import Database
 from pymongo.collection import Collection
 from pymongo.asynchronous.database import AsyncDatabase
@@ -96,20 +96,23 @@ class MongoDbModelDriver:
     def create_collection(self, **kvargs):
         db = self.get_db()
         assert isinstance(db, Database)
-        collection_names = db.list_collection_names()
+
         name = self.get_db_collection_name()
 
-        if name not in collection_names:
+        try:
             db.create_collection(name, **kvargs)
+        except errors.CollectionInvalid:
+            pass
 
     async def create_collection_async(self, **kvargs):
         db = self.get_db(with_async=True)
         assert isinstance(db, AsyncDatabase)
-        collection_names = await db.list_collection_names()
         name = self.get_db_collection_name()
 
-        if name not in collection_names:
+        try:
             await db.create_collection(name, **kvargs)
+        except errors.CollectionInvalid:
+            pass
 
     def create_index(self):
         indexes = self.index

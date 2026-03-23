@@ -20,7 +20,7 @@ if [ $? -ne 0 ]; then
 fi
 
 SECRET_NAME="mongodb_${DB_USER}"
-SECRET=$(get_or_create_secret ${SECRET_NAME})
+SECRET=$(create-or-rotate-secret ${SECRET_NAME})
 
 if [ $? -eq 0 ]; then
     sitedb user set --uri $AUTH_URI --name $DB_USER --password "${SECRET}" --write market_metric
