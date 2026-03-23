@@ -100,7 +100,7 @@ class MongoDbModelDriver:
         name = self.get_db_collection_name()
 
         try:
-            db.create_collection(name, **kvargs)
+            db.create_collection(name, check_exists=False, **kvargs)
         except errors.CollectionInvalid:
             pass
 
@@ -110,7 +110,7 @@ class MongoDbModelDriver:
         name = self.get_db_collection_name()
 
         try:
-            await db.create_collection(name, **kvargs)
+            await db.create_collection(name, check_exists=False, **kvargs)
         except errors.CollectionInvalid:
             pass
 
