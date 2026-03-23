@@ -1,6 +1,6 @@
 [project]
 name = "loom"
-version = "3.2.0"
+version = "3.4.0"
 description = "A Python library for data analysis and persistence."
 authors = [{ name = "Ed Dao", email = "ed@intellogic.com" }]
 requires-python = ">=3.12,<3.14"
@@ -15,7 +15,6 @@ keywords = [
 dependencies = [
     "pydantic (>=2.11.7,<3.0.0)",
     "pyrsistent (>=0.20.0,<0.21.0)",
-    "google-cloud-secret-manager (>=2.24.0,<3.0.0)",
     "pymongo (>=4.15.3,<5.0.0)",
     "keyring (>=25.6.0,<26.0.0)",
     "pandas (>=2.2.2,<2.4)",
@@ -25,6 +24,7 @@ dependencies = [
     "pyarrow (>=21.0.0,<23.0.0)",
     "pymongoarrow (>=1.10.0,<2.0.0)",
     "polars (>=1.25.0,<2.0.0)",
+    "dotenvsecret",
 ]
 repository = "https://github.com/borghives/loom"
 homepage = "https://github.com/borghives/loom"
@@ -54,3 +54,6 @@ dev = [
 members = [
     "temp_uv_check/test_proj",
 ]
+
+[tool.uv.sources]
+dotenvsecret = { git = "https://github.com/borghives/dotenvsecret" }

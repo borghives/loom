@@ -1,0 +1,17 @@
+#!/bin/bash
+
+NAME=$1
+
+if [ -z "$NAME" ]; then
+    echo "Usage: $0 <name>"
+    exit 1
+fi
+
+DB_USER="${NAME}_admin"
+USER_AUTH=$(./get_user_auth ${DB_USER})
+
+if [ $? -eq 0 ]; then
+    echo $USER_AUTH
+else
+    exit 1
+fi

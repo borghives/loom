@@ -1,0 +1,27 @@
+#!/bin/bash
+
+DB_NAME=$1
+DB_USER=$2
+
+if [ -z "$DB_NAME" ]; then
+    echo "Usage: $0 <db_name> <db_user>"
+    exit 1
+fi
+
+if [ -z "$DB_USER" ]; then
+    echo "Usage: $0 <db_name> <db_user>"
+    exit 1
+fi
+
+AUTH_URI=mongodb://$(./get_admin_auth ${DB_NAME})@${DB_NAME}:27017/
+if [ $? -ne 0 ]; then
+    echo "Admin Secret does not exist."
+    exit 1
+fi
+
+SECRET_NAME="mongodb_${DB_USER}"
+SECRET=$(get_or_create_secret ${SECRET_NAME})
+
+if [ $? -eq 0 ]; then
+    sitedb user set --uri $AUTH_URI --name $DB_USER --password "${SECRET}" --write market_metric
+fi

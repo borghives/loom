@@ -8,8 +8,7 @@ from loom.info import PersistableBase
 from typing import List
 from typing import Optional
 from loom.info.db_fs_driver import MongoDbGridFSDriver
-from loom.info.db_client import LocalClientFactory
-from loom.info.db_client import DbClientFactory
+from loom.info.db_client import DbClientFactory, UriClientFactory
 from loom.info.index import Index
 import gridfs
 
@@ -148,7 +147,7 @@ class BlobFileModel(PersistableBase):
 def declare_persist_fs(
     collection_name: str,
     db_name: str,
-    client_factory: DbClientFactory = LocalClientFactory(),
+    client_factory: DbClientFactory = UriClientFactory(),
     version: Optional[int] = None,
     index: Optional[List[Index]] = None,
     test: bool = False,

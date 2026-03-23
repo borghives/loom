@@ -11,8 +11,6 @@ from loom.info import (
     LiteralInput,
 )
 
-from loom.info.universal import access_secret
-
 from loom.time import (
     TimeFrameResolution,
     TimeFrame,
@@ -43,7 +41,6 @@ lit = LiteralInput
 __all__ = [
     "AggregationStages",
     "QueryPredicates",
-    "access_secret",
     "TimeQuery",
     "Index",
 

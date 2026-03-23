@@ -1,0 +1,33 @@
+#!/bin/bash
+go install github.com/borghives/sitestate/sitedb@latest
+SECRET_NAME="mongodb_mini_admin"
+MONGODB_NOAUTH_URI="mongodb://mini:27017/"
+
+# Check if the test admin secret exists
+if gcloud secrets describe "$SECRET_NAME" >/dev/null 2>&1; then
+    echo "Admin Secret exists. Using the latest version..."
+else
+    echo "Admin Secret does not exist. Creating..."
+    head -c 32 /dev/urandom | base64 | tr -d '\n' | gcloud secrets create "${SECRET_NAME}" --data-file=-
+    MONGODB_ADMIN_SECRET=$(gcloud secrets versions access latest --secret="${SECRET_NAME}")
+    if [ -z "${MONGODB_ADMIN_SECRET}" ]; then
+        echo "Failed to create admin secret."
+        exit 1
+    fi
+    sitedb admin set --uri $MONGODB_NOAUTH_URI --name testadmin --password "${MONGODB_ADMIN_SECRET}"
+
+    echo """
+Test Admin secret created.  Edit mongodb.conf (/opt/homebrew/etc/mongod.conf) add:
+
+security:
+  authorization: enabled
+
+
+Restart mongodb: brew services restart mongodb-community
+Run this script once more to add testuser
+"""
+    exit 0
+
+fi
+
+./set_db_test_user mini testuser 
