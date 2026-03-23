@@ -99,14 +99,19 @@ class MongoDbModelDriver:
 
         name = self.get_db_collection_name()
 
-        db.create_collection(name, **kvargs)
+        try:
+            db.create_collection(name, **kvargs)
+        except errors.CollectionInvalid:
+            pass
 
     async def create_collection_async(self, **kvargs):
         db = self.get_db(with_async=True)
         assert isinstance(db, AsyncDatabase)
         name = self.get_db_collection_name()
-
-        await db.create_collection(name, **kvargs)
+        try:
+            await db.create_collection(name, **kvargs)
+        except errors.CollectionInvalid:
+            pass
 
     def create_index(self):
         indexes = self.index
