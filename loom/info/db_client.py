@@ -45,8 +45,6 @@ class DbClientFactory(ABC):
 class UriClientFactory(DbClientFactory):
     def __init__(self, uri: str = "", **kvargs):
         super().__init__(**kvargs)
-        print(f"MONGODB_URI {os.getenv("MONGODB_URI")}")
         self.uri = uri or os.getenv("MONGODB_URI") or LOCAL_MONGODB_CLIENT_URI
-        print(f"self.uri {self.uri}")
     def get_client_uri(self) -> str:
         return self.uri
