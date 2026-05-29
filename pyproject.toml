@@ -29,6 +29,12 @@ dependencies = [
 repository = "https://github.com/borghives/loom"
 homepage = "https://github.com/borghives/loom"
 
+[tool.pyrefly]
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
+]
+
 [project.urls]
 Homepage = "https://github.com/borghives/loom"
 Repository = "https://github.com/borghives/loom"
