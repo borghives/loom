@@ -33,7 +33,7 @@ class ExpressionDriver:
         metadata = field_info.metadata
         return [item for item in metadata if isinstance(item, NormalizeQueryInput)]
 
-    def marshal(self, value):
+    def marshal(self, value: Any) -> Any:
         if isinstance(value, Expression):
             return value.express(self)
         if isinstance(value, dict):
@@ -62,7 +62,7 @@ class Expression(ABC):
         """
         pass
     
-    def express(self, driver: Optional[ExpressionDriver] = None):
+    def express(self, driver: Optional[ExpressionDriver] = None) -> Any:
         if driver is None:
             driver = ExpressionDriver({})
         
@@ -96,7 +96,7 @@ class FieldName(Expression):
     def repr_value(self):
         return self.field_name
 
-    def express(self, driver: Optional[ExpressionDriver] = None):
+    def express(self, driver: Optional[ExpressionDriver] = None) -> Any:
         return driver.get_alias(self.repr_value) if driver else self.repr_value
     
 class FieldPath(Expression):
@@ -112,7 +112,7 @@ class FieldPath(Expression):
     def repr_value(self):
         return f"${self.field_name}"
 
-    def express(self, driver: Optional[ExpressionDriver] = None):
+    def express(self, driver: Optional[ExpressionDriver] = None) -> Any:
         field_alias = driver.get_alias(self.field_name) if driver else self.field_name
         return f"${field_alias}"
         
@@ -135,7 +135,7 @@ class LiteralInput(Expression):
     def repr_value(self):
         return self.literal_input
 
-    def express(self, driver: Optional[ExpressionDriver] = None):
+    def express(self, driver: Optional[ExpressionDriver] = None) -> Any:
         if driver is None or not self.linked_field_name:
             return self.repr_value
         
